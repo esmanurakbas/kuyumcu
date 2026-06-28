@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AKBAŞ - Giriş</title>
+    <link rel="icon" type="image/png" href="/static/logo.png" />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+      
+      .login-container {
+        background: #fff;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        padding: 40px;
+        width: 100%;
+        max-width: 400px;
+        animation: slideIn 0.5s ease;
+      }
+      
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(-20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      
+      .logo-container {
+        text-align: center;
+        margin-bottom: 30px;
+      }
+      
+      .logo {
+        width: 80px;
+        height: 80px;
+        margin-bottom: 15px;
+        filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+      }
+      
+      .brand-name {
+        font-size: 32px;
+        font-weight: 800;
+        background: linear-gradient(135deg, #C29543 0%, #F4D03F 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        letter-spacing: 2px;
+        margin-bottom: 5px;
+      }
+      
+      .brand-subtitle {
+        font-size: 13px;
+        color: #6B7280;
+        font-weight: 600;
+        letter-spacing: 1px;
+      }
+      
+      .form-group {
+        margin-bottom: 25px;
+      }
+      
+      label {
+        display: block;
+        font-size: 14px;
+        font-weight: 700;
+        color: #374151;
+        margin-bottom: 8px;
+      }
+      
+      input[type="password"] {
+        width: 100%;
+        padding: 14px 16px;
+        border: 2px solid #E5E7EB;
+        border-radius: 10px;
+        font-size: 15px;
+        transition: all 0.3s;
+        font-family: monospace;
+        letter-spacing: 2px;
+      }
+      
+      input[type="password"]:focus {
+        outline: none;
+        border-color: #C29543;
+        box-shadow: 0 0 0 4px rgba(194, 149, 67, 0.1);
+      }
+      
+      .login-btn {
+        width: 100%;
+        padding: 14px;
+        background: linear-gradient(135deg, #C29543 0%, #F4D03F 100%);
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s;
+        letter-spacing: 1px;
+      }
+      
+      .login-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(194, 149, 67, 0.3);
+      }
+      
+      .login-btn:active {
+        transform: translateY(0);
+      }
+      
+      .error-message {
+        background: #FEE2E2;
+        color: #991B1B;
+        padding: 12px 16px;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        display: none;
+        border-left: 4px solid #DC2626;
+      }
+      
+      .error-message.show {
+        display: block;
+        animation: shake 0.5s;
+      }
+      
+      @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-10px); }
+        75% { transform: translateX(10px); }
+      }
+      
+      .security-info {
+        margin-top: 25px;
+        padding-top: 20px;
+        border-top: 1px solid #E5E7EB;
+        font-size: 12px;
+        color: #9CA3AF;
+        text-align: center;
+        line-height: 1.6;
+      }
+      
+      .security-info svg {
+        width: 14px;
+        height: 14px;
+        vertical-align: middle;
+        margin-right: 4px;
+      }
+      
+      @media (max-width: 480px) {
+        .login-container {
+          padding: 30px 25px;
+        }
+        
+        .brand-name {
+          font-size: 28px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="login-container">
+      <div class="logo-container">
+        <img src="/static/logo.png" alt="AKBAŞ Logo" class="logo" onerror="this.style.display='none'" />
+        <div class="brand-name">AKBAŞ</div>
+        <div class="brand-subtitle">KUYUMCU TAKİP SİSTEMİ</div>
+      </div>
+      
+      <div id="error" class="error-message"></div>
+      
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="password">Şifre</label>
+          <input 
+            type="password" 
+            id="password" 
+            name="password" 
+            placeholder="••••••"
+            autocomplete="off"
+            required 
+          />
+        </div>
+        
+        <button type="submit" class="login-btn">
+          GİRİŞ YAP
+        </button>
+      </form>
+      
+      <div class="security-info">
+        <svg fill="currentColor" viewBox="0 0 16 16">
+          <path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/>
+        </svg>
+        Güvenli Bağlantı • Session Timeout: 1 saat
+      </div>
+    </div>
+    
+    <script>
+      const form = document.getElementById('loginForm');
+      const errorDiv = document.getElementById('error');
+      const passwordInput = document.getElementById('password');
+      
+      // Otomatik focus
+      passwordInput.focus();
+      
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const password = passwordInput.value;
+        
+        try {
+          const response = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password })
+          });
+          
+          const data = await response.json();
+          
+          if (response.ok && data.status === 'success') {
+            // Session token cookie'ye kaydedildi, ana sayfaya yönlendir
+            window.location.href = '/';
+          } else {
+            showError(data.message || 'Şifre hatalı. Lütfen tekrar deneyin.');
+            passwordInput.value = '';
+            passwordInput.focus();
+          }
+        } catch (error) {
+          showError('Bağlantı hatası. Lütfen tekrar deneyin.');
+        }
+      });
+      
+      function showError(message) {
+        errorDiv.textContent = message;
+        errorDiv.classList.remove('show');
+        setTimeout(() => errorDiv.classList.add('show'), 10);
+        
+        setTimeout(() => {
+          errorDiv.classList.remove('show');
+        }, 4000);
+      }
+      
+      // Enter tuşu ile gönder
+      passwordInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          form.dispatchEvent(new Event('submit'));
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AKBAŞ</title>
+    <link rel="icon" type="image/png" href="/static/logo.png" />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="/static/logo.png" alt="Logo" class="brand-logo" />
+        <div>
+          <strong>AKBAŞ</strong>
+        </div>
+      </div>
+      <nav>
+        <button class="nav active" data-view="dashboard">Dashboard</button>
+        <button class="nav" data-view="alis">Alış</button>
+        <button class="nav" data-view="satis">Satış</button>
+        <button class="nav" data-view="hurda">Hurda</button>
+        <button class="nav" data-view="stok">Stok</button>
+        <button class="nav" data-view="cari">Cari</button>
+      </nav>
+    </aside>
+
+    <main class="app">
+      <header class="topbar">
+        <div>
+          <h1 id="pageTitle">Dashboard</h1>
+          <p id="pageSubtitle">Güncel genel durum</p>
+        </div>
+        <div class="topbar-controls">
+          <div id="cari-slider" class="cari-slider" style="display: none;">
+            <button type="button" class="slider-btn active" data-value="tedarikci">Tedarikçi</button>
+            <button type="button" class="slider-btn" data-value="musteri">Müşteri</button>
+            <button type="button" class="slider-btn" data-value="all">Tümü</button>
+          </div>
+          <input id="search" type="search" placeholder="Ara..." autocomplete="off" />
+        </div>
+      </header>
+
+      <section id="content"></section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
