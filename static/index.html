@@ -23,6 +23,7 @@
         <button class="nav" data-view="stok">Stok</button>
         <button class="nav" data-view="cari">Cari</button>
       </nav>
+      <button id="logoutBtn" class="logout" type="button">Çıkış</button>
     </aside>
 
     <main class="app">
@@ -32,11 +33,7 @@
           <p id="pageSubtitle">Güncel genel durum</p>
         </div>
         <div class="topbar-controls">
-          <div id="cari-slider" class="cari-slider" style="display: none;">
-            <button type="button" class="slider-btn active" data-value="tedarikci">Tedarikçi</button>
-            <button type="button" class="slider-btn" data-value="musteri">Müşteri</button>
-            <button type="button" class="slider-btn" data-value="all">Tümü</button>
-          </div>
+          <button id="exportBtn" class="top-export-button" type="button" title="Yedek almak i&#x00E7;in t&#x00FC;m verileri JSON olarak indirir.">T&#x00DC;M VER&#x0130;LER&#x0130; DI&#x015E;A AKTAR</button>
           <input id="search" type="search" placeholder="Ara..." autocomplete="off" />
         </div>
       </header>

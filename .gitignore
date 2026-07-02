@@ -1,0 +1,28 @@
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments / local config
+.env
+.venv/
+venv/
+
+# Runtime logs
+*.log
+uvicorn*.log
+
+# Local browser/runtime profiles
+.chrome_debug_profile/
+
+# Local databases and backups
+*.db
+*.sqlite
+*.sqlite3
+*_backup.db
+
+# Exported backups
+kuyumcu_backup_*.json
+*.bak

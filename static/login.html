@@ -137,6 +137,12 @@
         border-left: 4px solid #DC2626;
       }
       
+      .error-message.success {
+        background: #DCFCE7;
+        color: #166534;
+        border-left-color: #16A34A;
+      }
+      
       .error-message.show {
         display: block;
         animation: shake 0.5s;
@@ -234,9 +240,9 @@
           
           const data = await response.json();
           
-          if (response.ok && data.status === 'success') {
-            // Session token cookie'ye kaydedildi, ana sayfaya yönlendir
-            window.location.href = '/';
+          if (response.ok && data.status === 'ok') {
+            showSuccess(data.message || 'Giriş başarılı');
+            setTimeout(() => { window.location.href = '/'; }, 350);
           } else {
             showError(data.message || 'Şifre hatalı. Lütfen tekrar deneyin.');
             passwordInput.value = '';
@@ -247,7 +253,13 @@
         }
       });
       
-      function showError(message) {
+      function showSuccess(message) {
+        errorDiv.textContent = message;
+        errorDiv.classList.add('success');
+        errorDiv.classList.remove('show');
+        setTimeout(() => errorDiv.classList.add('show'), 10);
+      }
+            function showError(message) {
         errorDiv.textContent = message;
         errorDiv.classList.remove('show');
         setTimeout(() => errorDiv.classList.add('show'), 10);
