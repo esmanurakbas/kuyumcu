@@ -1812,3 +1812,1248 @@ td {
     justify-self: start;
   }
 }
+/* Keep action columns visually centered in every desktop/tablet table */
+@media (min-width: 681px) {
+  .table-wrap th:last-child,
+  .table-wrap td.actions-cell {
+    text-align: center;
+    vertical-align: middle;
+  }
+
+  .table-wrap td.actions-cell {
+    display: table-cell;
+    white-space: nowrap;
+    min-width: 86px;
+  }
+
+  .table-wrap td.actions-cell .icon-btn {
+    margin: 0 3px;
+    vertical-align: middle;
+  }
+}
+
+.payment-action-box {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #d8d1c2;
+  border-radius: 8px;
+  background: #fffdf7;
+}
+
+.payment-action-box div {
+  display: grid;
+  gap: 3px;
+}
+
+.payment-action-box span {
+  color: #6f6a5d;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.payment-action-box strong {
+  color: #1d2b2a;
+  font-size: 15px;
+}
+
+.payment-open-btn {
+  white-space: nowrap;
+}
+
+.payment-modal {
+  width: min(560px, 94vw);
+}
+
+/* Sade form ve popup dokunuşları */
+.form-panel {
+  padding: 16px;
+  background: #fffefa;
+  box-shadow: 0 8px 24px rgba(41, 37, 29, 0.05);
+}
+
+.entry-form {
+  gap: 12px;
+}
+
+.field {
+  gap: 5px;
+  color: #59636b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+#search,
+.entry-form input,
+.entry-form select,
+.entry-form textarea {
+  border-color: #d8d2c5;
+  background: #fffdf2;
+  border-radius: 7px;
+  padding: 9px 10px;
+  box-shadow: none;
+}
+
+.entry-form input:not([readonly]),
+.entry-form select,
+.entry-form textarea {
+  background: #fffdf2;
+}
+
+.entry-form input[readonly] {
+  background: #f0f1ef;
+  color: #56605b;
+}
+
+#search:focus,
+.entry-form input:focus,
+.entry-form select:focus,
+.entry-form textarea:focus {
+  border-color: #b99a62;
+  box-shadow: 0 0 0 2px rgba(185, 154, 98, 0.14);
+  background: #fffef8;
+}
+
+.has-preview {
+  background: #f6f3eb;
+  border: 1px solid #d8d2c5;
+  border-radius: 7px;
+  padding: 10px 12px;
+}
+
+.has-preview span {
+  font-size: 12px;
+  color: #69706b;
+}
+
+.has-preview strong {
+  font-size: 17px;
+  color: #39443f;
+}
+
+.payment-action-box {
+  padding: 10px 12px;
+  border-color: #d8d2c5;
+  background: #fbfaf5;
+  box-shadow: none;
+}
+
+.payment-action-box span {
+  color: #68706b;
+  font-size: 11px;
+  letter-spacing: 0;
+}
+
+.payment-action-box strong {
+  color: #25302c;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.form-bottom-actions {
+  border-top: 1px solid #e3ded3;
+  padding-top: 12px;
+}
+
+.form-bottom-actions button,
+.form-actions button,
+button.secondary,
+.payment-open-btn {
+  border-radius: 7px;
+  box-shadow: none;
+  transform: none;
+}
+
+.form-bottom-actions button:hover,
+.form-actions button:hover,
+button.secondary:hover,
+.payment-open-btn:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+button.secondary,
+.payment-open-btn {
+  border: 1px solid #cfc7b8;
+  background: #ffffff;
+  color: #29342f;
+  padding: 10px 14px;
+  font-weight: 700;
+}
+
+.payment-open-btn:hover,
+button.secondary:hover {
+  background: #f6f3eb;
+}
+
+.modal {
+  background: rgba(32, 38, 45, 0.28);
+  padding: 22px;
+}
+
+.modal-box {
+  border: 1px solid #ded8cc;
+  border-radius: 10px;
+  box-shadow: 0 18px 42px rgba(31, 35, 33, 0.16);
+  padding: 18px;
+  background: #fffefa;
+}
+
+.payment-modal {
+  width: min(520px, 94vw);
+}
+
+.modal-title {
+  margin: 0 0 14px;
+  color: #22302b;
+  font-size: 18px;
+}
+
+.payment-modal .field {
+  margin-bottom: 10px;
+}
+
+.payment-modal .has-preview {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.purchase-actions {
+  padding: 2px 0 4px;
+}
+
+.purchase-note {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.payment-type-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 2px 0 14px;
+  padding: 4px;
+  border: 1px solid #ddd6c8;
+  border-radius: 9px;
+  background: #f6f3eb;
+}
+
+.payment-type-tab {
+  border: 0;
+  border-radius: 7px;
+  padding: 9px 8px;
+  background: transparent;
+  color: #59636b;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.payment-type-tab:hover {
+  background: #fffefa;
+}
+
+.payment-type-tab.active {
+  background: #ffffff;
+  color: #21312c;
+  box-shadow: 0 1px 4px rgba(41, 37, 29, 0.08);
+}
+
+@media (max-width: 640px) {
+  .payment-type-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.cari-payment-form .payment-type-tabs {
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 2px;
+}
+
+@media (max-width: 640px) {
+  .cari-payment-form .payment-type-tabs {
+    grid-template-columns: 1fr;
+  }
+}
+
+.payment-fill-field:not(.hidden) {
+  padding: 10px;
+  border: 1px solid #e2dccf;
+  border-radius: 8px;
+  background: #fffaf0;
+}
+
+.payment-fill-field:not(.hidden) input {
+  background: #fffef8;
+}
+
+.payment-preview:not(.hidden),
+.cari-payment-preview:not(.hidden) {
+  background: #f7f5ee;
+  border-color: #ded8cc;
+}
+
+.kebab-btn {
+  font-size: 20px;
+  line-height: 1;
+  font-weight: 800;
+}
+
+.cari-actions-modal {
+  width: min(380px, 92vw);
+}
+
+.cari-action-list {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 14px;
+}
+
+.cari-action-btn {
+  width: 100%;
+  border: 1px solid #d8d2c5;
+  border-radius: 8px;
+  background: #fffdf8;
+  color: #25302c;
+  padding: 11px 12px;
+  text-align: left;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.cari-action-btn:hover {
+  background: #f6f3eb;
+}
+
+.cari-action-btn.danger {
+  color: var(--red);
+  border-color: #efc7c2;
+  background: #fff8f7;
+}
+
+.cari-person-modal .cari-payment-panel {
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+}
+.cari-actions-modal {
+  width: min(420px, 94vw);
+  padding: 18px;
+}
+
+.cari-actions-title {
+  display: block;
+  margin-bottom: 12px;
+}
+
+.cari-actions-title h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+  color: #23302c;
+}
+
+.cari-actions-title p {
+  margin: 0;
+  color: #6b716d;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.cari-action-list {
+  gap: 7px;
+}
+
+.cari-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 40px;
+  border-radius: 7px;
+  background: #fffefa;
+  font-size: 13px;
+}
+
+.cari-action-btn::after {
+  content: ">";
+  color: #9a8f7d;
+  font-weight: 800;
+}
+
+.cari-action-btn.danger::after {
+  color: var(--red);
+}
+
+.kebab-btn {
+  width: 34px;
+  height: 34px;
+  border-color: #ded7c8;
+  background: #fffefa;
+  color: #52605a;
+  font-size: 18px;
+  letter-spacing: 0;
+}
+
+.kebab-btn:hover {
+  background: #f5f1e8;
+  color: #27342f;
+}
+
+.cari-person-modal {
+  width: min(560px, 94vw);
+}
+
+.cari-person-modal .modal-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.cari-person-modal .modal-title h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.cari-person-modal .entry-form {
+  gap: 10px;
+}
+
+.cari-person-modal .payment-type-tabs {
+  margin: 0 0 4px;
+  background: #f7f4ed;
+}
+
+.cari-person-modal .payment-fill-field:not(.hidden) {
+  background: #fffdf6;
+  border-color: #ded8cc;
+}
+
+.cari-person-modal input::placeholder {
+  color: #9a9285;
+}
+
+
+/* Cari modal refinements */
+.cari-person-modal {
+  width: min(680px, 96vw);
+}
+
+.cari-person-modal .entry-form {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: 14px;
+}
+
+.cari-person-modal .cari-person-field,
+.cari-person-modal .cari-payment-preview,
+.cari-person-modal .cari-note-field,
+.cari-person-modal .form-bottom-actions {
+  grid-column: 1 / -1;
+}
+
+.cari-person-modal .cari-person-field select {
+  width: 100%;
+  min-width: 0;
+}
+
+.cari-person-modal .cari-payment-preview {
+  grid-template-columns: minmax(130px, 1fr) minmax(96px, auto) minmax(92px, 1fr) minmax(96px, auto);
+  align-items: center;
+  gap: 8px 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.cari-person-modal .cari-payment-preview span,
+.cari-person-modal .cari-payment-preview strong {
+  white-space: nowrap;
+}
+
+.cari-person-modal .cari-note-field textarea {
+  width: 100%;
+  min-height: 70px;
+  resize: vertical;
+}
+
+.cari-rename-modal {
+  width: min(430px, 94vw);
+}
+
+.cari-rename-modal .modal-title {
+  display: block;
+  margin-bottom: 12px;
+}
+
+.cari-rename-modal .modal-title h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+
+.cari-rename-modal .modal-title p {
+  margin: 0;
+  color: #68706b;
+  font-size: 13px;
+}
+
+.rename-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #d8d2c5;
+  border-radius: 7px;
+  background: #fffdf2;
+  padding: 10px 11px;
+  color: #23302c;
+}
+
+.rename-input:focus {
+  outline: none;
+  border-color: #b99a62;
+  box-shadow: 0 0 0 2px rgba(185, 154, 98, 0.14);
+}
+
+.cari-danger-note {
+  display: block;
+  margin: -3px 2px 4px;
+  color: #a33a32;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+@media (max-width: 640px) {
+  .cari-person-modal .entry-form {
+    grid-template-columns: 1fr;
+  }
+
+  .cari-person-modal .cari-payment-preview {
+    grid-template-columns: 1fr auto;
+  }
+}
+
+
+/* Balanced Cari payment modal */
+.cari-person-modal {
+  width: min(610px, 95vw);
+}
+
+.cari-person-modal .entry-form {
+  grid-template-columns: minmax(150px, 0.82fr) minmax(270px, 1.18fr);
+  gap: 12px 14px;
+}
+
+.cari-person-modal .cari-date-field {
+  grid-column: 1;
+}
+
+.cari-person-modal .cari-person-field {
+  grid-column: 2;
+}
+
+.cari-person-modal .cari-paid-field:not(.hidden) {
+  grid-column: 1 / -1;
+  max-width: 280px;
+}
+
+.cari-person-modal .cari-product-payment-field:not(.hidden) {
+  grid-column: auto;
+}
+
+.cari-person-modal .payment-type-tabs,
+.cari-person-modal .cari-payment-preview,
+.cari-person-modal .cari-note-field,
+.cari-person-modal .form-bottom-actions {
+  grid-column: 1 / -1;
+}
+
+.cari-person-modal .cari-payment-preview {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.cari-person-modal .cari-has-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid #ded8cc;
+  border-radius: 8px;
+  background: #f7f5ee;
+}
+
+.cari-person-modal .cari-has-card span {
+  color: #6b716d;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.cari-person-modal .cari-has-card strong {
+  color: #25302c;
+  font-size: 16px;
+}
+
+.cari-person-modal .cari-note-field textarea {
+  min-height: 52px;
+  height: 52px;
+}
+
+.cari-person-modal .form-bottom-actions,
+.cari-rename-modal .form-bottom-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.payment-action-box {
+  padding: 12px 14px;
+  gap: 14px;
+  background: #fffdf8;
+  border-color: #ded7c8;
+}
+
+.payment-action-box div {
+  gap: 4px;
+}
+
+.payment-action-box strong {
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.payment-open-btn {
+  padding: 10px 16px;
+  background: #fffefa;
+}
+
+@media (max-width: 640px) {
+  .cari-person-modal .entry-form {
+    grid-template-columns: 1fr;
+  }
+
+  .cari-person-modal .cari-date-field,
+  .cari-person-modal .cari-person-field,
+  .cari-person-modal .cari-paid-field:not(.hidden) {
+    grid-column: 1;
+    max-width: none;
+  }
+}
+
+
+/* Balanced generic payment modal */
+.transaction-payment-modal {
+  width: min(560px, 94vw);
+}
+
+.transaction-payment-modal .payment-type-tabs,
+.transaction-payment-modal .payment-preview,
+.transaction-payment-modal .form-bottom-actions {
+  grid-column: 1 / -1;
+}
+
+.transaction-payment-modal .transaction-paid-field:not(.hidden) {
+  max-width: 280px;
+}
+
+.transaction-payment-modal .transaction-product-payment-field:not(.hidden) {
+  display: grid;
+}
+
+.transaction-payment-modal .form-bottom-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.transaction-payment-modal .payment-preview {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.transaction-payment-modal .payment-fill-field:not(.hidden) {
+  background: #fffdf6;
+  border-color: #ded8cc;
+}
+
+@media (min-width: 641px) {
+  .transaction-payment-modal {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px 12px;
+  }
+
+  .transaction-payment-modal .modal-title {
+    grid-column: 1 / -1;
+    margin-bottom: 2px;
+  }
+
+  .transaction-payment-modal .transaction-paid-field:not(.hidden) {
+    grid-column: 1 / 3;
+  }
+}
+
+
+/* Payment active/passive field visibility */
+:is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field {
+  padding: 10px;
+  border: 1px solid #e1d7bd;
+  border-radius: 8px;
+  background: #fff4bd;
+  transition: background .12s ease, border-color .12s ease, opacity .12s ease;
+}
+
+:is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field input {
+  background: #fffdf3;
+}
+
+:is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field.payment-inactive {
+  background: #f0f1ef;
+  border-color: #d9ddd8;
+  color: #7a827d;
+  opacity: .88;
+}
+
+:is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field.payment-inactive input {
+  background: #e9ece9;
+  color: #7a827d;
+  cursor: not-allowed;
+}
+
+:is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field:not(.payment-inactive) input {
+  background: #fff8cd;
+  border-color: #d9bd61;
+}
+
+:is(.transaction-payment-modal, .cari-person-modal) .payment-preview.payment-inactive,
+:is(.transaction-payment-modal, .cari-person-modal) .cari-payment-preview.payment-inactive {
+  opacity: .72;
+  filter: grayscale(.15);
+}
+
+.transaction-payment-modal .transaction-product-payment-field,
+.cari-person-modal .cari-product-payment-field {
+  display: grid;
+}
+
+@media (min-width: 641px) {
+  .transaction-payment-modal .transaction-product-payment-field,
+  .cari-person-modal .cari-product-payment-field {
+    grid-column: auto;
+  }
+}
+
+
+/* Payment modal final balanced layout */
+.transaction-payment-modal {
+  width: min(590px, 95vw);
+}
+
+.transaction-payment-modal,
+.cari-person-modal .entry-form {
+  gap: 10px 12px;
+}
+
+.transaction-payment-modal .payment-adet-field,
+.transaction-payment-modal .payment-gram-field,
+.transaction-payment-modal .payment-milyem-field {
+  min-width: 0;
+}
+
+.cari-person-modal {
+  width: min(640px, 95vw);
+}
+
+.cari-person-modal .entry-form {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.cari-person-modal .cari-date-field {
+  grid-column: 1 / 3;
+}
+
+.cari-person-modal .cari-person-field {
+  grid-column: 3 / 7;
+}
+
+.cari-person-modal .payment-type-tabs,
+.cari-person-modal .cari-payment-preview,
+.cari-person-modal .cari-note-field,
+.cari-person-modal .form-bottom-actions {
+  grid-column: 1 / -1;
+}
+
+.cari-person-modal .cari-paid-field {
+  grid-column: 1 / 4;
+  max-width: none;
+}
+
+.cari-person-modal .payment-adet-field {
+  grid-column: 1 / 3;
+}
+
+.cari-person-modal .payment-gram-field {
+  grid-column: 3 / 5;
+}
+
+.cari-person-modal .payment-milyem-field {
+  grid-column: 5 / 7;
+}
+
+:is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field {
+  padding: 10px 11px;
+  border-color: #b9d2e6;
+  background: #eef7ff;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.45);
+}
+
+:is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field input {
+  background: #ffffff;
+  border-color: #9fc2dc;
+  color: #21313b;
+}
+
+:is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field:not(.payment-inactive) {
+  border-color: #78acd0;
+  background: #e6f4ff;
+}
+
+:is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field:not(.payment-inactive) input {
+  background: #ffffff;
+  border-color: #6fa8ce;
+}
+
+:is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field.payment-inactive {
+  background: #f1f2f1;
+  border-color: #d7dcd8;
+  color: #78817b;
+  opacity: .92;
+}
+
+:is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field.payment-inactive input {
+  background: #e8ebe8;
+  border-color: #d1d7d2;
+  color: #7b827e;
+}
+
+:is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field input:disabled {
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .transaction-payment-modal {
+    width: min(620px, 98vw);
+  }
+
+  .transaction-payment-modal {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .cari-person-modal {
+    width: min(640px, 98vw);
+  }
+
+  .cari-person-modal .entry-form {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .cari-person-modal .cari-date-field {
+    grid-column: 1 / 3;
+  }
+
+  .cari-person-modal .cari-person-field {
+    grid-column: 3 / 7;
+  }
+}
+
+/* Restore cleaner purchase/sale/scrap payment popup */
+.transaction-payment-modal {
+  width: min(520px, 94vw);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px 10px;
+  padding: 16px;
+}
+
+.transaction-payment-modal .modal-title,
+.transaction-payment-modal .payment-type-tabs,
+.transaction-payment-modal .payment-preview,
+.transaction-payment-modal .form-bottom-actions {
+  grid-column: 1 / -1;
+}
+
+.transaction-payment-modal .transaction-paid-field {
+  grid-column: 1 / -1;
+  max-width: 260px;
+}
+
+.transaction-payment-modal .payment-adet-field,
+.transaction-payment-modal .payment-gram-field,
+.transaction-payment-modal .payment-milyem-field {
+  grid-column: auto;
+  min-width: 0;
+}
+
+.transaction-payment-modal .payment-fill-field {
+  padding: 9px 10px;
+  border: 1px solid #d9cfb8;
+  border-radius: 7px;
+  background: #fff9e8;
+  box-shadow: none;
+}
+
+.transaction-payment-modal .payment-fill-field input {
+  background: #fffdf6;
+  border-color: #d7c89e;
+  color: #26312d;
+}
+
+.transaction-payment-modal .payment-fill-field:not(.payment-inactive) {
+  background: #fff3c4;
+  border-color: #c9a84f;
+}
+
+.transaction-payment-modal .payment-fill-field:not(.payment-inactive) input {
+  background: #fffdf5;
+  border-color: #c6a249;
+}
+
+.transaction-payment-modal .payment-fill-field.payment-inactive {
+  background: #f3f4f2;
+  border-color: #d9ded9;
+  color: #7b827d;
+  opacity: .86;
+}
+
+.transaction-payment-modal .payment-fill-field.payment-inactive input {
+  background: #ecefec;
+  border-color: #d7ddd8;
+  color: #828984;
+}
+
+.transaction-payment-modal .payment-preview {
+  padding: 9px 11px;
+  background: #f7f4ed;
+  border-color: #ded8cc;
+}
+
+.transaction-payment-modal .form-bottom-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 10px;
+}
+
+@media (max-width: 520px) {
+  .transaction-payment-modal {
+    grid-template-columns: repeat(3, minmax(72px, 1fr));
+    overflow-x: auto;
+  }
+}
+
+/* Final unified payment field sizing */
+.transaction-payment-modal,
+.cari-person-modal {
+  width: min(660px, 96vw);
+}
+
+.transaction-payment-modal {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px 12px;
+  padding: 16px;
+}
+
+.cari-person-modal .entry-form {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 11px 12px;
+}
+
+.transaction-payment-modal .modal-title,
+.transaction-payment-modal .payment-type-tabs,
+.transaction-payment-modal .payment-preview,
+.transaction-payment-modal .form-bottom-actions,
+.cari-person-modal .payment-type-tabs,
+.cari-person-modal .cari-payment-preview,
+.cari-person-modal .cari-note-field,
+.cari-person-modal .form-bottom-actions {
+  grid-column: 1 / -1;
+}
+
+.cari-person-modal .cari-date-field {
+  grid-column: 1 / 2;
+}
+
+.cari-person-modal .cari-person-field {
+  grid-column: 2 / 5;
+}
+
+.transaction-payment-modal .transaction-paid-field,
+.cari-person-modal .cari-paid-field,
+.transaction-payment-modal .payment-adet-field,
+.transaction-payment-modal .payment-gram-field,
+.transaction-payment-modal .payment-milyem-field,
+.cari-person-modal .payment-adet-field,
+.cari-person-modal .payment-gram-field,
+.cari-person-modal .payment-milyem-field {
+  grid-column: auto;
+  min-width: 0;
+  max-width: none;
+}
+
+:is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field {
+  padding: 10px;
+  border: 1px solid #d9cfb8;
+  border-radius: 8px;
+  background: #fffaf0;
+  box-shadow: none;
+}
+
+:is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  background: #fffdf7;
+  border-color: #d8c89d;
+  color: #25302c;
+}
+
+:is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field:not(.payment-inactive) {
+  background: #fff2bf;
+  border-color: #c6a84e;
+}
+
+:is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field:not(.payment-inactive) input {
+  background: #fffef8;
+  border-color: #bd9b3d;
+}
+
+:is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field.payment-inactive {
+  background: #f2f3f1;
+  border-color: #d9ddd9;
+  color: #777f7a;
+  opacity: .9;
+}
+
+:is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field.payment-inactive input {
+  background: #e9ece9;
+  border-color: #d2d8d3;
+  color: #7d8580;
+}
+
+.transaction-payment-modal .form-bottom-actions,
+.cari-person-modal .form-bottom-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+@media (max-width: 560px) {
+  .transaction-payment-modal,
+  .cari-person-modal .entry-form {
+    grid-template-columns: repeat(4, minmax(82px, 1fr));
+    overflow-x: auto;
+  }
+
+  .cari-person-modal .cari-date-field {
+    grid-column: 1 / 2;
+  }
+
+  .cari-person-modal .cari-person-field {
+    grid-column: 2 / 5;
+  }
+}
+
+
+/* Final dashboard and payment popup layout polish */
+.transaction-payment-modal,
+.cari-person-modal {
+  width: min(680px, 96vw);
+  max-width: 680px;
+}
+
+.transaction-payment-modal,
+.cari-person-modal .entry-form {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 11px 12px;
+}
+
+.transaction-payment-modal .modal-title,
+.transaction-payment-modal .payment-type-tabs,
+.transaction-payment-modal .payment-preview,
+.transaction-payment-modal .form-bottom-actions,
+.cari-person-modal .payment-type-tabs,
+.cari-person-modal .cari-payment-preview,
+.cari-person-modal .cari-note-field,
+.cari-person-modal .form-bottom-actions {
+  grid-column: 1 / -1;
+}
+
+.transaction-payment-modal .transaction-paid-field,
+.cari-person-modal .cari-paid-field {
+  grid-column: 1 / -1;
+  max-width: none;
+  min-width: 0;
+}
+
+.transaction-payment-modal .payment-adet-field,
+.cari-person-modal .payment-adet-field {
+  grid-column: 1 / 3;
+}
+
+.transaction-payment-modal .payment-gram-field,
+.cari-person-modal .payment-gram-field {
+  grid-column: 3 / 5;
+}
+
+.transaction-payment-modal .payment-milyem-field,
+.cari-person-modal .payment-milyem-field {
+  grid-column: 5 / 7;
+}
+
+.cari-person-modal .cari-date-field {
+  grid-column: 1 / 3;
+}
+
+.cari-person-modal .cari-person-field {
+  grid-column: 3 / 7;
+}
+
+:is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field {
+  padding: 10px 11px;
+  border-radius: 8px;
+  border: 1px solid #d8caa8;
+  background: #fff8df;
+}
+
+:is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field:not(.payment-inactive) {
+  background: #fff0bd;
+  border-color: #c29a32;
+}
+
+:is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field:not(.payment-inactive) input {
+  background: #fffdf6;
+  border-color: #ba9231;
+}
+
+:is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field.payment-inactive {
+  background: #f1f3f1;
+  border-color: #d9dfda;
+  color: #747d78;
+  opacity: .92;
+}
+
+:is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field.payment-inactive input {
+  background: #e8ece9;
+  border-color: #d0d7d2;
+  color: #768079;
+}
+
+.transaction-payment-modal .form-bottom-actions,
+.cari-person-modal .form-bottom-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+.dashboard-groups-polished.dashboard-groups-top {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.dashboard-groups-polished.dashboard-groups-bottom {
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+  align-items: stretch;
+}
+
+.dashboard-groups-bottom .dashboard-panel:first-child .dashboard-panel-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.dashboard-groups-bottom .dashboard-panel:last-child .dashboard-panel-grid {
+  grid-template-columns: 1fr;
+}
+
+@media (max-width: 1180px) {
+  .dashboard-groups-polished.dashboard-groups-top,
+  .dashboard-groups-polished.dashboard-groups-bottom {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-groups-bottom .dashboard-panel:first-child .dashboard-panel-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .transaction-payment-modal,
+  .cari-person-modal .entry-form {
+    grid-template-columns: repeat(6, minmax(78px, 1fr));
+    overflow-x: auto;
+  }
+
+  .cari-person-modal .cari-date-field {
+    grid-column: 1 / 3;
+  }
+
+  .cari-person-modal .cari-person-field {
+    grid-column: 3 / 7;
+  }
+}
+
+
+/* Compact dashboard bottom row */
+.dashboard-groups-polished.dashboard-groups-bottom {
+  gap: 12px;
+}
+
+.dashboard-groups-bottom .dashboard-panel {
+  padding: 12px 14px;
+  min-height: 0;
+}
+
+.dashboard-groups-bottom .dashboard-panel-head {
+  margin-bottom: 8px;
+  gap: 3px;
+}
+
+.dashboard-groups-bottom .dashboard-panel-head h2 {
+  font-size: 15px;
+}
+
+.dashboard-groups-bottom .dashboard-panel-head p {
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.dashboard-groups-bottom .dashboard-panel-grid {
+  gap: 8px;
+}
+
+.dashboard-groups-bottom .metric-card {
+  padding: 9px 10px;
+  min-height: 64px;
+}
+
+.dashboard-groups-bottom .metric-card span {
+  font-size: 10px;
+}
+
+.dashboard-groups-bottom .metric-card strong {
+  font-size: 17px;
+}

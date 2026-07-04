@@ -3,7 +3,7 @@ class ExportManager {
   // Tüm verileri JSON olarak export et
   async exportAllData() {
     try {
-      const response = await fetch('/api/export/all');
+      const response = await fetch('/api/export');
       if (!response.ok) throw new Error('Export başarısız');
       
       const data = await response.json();

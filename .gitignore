@@ -26,3 +26,12 @@ uvicorn*.log
 # Exported backups
 kuyumcu_backup_*.json
 *.bak
+
+# SQLite runtime side files
+*.db-journal
+*.db-wal
+*.db-shm
+# Local data files
+/data/*.db
+/data/*.sqlite
+/data/*.sqlite3

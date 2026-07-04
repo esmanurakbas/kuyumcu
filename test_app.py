@@ -21,7 +21,7 @@ def ok(response):
 def login(client):
     response = client.post("/api/login", json={"password": "2526E"})
     assert response.status_code == 200
-    assert "başar" in response.json()["message"].casefold() or "baÅ" in response.json()["message"]
+    assert "ba\u015far" in response.json()["message"].casefold()
 
 
 def test_login_rules(tmp_path, monkeypatch):
@@ -129,6 +129,7 @@ def test_pages_and_required_business_flow(tmp_path, monkeypatch):
     hurda_options = ok(client.get("/api/hurda/urun-secenekleri"))
     assert len(hurda_options) == 1
     assert hurda_options[0]["id"] == hurda_alis["id"]
+    assert hurda_options[0]["kalan_adet"] == 1.000
 
     hurda_satis = ok(client.post("/api/hurda", json={
         "tarih": "2026-06-29", "islem_turu": "SATIS", "hurda_alis_id": hurda_alis["id"],
@@ -148,6 +149,12 @@ def test_pages_and_required_business_flow(tmp_path, monkeypatch):
     assert hurda["ozet"]["hurda_satis_tutari"] == 12824.00
     assert hurda["ozet"]["hurda_kar"] == 1832.00
     assert hurda["stok"][0]["kalan_has"] == 5.496
+    sale_rows = [row for row in hurda["kayitlar"] if main.normalize_text(row["islem_turu"]) == "satis"]
+    assert sale_rows[0]["kalan_adet"] == 0.000
+    assert sale_rows[0]["alis_milyem"] == 916.000
+    assert sale_rows[0]["satis_milyem"] == 916.000
+    assert sale_rows[0]["milyem_farki"] == 0.000
+    assert sale_rows[0]["milyem_kari"] == 0.000
 
     # Hurda normal stok tablosuna karismamali.
     stok = ok(client.get("/api/stok"))
@@ -174,6 +181,16 @@ def test_pages_and_required_business_flow(tmp_path, monkeypatch):
     assert dashboard["hurda_kalan_has"] == 5.496
     assert dashboard["hurda_kalan_gram"] == 6.000
     assert dashboard["uyari_sayisi"] == 0
+
+    normal_stock_rows = ok(client.get("/api/stok/normal"))
+    hurda_stock_rows = ok(client.get("/api/stok/hurda"))
+    cari_totals = ok(client.get("/api/cari"))
+    assert dashboard["normal_stok_has"] == round(sum(row["kalan_has"] for row in normal_stock_rows), 3)
+    assert dashboard["normal_stok_gram"] == round(sum(row["kalan_gram"] for row in normal_stock_rows), 3)
+    assert dashboard["hurda_kalan_has"] == round(sum(row["kalan_has"] for row in hurda_stock_rows), 3)
+    assert dashboard["hurda_kalan_gram"] == round(sum(row["kalan_gram"] for row in hurda_stock_rows), 3)
+    assert dashboard["toplam_musteri_borcu"] == round(sum(row["kalan_borc"] for row in cari_totals["musteriler"]), 2)
+    assert dashboard["toplam_tedarikci_borcu"] == round(sum(row["kalan_borc"] for row in cari_totals["tedarikciler"]), 2)
 
     export = ok(client.get("/api/export"))
     assert export["version"] == "1.0"
@@ -238,6 +255,42 @@ def test_purchase_id_and_turkish_char_flow_without_milyem_stock_block(tmp_path, 
 
 
 
+def test_turkish_encoding_login_and_frontend_flow_guards():
+    checked_files = ["main.py", "static/app.js", "static/login.html", "static/index.html"]
+    forbidden = ["\u00c3", "\u00c5", "\u00c4", "\ufffd", "??letme", "?zeti", "K?r", "Al??", "Sat??", "M??"]
+    for file_name in checked_files:
+        text = Path(file_name).read_text(encoding="utf-8")
+        for token in forbidden:
+            assert token not in text, (file_name, token)
+
+    login_html = Path("static/login.html").read_text(encoding="utf-8")
+    assert '<html lang="tr">' in login_html
+    assert "AKBA\u015e" in login_html
+    assert "\u015eifre" in login_html
+    assert "G\u0130R\u0130\u015e YAP" in login_html
+    assert "G\u00fcvenli Ba\u011flant\u0131" in login_html
+    assert 'autocomplete="off"' in login_html
+    assert "fetch('/api/login'" in login_html
+    assert "Giri\u015f ba\u015far\u0131l\u0131" in login_html
+    assert "\u015eifre hatal\u0131" in login_html
+
+    app_js = Path("static/app.js").read_text(encoding="utf-8")
+    assert "\u00d6deme Yok" in app_js
+    assert "Has ile \u00d6deme" in app_js
+    assert "Borcu Tam Kapat" in app_js
+    assert "openPurchaseModal" in app_js
+    assert "openHurdaPurchaseModal" in app_js
+    assert "openSelectableModal" in app_js
+    assert "openTransactionPaymentModal" in app_js
+    assert "openCariPaymentModal" in app_js
+    assert "renameCariPerson" in app_js
+    assert "openCariActions" in app_js
+    assert "showConfirm" in app_js
+    assert 'renderTabs([["all", "T\\u00dcM\\u00dc"]' in app_js
+    assert 'renderTabs([["normal", "NORMAL STOK"]' in app_js
+    assert 'api("/api/session")' in app_js
+    assert 'api("/api/logout", { method: "POST" })' in app_js
+
 def test_frontend_layout_tabs_columns_and_confirmations():
     app_js = Path("static/app.js").read_text(encoding="utf-8")
     index_html = Path("static/index.html").read_text(encoding="utf-8")
@@ -248,8 +301,10 @@ def test_frontend_layout_tabs_columns_and_confirmations():
     assert "M\\u00dc\\u015eTER\\u0130LER" in app_js
     assert "TEDAR\\u0130K\\u00c7\\u0130LER" in app_js
     assert "K\\u0130\\u015e\\u0130 / F\\u0130RMA" in app_js
-    assert "HURDA ALI\\u015e" in app_js
-    assert "HURDA SATI\\u015e" in app_js
+    assert 'data-view="hurda_alis"' in index_html
+    assert 'data-view="hurda_satis"' in index_html
+    assert "hurda_alis" in app_js
+    assert "hurda_satis" in app_js
     assert "NORMAL STOK" in app_js
     assert "HURDA STOK" in app_js
     assert "Bu al\\u0131\\u015f kayd\\u0131n\\u0131" in app_js
@@ -260,13 +315,58 @@ def test_frontend_layout_tabs_columns_and_confirmations():
     alis_form = forms_block.split("alis:", 1)[1].split("satis:", 1)[0]
     satis_form = forms_block.split("satis:", 1)[1].split("hurda:", 1)[0]
     assert "HURDA" not in app_js.split("suggestions:", 1)[1].split("customers", 1)[0]
-    for removed in ["has_fiyati", "iscilik", "ek_masraf", "odenen"]:
+    for removed in ["has_fiyati", "iscilik", "ek_masraf"]:
         assert removed not in alis_form
     for removed in ["has_fiyati", "iscilik", "ek_ucret", "indirim", "alinan"]:
         assert removed not in satis_form
     assert 'form.elements.satis_milyem.value = ""' in app_js
     assert "form.elements.satis_milyem.value = row.alis_milyem" not in app_js
+    assert "form.elements.milyem.value = row.milyem" not in app_js
+    assert "Sat\\u0131\\u015f Milyem" in app_js
+    assert "Sat\\u0131\\u015f milyem girin" in app_js
+    assert "openTransactionPaymentModal" in app_js
+    assert "transaction-payment-modal" in app_js
+    assert "transaction-product-payment-field" in app_js
+    assert "payment-inactive" in app_js
+    assert 'map((name) => form.elements[name]).filter(Boolean).forEach((input) => input.addEventListener("input", updatePreview))' in app_js
+    assert 'state.selectedPurchase?.id' in app_js
+    assert 'state.selectedHurdaPurchase?.id' in app_js
+    assert "const isEditing = editing?.type === type" in app_js
+    assert "editing.type === type" not in app_js
+    assert "dashboard-groups-top" in app_js
+    assert "dashboard-groups-bottom" in app_js
+    assert "Normal Stok \u00d6zeti" not in app_js
+    styles_css = Path("static/styles.css").read_text(encoding="utf-8")
+    assert ":is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field" in styles_css
+    assert ".transaction-payment-modal .transaction-paid-field" in styles_css
+    assert ".cari-person-modal .cari-paid-field" in styles_css
+    assert "grid-column: 1 / -1" in styles_css
+    assert ".dashboard-groups-polished.dashboard-groups-top" in styles_css
+    assert ".dashboard-groups-polished.dashboard-groups-bottom" in styles_css
+    assert "attachPaymentButton" in app_js
+    assert "payment-action-box" in app_js
+    assert "if (key === \"odeme_tipi\") return paymentLabel(value);" in app_js
+    assert "cari-date-field" in app_js
+    assert "cari-product-payment-field" in app_js
+    assert "payment-adet-field" in app_js
+    assert "payment-gram-field" in app_js
+    assert "payment-milyem-field" in app_js
+    assert "cari-has-card" in app_js
+    assert "payment-type-tabs" in app_js
+    assert "payment-type-tab" in app_js
+    assert "openCariActions" in app_js
+    assert "openCariPaymentModal" in app_js
+    assert "cari-rename-modal" in app_js
+    assert "cari-danger-note" in app_js
+    assert "Dikkat:" in app_js
+    assert "content.appendChild(renderCariPaymentForm(data))" not in app_js
+    assert "/api/cari/odeme/${row.id}" in app_js
+    assert "odeme_tipi" not in forms_block
+    assert "odenen_has" not in forms_block
     assert "form.elements.notlar" in app_js
+    assert "row.notlar ?? row.not ??" in app_js
+    assert "form.elements.islem_turu?.dispatchEvent" in app_js
+    assert "selectedCariKalanHas" in app_js
     assert "icon-btn icon-edit" in app_js
     assert "icon-btn icon-delete" in app_js
     assert "Has K\\u00e2r\\u0131" not in app_js
@@ -279,14 +379,26 @@ def test_frontend_layout_tabs_columns_and_confirmations():
 
     columns_block = app_js.split("const columns =", 1)[1].split("};", 1)[0]
     assert "kisiCari" in columns_block
-    assert "normal_alis_has" in columns_block
-    assert "normal_satis_has" in columns_block
-    assert "hurda_alis_has" in columns_block
-    assert "hurda_satis_has" in columns_block
-    assert "toplam_alis_has" in columns_block
-    assert "toplam_satis_has" in columns_block
-    assert "kalan_has" in columns_block
+    musteri_block = columns_block.split("musteriCari:", 1)[1].split("tedarikciCari:", 1)[0]
+    tedarikci_block = columns_block.split("tedarikciCari:", 1)[1].split("kisiCari:", 1)[0]
+    kisi_block = columns_block.split("kisiCari:", 1)[1].split("cariOdeme:", 1)[0]
+    for block in (musteri_block, tedarikci_block, kisi_block):
+        assert "toplam_has" in block
+        assert "odeme_has" in block
+        assert "kalan_has" in block
+    assert "toplam_satis" not in musteri_block
+    assert "kalan_borc" not in musteri_block
+    assert "toplam_alis" not in tedarikci_block
+    assert "kalan_borc" not in tedarikci_block
+    assert "normal_alis_has" not in kisi_block
+    assert "hurda_alis_has" not in kisi_block
+    assert "\\u00d6dedi\\u011fi Has" in app_js
+    assert "\\u00d6deyece\\u011fi Has" in app_js
     assert "milyem_kari" in columns_block
+    hurda_alis_block = columns_block.split("hurdaAlis:", 1)[1].split("hurdaSatis:", 1)[0]
+    hurda_satis_block = columns_block.split("hurdaSatis:", 1)[1].split("stok:", 1)[0]
+    assert "kalan_adet" not in hurda_alis_block
+    assert "kalan_adet" in hurda_satis_block
     assert "hurda_alis_adet" in columns_block
     assert "hurda_satis_adet" in columns_block
     assert "purchase_id" not in columns_block
@@ -397,6 +509,10 @@ def test_hurda_sale_stock_check_uses_adet_and_gram_not_milyem(tmp_path, monkeypa
     }))
     assert allowed["has"] == 94.000
     assert allowed["hurda_alis_id"] == hurda_alis["id"]
+    assert allowed["alis_milyem"] == 930.000
+    assert allowed["satis_milyem"] == 940.000
+    assert allowed["milyem_farki"] == 10.000
+    assert allowed["milyem_kari"] == 1.000
 
     stok = ok(client.get("/api/hurda"))["stok"][0]
     assert stok["kalan_adet"] == 0.000
@@ -557,3 +673,194 @@ def test_cari_aggregates_normal_and_hurda_with_same_names_and_recalculates(tmp_p
     assert customer_after_delete["toplam_satis"] == 280.00
     assert customer_after_delete["alinan"] == 80.00
     assert customer_after_delete["kalan_borc"] == 200.00
+
+def test_cari_has_payment_methods(tmp_path, monkeypatch):
+    client = make_client(tmp_path, monkeypatch)
+    login(client)
+
+    alis = ok(client.post("/api/alis", json={
+        "tarih": "2026-07-04", "tedarikci": "CARI TEDARIKCI", "cinsi": "BILEZIK", "ayar": "22",
+        "adet": 1, "gram": 10, "milyem": 940,
+    }))
+    satis = ok(client.post("/api/satis", json={
+        "tarih": "2026-07-04", "musteri": "CARI MUSTERI", "purchase_id": alis["id"],
+        "cinsi": "BILEZIK", "ayar": "22", "adet": 1, "gram": 5, "satis_milyem": 940,
+    }))
+    assert satis["has"] == 4.700
+
+    cari = ok(client.get("/api/cari"))
+    customer = {main.normalize_text(row["isim"]): row for row in cari["kisiler"]}[main.normalize_text("CARI MUSTERI")]
+    assert customer["kalan_has"] == 4.700
+
+    closed = ok(client.post("/api/cari/odeme", json={
+        "tarih": "2026-07-04", "isim": "CARI MUSTERI", "odeme_tipi": "TAM_KAPAT",
+    }))
+    assert closed["odenen_has"] == 4.700
+    cari = ok(client.get("/api/cari"))
+    customer = {main.normalize_text(row["isim"]): row for row in cari["kisiler"]}[main.normalize_text("CARI MUSTERI")]
+    assert customer["kalan_has"] == 0.000
+
+    pay1 = ok(client.post("/api/cari/odeme", json={
+        "tarih": "2026-07-04", "isim": "CARI TEDARIKCI", "odeme_tipi": "ADET_GRAM_MILYEM",
+        "adet": 100, "gram": 1, "milyem": 940,
+    }))
+    assert pay1["odenen_has"] == 94.000
+
+    pay2 = ok(client.post("/api/cari/odeme", json={
+        "tarih": "2026-07-04", "isim": "CARI TEDARIKCI", "odeme_tipi": "ADET_GRAM_MILYEM",
+        "adet": "", "gram": 5, "milyem": 940,
+    }))
+    assert pay2["odenen_has"] == 4.700
+
+    before = {main.normalize_text(row["isim"]): row for row in ok(client.get("/api/cari"))["kisiler"]}[main.normalize_text("CARI TEDARIKCI")]
+    negative_has = client.post("/api/cari/odeme", json={
+        "tarih": "2026-07-04", "isim": "CARI TEDARIKCI", "odeme_tipi": "HAS", "odenen_has": -1,
+    })
+    assert negative_has.status_code == 422
+
+    negative_gram = client.post("/api/cari/odeme", json={
+        "tarih": "2026-07-04", "isim": "CARI TEDARIKCI", "odeme_tipi": "ADET_GRAM_MILYEM",
+        "adet": 1, "gram": -5, "milyem": 940,
+    })
+    assert negative_gram.status_code == 422
+
+    pay3 = ok(client.post("/api/cari/odeme", json={
+        "tarih": "2026-07-04", "isim": "CARI TEDARIKCI", "odeme_tipi": "HAS", "odenen_has": 2.5,
+    }))
+    assert pay3["odenen_has"] == 2.500
+    after = {main.normalize_text(row["isim"]): row for row in ok(client.get("/api/cari"))["kisiler"]}[main.normalize_text("CARI TEDARIKCI")]
+    assert after["kalan_has"] == round(before["kalan_has"] - 2.5, 3)
+
+
+def test_transaction_level_cari_payments_are_included_and_editable(tmp_path, monkeypatch):
+    client = make_client(tmp_path, monkeypatch)
+    login(client)
+
+    alis = ok(client.post("/api/alis", json={
+        "tarih": "2026-07-04", "tedarikci": "ISLEM TEDARIKCI", "cinsi": "BILEZIK", "ayar": "22",
+        "adet": 10, "gram": 1, "milyem": 930, "odeme_tipi": "HAS", "odenen_has": 3,
+    }))
+    assert alis["has"] == 9.300
+    assert alis["odenen_has"] == 3.000
+    supplier = {main.normalize_text(row["isim"]): row for row in ok(client.get("/api/cari"))["kisiler"]}[main.normalize_text("ISLEM TEDARIKCI")]
+    assert supplier["toplam_has"] == 9.300
+    assert supplier["odeme_has"] == 3.000
+    assert supplier["kalan_has"] == 6.300
+
+    satis = ok(client.post("/api/satis", json={
+        "tarih": "2026-07-04", "musteri": "ISLEM MUSTERI", "purchase_id": alis["id"],
+        "cinsi": "BILEZIK", "ayar": "22", "adet": 10, "gram": 1, "satis_milyem": 940,
+        "odeme_tipi": "HAS", "odenen_has": 4,
+    }))
+    assert satis["has"] == 9.400
+    assert satis["milyem_kari"] == 0.100
+    customer = {main.normalize_text(row["isim"]): row for row in ok(client.get("/api/cari"))["kisiler"]}[main.normalize_text("ISLEM MUSTERI")]
+    assert customer["toplam_has"] == 9.400
+    assert customer["odeme_has"] == 4.000
+    assert customer["kalan_has"] == 5.400
+
+    ok(client.delete(f"/api/satis/{satis['id']}"))
+    tam = ok(client.post("/api/satis", json={
+        "tarih": "2026-07-04", "musteri": "TAM MUSTERI", "purchase_id": alis["id"],
+        "cinsi": "BILEZIK", "ayar": "22", "adet": 10, "gram": 1, "satis_milyem": 940,
+        "odeme_tipi": "TAM_KAPAT",
+    }))
+    assert tam["odenen_has"] == 9.400
+    tam_customer = {main.normalize_text(row["isim"]): row for row in ok(client.get("/api/cari"))["kisiler"]}[main.normalize_text("TAM MUSTERI")]
+    assert tam_customer["kalan_has"] == 0.000
+    ok(client.delete(f"/api/satis/{tam['id']}"))
+
+    pay_by_product = ok(client.post("/api/satis", json={
+        "tarih": "2026-07-04", "musteri": "URUN ODEME MUSTERI", "purchase_id": alis["id"],
+        "cinsi": "BILEZIK", "ayar": "22", "adet": 5, "gram": 1, "satis_milyem": 940,
+        "odeme_tipi": "ADET_GRAM_MILYEM", "odenen_adet": 5, "odenen_gram": 1, "odenen_milyem": 940,
+    }))
+    assert pay_by_product["odenen_has"] == 4.700
+    product_customer = {main.normalize_text(row["isim"]): row for row in ok(client.get("/api/cari"))["kisiler"]}[main.normalize_text("URUN ODEME MUSTERI")]
+    assert product_customer["odeme_has"] == 4.700
+
+    updated = ok(client.put(f"/api/satis/{pay_by_product['id']}", json={
+        "tarih": "2026-07-04", "musteri": "URUN ODEME MUSTERI", "purchase_id": alis["id"],
+        "cinsi": "BILEZIK", "ayar": "22", "adet": 5, "gram": 1, "satis_milyem": 940,
+        "odeme_tipi": "HAS", "odenen_has": 2.5,
+    }))
+    assert updated["id"] == pay_by_product["id"]
+    assert updated["odenen_has"] == 2.500
+    assert len(ok(client.get("/api/satis"))) == 1
+    edited_customer = {main.normalize_text(row["isim"]): row for row in ok(client.get("/api/cari"))["kisiler"]}[main.normalize_text("URUN ODEME MUSTERI")]
+    assert edited_customer["odeme_has"] == 2.500
+
+    before_manual = edited_customer["kalan_has"]
+    manual = ok(client.post("/api/cari/odeme", json={
+        "tarih": "2026-07-04", "isim": "URUN ODEME MUSTERI", "odeme_tipi": "HAS", "odenen_has": 2.5,
+    }))
+    assert manual["odenen_has"] == 2.500
+    after_manual = {main.normalize_text(row["isim"]): row for row in ok(client.get("/api/cari"))["kisiler"]}[main.normalize_text("URUN ODEME MUSTERI")]
+    assert after_manual["kalan_has"] == round(before_manual - 2.5, 3)
+
+
+def test_transaction_payment_blank_adet_defaults_to_one(tmp_path, monkeypatch):
+    client = make_client(tmp_path, monkeypatch)
+    login(client)
+
+    alis = ok(client.post("/api/alis", json={
+        "tarih": "2026-07-04", "tedarikci": "BOS ADET TEDARIKCI", "cinsi": "BILEZIK", "ayar": "22",
+        "adet": 10, "gram": 1, "milyem": 930,
+        "odeme_tipi": "ADET_GRAM_MILYEM", "odenen_adet": "", "odenen_gram": 5, "odenen_milyem": 940,
+    }))
+    assert alis["odenen_has"] == 4.700
+    supplier = {main.normalize_text(row["isim"]): row for row in ok(client.get("/api/cari"))["kisiler"]}[main.normalize_text("BOS ADET TEDARIKCI")]
+    assert supplier["odeme_has"] == 4.700
+
+
+def test_cari_person_actions_payment_edit_delete_and_rename(tmp_path, monkeypatch):
+    client = make_client(tmp_path, monkeypatch)
+    login(client)
+
+    alis = ok(client.post("/api/alis", json={
+        "tarih": "2026-07-04", "tedarikci": "AKSIYON TEDARIKCI", "cinsi": "BILEZIK", "ayar": "22",
+        "adet": 10, "gram": 1, "milyem": 930,
+    }))
+    satis = ok(client.post("/api/satis", json={
+        "tarih": "2026-07-04", "musteri": "AKSIYON MUSTERI", "purchase_id": alis["id"],
+        "cinsi": "BILEZIK", "ayar": "22", "adet": 5, "gram": 1, "satis_milyem": 940,
+    }))
+    assert satis["has"] == 4.700
+
+    payment = ok(client.post("/api/cari/odeme", json={
+        "tarih": "2026-07-04", "isim": "AKSIYON MUSTERI", "odeme_tipi": "HAS", "odenen_has": 1.2,
+    }))
+    cari = ok(client.get("/api/cari"))
+    assert len(cari["odemeler"]) == 1
+    assert cari["odemeler"][0]["odenen_has"] == 1.200
+    customer = {main.normalize_text(row["isim"]): row for row in cari["kisiler"]}[main.normalize_text("AKSIYON MUSTERI")]
+    assert customer["kalan_has"] == 3.500
+
+    edited_payment = ok(client.put(f"/api/cari/odeme/{payment['id']}", json={
+        "tarih": "2026-07-05", "isim": "AKSIYON MUSTERI", "odeme_tipi": "HAS", "odenen_has": 2.0,
+        "notlar": "duzeltildi",
+    }))
+    assert edited_payment["id"] == payment["id"]
+    assert edited_payment["odenen_has"] == 2.000
+    cari_after_edit = ok(client.get("/api/cari"))
+    customer_after_edit = {main.normalize_text(row["isim"]): row for row in cari_after_edit["kisiler"]}[main.normalize_text("AKSIYON MUSTERI")]
+    assert customer_after_edit["kalan_has"] == 2.700
+
+    assert client.delete(f"/api/cari/odeme/{payment['id']}").status_code == 200
+    cari_after_delete = ok(client.get("/api/cari"))
+    assert cari_after_delete["odemeler"] == []
+    customer_after_delete = {main.normalize_text(row["isim"]): row for row in cari_after_delete["kisiler"]}[main.normalize_text("AKSIYON MUSTERI")]
+    assert customer_after_delete["kalan_has"] == 4.700
+
+    renamed = ok(client.put("/api/cari/kisi", json={"eski_isim": "AKSIYON MUSTERI", "yeni_isim": "YENI AKSIYON MUSTERI"}))
+    assert renamed["guncellenen"] >= 1
+    cari_after_rename = ok(client.get("/api/cari"))
+    people = {main.normalize_text(row["isim"]): row for row in cari_after_rename["kisiler"]}
+    assert main.normalize_text("YENI AKSIYON MUSTERI") in people
+    assert main.normalize_text("AKSIYON MUSTERI") not in people
+
+    deleted = ok(client.post("/api/cari/kisi/sil", json={"isim": "YENI AKSIYON MUSTERI"}))
+    assert deleted["silinen"] >= 1
+    cari_after_person_delete = ok(client.get("/api/cari"))
+    people_after_delete = {main.normalize_text(row["isim"]): row for row in cari_after_person_delete["kisiler"]}
+    assert main.normalize_text("YENI AKSIYON MUSTERI") not in people_after_delete

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import shutil
 import sqlite3
 import unicodedata
 import secrets
@@ -20,7 +22,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 
 BASE_DIR = Path(__file__).resolve().parent
-DB_PATH = BASE_DIR / "kuyumcu.db"
+DEFAULT_DB_PATH = BASE_DIR / "data" / "kuyumcu.db"
+LEGACY_DB_PATH = BASE_DIR / "kuyumcu.db"
+DB_PATH = Path(os.getenv("DB_PATH", str(DEFAULT_DB_PATH)))
 STATIC_DIR = BASE_DIR / "static"
 
 ZERO = Decimal("0")
@@ -46,6 +50,41 @@ PRODUCTS = [
     "GRAM ALTIN",
     "D\u0130\u011eER",
 ]
+
+
+BUSINESS_TABLES = ("alis", "satis", "hurda", "cari_odeme")
+
+
+def db_has_business_rows(path: Path) -> bool:
+    if not path.exists():
+        return False
+    try:
+        conn = sqlite3.connect(path)
+        try:
+            for table in BUSINESS_TABLES:
+                exists = conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
+                    (table,),
+                ).fetchone()
+                if exists and conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] > 0:
+                    return True
+        finally:
+            conn.close()
+    except sqlite3.DatabaseError:
+        return False
+    return False
+
+
+def maybe_copy_legacy_database() -> None:
+    if os.getenv("DB_PATH"):
+        return
+    if DB_PATH.resolve() != DEFAULT_DB_PATH.resolve():
+        return
+    if db_has_business_rows(DB_PATH):
+        return
+    if db_has_business_rows(LEGACY_DB_PATH):
+        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(LEGACY_DB_PATH, DB_PATH)
 
 
 def ok(data: Any = None, message: str = "") -> dict[str, Any]:
@@ -172,6 +211,31 @@ def calc_has(adet: Any, gram: Any, milyem: Any) -> Decimal:
     return q(d(adet) * d(gram) * d(milyem) / Decimal("1000"), HAS_Q)
 
 
+def normalize_odeme_tipi(value: Any) -> str:
+    key = normalize_text(value).replace(" ", "_")
+    if key in {"", "odeme_yok", "yok", "none"}:
+        return "ODEME_YOK"
+    if key in {"has", "has_ile_odeme"}:
+        return "HAS"
+    if key in {"adet_gram_milyem", "adet+gram+milyem", "milyem"}:
+        return "ADET_GRAM_MILYEM"
+    if key in {"tam", "borcu_tam_kapat", "tam_kapat"}:
+        return "TAM_KAPAT"
+    raise ValueError("Ödeme tipi geçersiz.")
+
+
+def calc_transaction_payment(odeme_tipi: Any, odenen_has: Any, odenen_adet: Any, odenen_gram: Any, odenen_milyem: Any, transaction_has: Decimal) -> Decimal:
+    tip = normalize_odeme_tipi(odeme_tipi)
+    if tip == "ODEME_YOK":
+        return ZERO
+    if tip == "HAS":
+        return q(non_negative(odenen_has, "odenen_has"), HAS_Q)
+    if tip == "TAM_KAPAT":
+        return q(transaction_has, HAS_Q)
+    adet = Decimal("1") if clean_text(odenen_adet) == "" else non_negative(odenen_adet, "odenen_adet")
+    return calc_has(adet, odenen_gram, odenen_milyem)
+
+
 def purchase_total(row: sqlite3.Row | dict[str, Any]) -> Decimal:
     return q(d(row["has"]) * d(row["has_fiyati"]) + d(row["iscilik"]) + d(row["ek_masraf"]), MONEY_Q)
 
@@ -186,6 +250,7 @@ def scrap_total(row: sqlite3.Row | dict[str, Any]) -> Decimal:
 
 @contextmanager
 def db() -> sqlite3.Connection:
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     try:
@@ -284,6 +349,7 @@ def migrate_satis_if_needed(conn: sqlite3.Connection) -> None:
 
 
 def init_db() -> None:
+    maybe_copy_legacy_database()
     with db() as conn:
         conn.executescript(
             """
@@ -322,11 +388,29 @@ def init_db() -> None:
                 notlar TEXT NOT NULL DEFAULT '',
                 purchase_id INTEGER
             );
+
+            CREATE TABLE IF NOT EXISTS cari_odeme (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tarih TEXT NOT NULL,
+                isim TEXT NOT NULL,
+                odeme_tipi TEXT NOT NULL,
+                adet REAL NOT NULL DEFAULT 1,
+                gram REAL NOT NULL DEFAULT 0,
+                milyem REAL NOT NULL DEFAULT 0,
+                odenen_has REAL NOT NULL DEFAULT 0,
+                notlar TEXT NOT NULL DEFAULT ''
+            );
             """
         )
         migrate_hurda_if_needed(conn)
         migrate_satis_if_needed(conn)
         add_column(conn, "hurda", "hurda_alis_id INTEGER")
+        for table in ("alis", "satis", "hurda"):
+            add_column(conn, table, "odeme_tipi TEXT NOT NULL DEFAULT 'ODEME_YOK'")
+            add_column(conn, table, "odenen_has REAL NOT NULL DEFAULT 0")
+            add_column(conn, table, "odenen_adet REAL NOT NULL DEFAULT 0")
+            add_column(conn, table, "odenen_gram REAL NOT NULL DEFAULT 0")
+            add_column(conn, table, "odenen_milyem REAL NOT NULL DEFAULT 0")
 
 
 class BaseTransaction(BaseModel):
@@ -341,6 +425,11 @@ class BaseTransaction(BaseModel):
     has_fiyati: Any = ZERO
     iscilik: Any = ZERO
     notlar: str = ""
+    odeme_tipi: str = "ODEME_YOK"
+    odenen_has: Any = ZERO
+    odenen_adet: Any = ""
+    odenen_gram: Any = ZERO
+    odenen_milyem: Any = ZERO
 
     @field_validator("cinsi", "ayar")
     @classmethod
@@ -356,6 +445,11 @@ class BaseTransaction(BaseModel):
             setattr(self, field_name, non_negative(getattr(self, field_name), field_name))
         self.cinsi = normalize_product(self.cinsi)
         self.ayar = clean_text(self.ayar)
+        self.odeme_tipi = normalize_odeme_tipi(self.odeme_tipi)
+        self.odenen_has = non_negative(self.odenen_has, "odenen_has")
+        self.odenen_adet = ZERO if clean_text(self.odenen_adet) == "" else non_negative(self.odenen_adet, "odenen_adet")
+        self.odenen_gram = non_negative(self.odenen_gram, "odenen_gram")
+        self.odenen_milyem = non_negative(self.odenen_milyem, "odenen_milyem")
         return self
 
 
@@ -410,6 +504,84 @@ class SatisIn(BaseTransaction):
         return self
 
 
+class CariOdemeIn(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    tarih: str = Field(default_factory=lambda: date.today().isoformat())
+    isim: str
+    odeme_tipi: str = "HAS"
+    odenen_has: Any = ZERO
+    adet: Any = ""
+    gram: Any = ZERO
+    milyem: Any = ZERO
+    notlar: str = ""
+
+
+
+    @field_validator("isim")
+    @classmethod
+    def required_name(cls, value: str) -> str:
+        value = clean_text(value)
+        if not value:
+            raise ValueError("Cari kişi/firma zorunlu.")
+        return value
+
+    @field_validator("odeme_tipi")
+    @classmethod
+    def valid_payment_type(cls, value: str) -> str:
+        key = normalize_text(value).replace(" ", "_")
+        if key in {"has", "has_ile_odeme"}:
+            return "HAS"
+        if key in {"adet_gram_milyem", "adet+gram+milyem", "milyem"}:
+            return "ADET_GRAM_MILYEM"
+        if key in {"tam", "borcu_tam_kapat", "tam_kapat"}:
+            return "TAM_KAPAT"
+        raise ValueError("Ödeme tipi geçersiz.")
+
+    @model_validator(mode="after")
+    def validate_payment_numbers(self):
+        if self.odeme_tipi == "ADET_GRAM_MILYEM":
+            self.adet = Decimal("1") if clean_text(self.adet) == "" else non_negative(self.adet, "adet")
+            self.gram = non_negative(self.gram, "gram")
+            self.milyem = non_negative(self.milyem, "milyem")
+            self.odenen_has = calc_has(self.adet, self.gram, self.milyem)
+        elif self.odeme_tipi == "HAS":
+            self.odenen_has = non_negative(self.odenen_has, "odenen_has")
+            self.adet = ZERO if clean_text(self.adet) == "" else non_negative(self.adet, "adet")
+            self.gram = non_negative(self.gram, "gram")
+            self.milyem = non_negative(self.milyem, "milyem")
+        else:
+            self.odenen_has = ZERO
+            self.adet = ZERO if clean_text(self.adet) == "" else non_negative(self.adet, "adet")
+            self.gram = non_negative(self.gram, "gram")
+            self.milyem = non_negative(self.milyem, "milyem")
+        return self
+
+
+class CariRenameIn(BaseModel):
+    eski_isim: str
+    yeni_isim: str
+
+    @model_validator(mode="after")
+    def validate_names(self):
+        self.eski_isim = clean_text(self.eski_isim)
+        self.yeni_isim = clean_text(self.yeni_isim)
+        if not self.eski_isim or not self.yeni_isim:
+            raise ValueError("Eski ve yeni cari adı zorunlu.")
+        return self
+
+
+class CariDeleteIn(BaseModel):
+    isim: str
+
+    @field_validator("isim")
+    @classmethod
+    def required_name(cls, value: str) -> str:
+        value = clean_text(value)
+        if not value:
+            raise ValueError("Cari adı zorunlu.")
+        return value
+
 class HurdaIn(BaseTransaction):
     islem_turu: str
     kisi: str
@@ -452,7 +624,7 @@ def row_dict(row: sqlite3.Row, total_name: str | None = None, total: Decimal | N
         data["not"] = data.pop("notlar")
     if data.get("islem_turu") in {"ALIS", "SATIS"}:
         data["islem_turu"] = display_islem_turu(data["islem_turu"])
-    for key in ["adet", "gram", "milyem", "has"]:
+    for key in ["adet", "gram", "milyem", "has", "odenen_has", "odenen_adet", "odenen_gram", "odenen_milyem"]:
         if key in data:
             data[key] = as_float(data[key], HAS_Q if key == "has" else NUM_Q)
     for key in ["has_fiyati", "iscilik", "ek_masraf", "odenen", "ek_ucret", "indirim", "alinan", "toplam_tutar", "odenen_veya_alinan"]:
@@ -754,6 +926,14 @@ def cari_items(conn: sqlite3.Connection) -> list[dict[str, Any]]:
 
 
 
+def cari_payment_out(row: sqlite3.Row) -> dict[str, Any]:
+    item = row_dict(row)
+    item["odenen_has"] = as_float(row["odenen_has"], HAS_Q)
+    item["hesaplanan_has"] = item["odenen_has"]
+    item["not"] = item.get("not", "")
+    return item
+
+
 def cari_data(conn: sqlite3.Connection) -> dict[str, Any]:
     customers: dict[str, dict[str, Any]] = {}
     suppliers: dict[str, dict[str, Any]] = {}
@@ -762,7 +942,7 @@ def cari_data(conn: sqlite3.Connection) -> dict[str, Any]:
     def get(bucket: dict[str, dict[str, Any]], name: str) -> dict[str, Any]:
         key = normalize_text(name)
         if key not in bucket:
-            bucket[key] = {"isim": clean_text(name), "toplam": ZERO, "odenen_alinan": ZERO, "son_islem_tarihi": ""}
+            bucket[key] = {"isim": clean_text(name), "toplam": ZERO, "odenen_alinan": ZERO, "toplam_has": ZERO, "odeme_has": ZERO, "son_islem_tarihi": ""}
         return bucket[key]
 
     def get_combined(name: str) -> dict[str, Any]:
@@ -774,51 +954,87 @@ def cari_data(conn: sqlite3.Connection) -> dict[str, Any]:
                 "odenen": ZERO,
                 "toplam_satis": ZERO,
                 "alinan": ZERO,
+                "normal_alis_has": ZERO,
+                "normal_satis_has": ZERO,
+                "hurda_alis_has": ZERO,
+                "hurda_satis_has": ZERO,
+                "odeme_has": ZERO,
                 "son_islem_tarihi": "",
             }
         return combined[key]
 
-    def add_purchase(name: str, total: Decimal, paid: Decimal, tarih: str) -> None:
+    def add_purchase(name: str, total: Decimal, paid: Decimal, has_value: Decimal, paid_has: Decimal, tarih: str, hurda: bool = False) -> None:
         supplier = get(suppliers, name)
         supplier["toplam"] += total
         supplier["odenen_alinan"] += paid
+        supplier["toplam_has"] += has_value
+        supplier["odeme_has"] += paid_has
         supplier["son_islem_tarihi"] = max(supplier["son_islem_tarihi"], tarih)
         person = get_combined(name)
         person["toplam_alis"] += total
         person["odenen"] += paid
+        person["hurda_alis_has" if hurda else "normal_alis_has"] += has_value
+        person["odeme_has"] += paid_has
         person["son_islem_tarihi"] = max(person["son_islem_tarihi"], tarih)
 
-    def add_sale(name: str, total: Decimal, received: Decimal, tarih: str) -> None:
+    def add_sale(name: str, total: Decimal, received: Decimal, has_value: Decimal, paid_has: Decimal, tarih: str, hurda: bool = False) -> None:
         customer = get(customers, name)
         customer["toplam"] += total
         customer["odenen_alinan"] += received
+        customer["toplam_has"] += has_value
+        customer["odeme_has"] += paid_has
         customer["son_islem_tarihi"] = max(customer["son_islem_tarihi"], tarih)
         person = get_combined(name)
         person["toplam_satis"] += total
         person["alinan"] += received
+        person["hurda_satis_has" if hurda else "normal_satis_has"] += has_value
+        person["odeme_has"] += paid_has
         person["son_islem_tarihi"] = max(person["son_islem_tarihi"], tarih)
 
     for row in fetch_all(conn, "alis"):
-        add_purchase(row["tedarikci"], purchase_total(row), d(row["odenen"]), row["tarih"])
+        add_purchase(row["tedarikci"], purchase_total(row), d(row["odenen"]), d(row["has"]), d(row["odenen_has"]), row["tarih"])
 
     for row in fetch_all(conn, "satis"):
-        add_sale(row["musteri"], sale_total(row), d(row["alinan"]), row["tarih"])
+        add_sale(row["musteri"], sale_total(row), d(row["alinan"]), d(row["has"]), d(row["odenen_has"]), row["tarih"])
 
     for row in fetch_all(conn, "hurda"):
         if row["islem_turu"] == "ALIS":
-            add_purchase(row["kisi"], scrap_total(row), d(row["odenen_veya_alinan"]), row["tarih"])
+            add_purchase(row["kisi"], scrap_total(row), d(row["odenen_veya_alinan"]), d(row["has"]), d(row["odenen_has"]), row["tarih"], True)
         else:
-            add_sale(row["kisi"], scrap_total(row), d(row["odenen_veya_alinan"]), row["tarih"])
+            add_sale(row["kisi"], scrap_total(row), d(row["odenen_veya_alinan"]), d(row["has"]), d(row["odenen_has"]), row["tarih"], True)
+
+    has_payment_table = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='cari_odeme'").fetchone() is not None
+    payments = fetch_all(conn, "cari_odeme") if has_payment_table else []
+    for row in payments:
+        key = normalize_text(row["isim"])
+        paid_has = d(row["odenen_has"])
+        person = get_combined(row["isim"])
+        person["odeme_has"] += paid_has
+        person["son_islem_tarihi"] = max(person["son_islem_tarihi"], row["tarih"])
+        if key in customers:
+            customers[key]["odeme_has"] += paid_has
+            customers[key]["son_islem_tarihi"] = max(customers[key]["son_islem_tarihi"], row["tarih"])
+        if key in suppliers:
+            suppliers[key]["odeme_has"] += paid_has
+            suppliers[key]["son_islem_tarihi"] = max(suppliers[key]["son_islem_tarihi"], row["tarih"])
 
     def out(bucket: dict[str, dict[str, Any]], customer: bool) -> list[dict[str, Any]]:
         rows = []
         for cari in bucket.values():
             debt = cari["toplam"] - cari["odenen_alinan"]
-            row = {"isim": cari["isim"], "kalan_borc": as_float(debt, MONEY_Q), "son_islem_tarihi": cari["son_islem_tarihi"]}
+            kalan_has = cari["toplam_has"] - cari["odeme_has"]
+            row = {
+                "isim": cari["isim"],
+                "toplam_has": as_float(cari["toplam_has"], HAS_Q),
+                "odeme_has": as_float(cari["odeme_has"], HAS_Q),
+                "kalan_has": as_float(kalan_has, HAS_Q),
+                "kalan_borc": as_float(debt, MONEY_Q),
+                "son_islem_tarihi": cari["son_islem_tarihi"],
+            }
             if customer:
-                row.update({"musteri_adi": cari["isim"], "toplam_satis": as_float(cari["toplam"], MONEY_Q), "alinan": as_float(cari["odenen_alinan"], MONEY_Q), "tip": "M\u00dc\u015eTER\u0130"})
+                row.update({"musteri_adi": cari["isim"], "toplam_satis": as_float(cari["toplam"], MONEY_Q), "alinan": as_float(cari["odenen_alinan"], MONEY_Q), "tip": "MÜŞTERİ"})
             else:
-                row.update({"tedarikci_adi": cari["isim"], "toplam_alis": as_float(cari["toplam"], MONEY_Q), "odenen": as_float(cari["odenen_alinan"], MONEY_Q), "tip": "TEDAR\u0130K\u00c7\u0130"})
+                row.update({"tedarikci_adi": cari["isim"], "toplam_alis": as_float(cari["toplam"], MONEY_Q), "odenen": as_float(cari["odenen_alinan"], MONEY_Q), "tip": "TEDARİKÇİ"})
             rows.append(row)
         return sorted(rows, key=lambda item: normalize_text(item["isim"]))
 
@@ -828,6 +1044,10 @@ def cari_data(conn: sqlite3.Connection) -> dict[str, Any]:
             alis_borcu = cari["toplam_alis"] - cari["odenen"]
             satis_borcu = cari["toplam_satis"] - cari["alinan"]
             net_bakiye = satis_borcu - alis_borcu
+            toplam_alis_has = cari["normal_alis_has"] + cari["hurda_alis_has"]
+            toplam_satis_has = cari["normal_satis_has"] + cari["hurda_satis_has"]
+            toplam_has = toplam_alis_has + toplam_satis_has
+            kalan_has = toplam_has - cari["odeme_has"]
             rows.append({
                 "isim": cari["isim"],
                 "toplam_alis": as_float(cari["toplam_alis"], MONEY_Q),
@@ -837,6 +1057,15 @@ def cari_data(conn: sqlite3.Connection) -> dict[str, Any]:
                 "alinan": as_float(cari["alinan"], MONEY_Q),
                 "satis_borcu": as_float(satis_borcu, MONEY_Q),
                 "net_bakiye": as_float(net_bakiye, MONEY_Q),
+                "normal_alis_has": as_float(cari["normal_alis_has"], HAS_Q),
+                "normal_satis_has": as_float(cari["normal_satis_has"], HAS_Q),
+                "hurda_alis_has": as_float(cari["hurda_alis_has"], HAS_Q),
+                "hurda_satis_has": as_float(cari["hurda_satis_has"], HAS_Q),
+                "toplam_alis_has": as_float(toplam_alis_has, HAS_Q),
+                "toplam_satis_has": as_float(toplam_satis_has, HAS_Q),
+                "toplam_has": as_float(toplam_has, HAS_Q),
+                "odeme_has": as_float(cari["odeme_has"], HAS_Q),
+                "kalan_has": as_float(kalan_has, HAS_Q),
                 "son_islem_tarihi": cari["son_islem_tarihi"],
             })
         return sorted(rows, key=lambda item: normalize_text(item["isim"]))
@@ -845,8 +1074,10 @@ def cari_data(conn: sqlite3.Connection) -> dict[str, Any]:
         "kisiler": out_combined(),
         "musteriler": out(customers, True),
         "tedarikciler": out(suppliers, False),
-        "uyari": "Ayn\u0131 ki\u015fi/firma farkl\u0131 yaz\u0131l\u0131rsa ayr\u0131 cari olarak g\u00f6r\u00fcn\u00fcr.",
+        "odemeler": [cari_payment_out(row) for row in payments],
+        "uyari": "Aynı kişi/firma farklı yazılırsa ayrı cari olarak görünür.",
     }
+
 def sale_profit(conn: sqlite3.Connection, row: sqlite3.Row) -> Decimal:
     purchase_id = sale_purchase_id(row)
     if not purchase_id:
@@ -911,7 +1142,28 @@ def hurda_out(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, Any]:
     item = row_dict(row, "toplam_tutar", scrap_total(row))
     item["kalan_borc"] = as_float(scrap_total(row) - d(row["odenen_veya_alinan"]), MONEY_Q)
     item["hurda_kar"] = as_float(hurda_profit(conn, row), MONEY_Q) if row["islem_turu"] == "SATIS" else 0.0
+    remaining_source = row
+    linked = None
+    if row["islem_turu"] == "SATIS" and "hurda_alis_id" in row.keys() and row["hurda_alis_id"]:
+        linked = conn.execute("SELECT * FROM hurda WHERE id = ? AND islem_turu = 'ALIS'", (row["hurda_alis_id"],)).fetchone()
+        if linked:
+            remaining_source = linked
+    rem = hurda_purchase_remaining(conn, remaining_source) if remaining_source["islem_turu"] == "ALIS" else {"kalan_adet": ZERO, "kalan_gram": ZERO, "kalan_has": ZERO}
+    item["kalan_adet"] = as_float(rem["kalan_adet"], NUM_Q)
+    item["kalan_gram"] = as_float(rem["kalan_gram"], NUM_Q)
+    item["kalan_has"] = as_float(rem["kalan_has"], HAS_Q)
+
+    alis_milyem = d(linked["milyem"]) if linked else (d(row["milyem"]) if row["islem_turu"] == "ALIS" else ZERO)
+    satis_milyem = d(row["milyem"]) if row["islem_turu"] == "SATIS" else ZERO
+    milyem_farki = satis_milyem - alis_milyem if row["islem_turu"] == "SATIS" else ZERO
+    milyem_kari = q(d(row["adet"]) * d(row["gram"]) * milyem_farki / Decimal("1000"), HAS_Q) if row["islem_turu"] == "SATIS" else ZERO
+    item["alis_milyem"] = as_float(alis_milyem, NUM_Q)
+    item["satis_milyem"] = as_float(satis_milyem, NUM_Q)
+    item["milyem_farki"] = as_float(milyem_farki, NUM_Q)
+    item["milyem_kari"] = as_float(milyem_kari, HAS_Q)
+    item["has_kari"] = item["milyem_kari"]
     return item
+
 
 def suggestions(conn: sqlite3.Connection) -> dict[str, list[str]]:
     products = set(PRODUCTS)
@@ -1048,34 +1300,26 @@ def list_alis(_: None = Depends(require_auth)) -> dict[str, Any]:
 @app.post("/api/alis")
 def create_alis(payload: AlisIn, _: None = Depends(require_auth)) -> dict[str, Any]:
     has = calc_has(payload.adet, payload.gram, payload.milyem)
+    paid_has = calc_transaction_payment(payload.odeme_tipi, payload.odenen_has, payload.odenen_adet, payload.odenen_gram, payload.odenen_milyem, has)
     with db() as conn:
         cur = conn.execute(
             """
             INSERT INTO alis (tarih, tedarikci, cinsi, ayar, adet, gram, milyem, has,
-                              has_fiyati, iscilik, ek_masraf, odenen, notlar)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                              has_fiyati, iscilik, ek_masraf, odenen, notlar,
+                              odeme_tipi, odenen_has, odenen_adet, odenen_gram, odenen_milyem)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                payload.tarih,
-                payload.tedarikci,
-                payload.cinsi,
-                payload.ayar,
-                float(payload.adet),
-                float(payload.gram),
-                float(payload.milyem),
-                float(has),
-                float(payload.has_fiyati),
-                float(payload.iscilik),
-                float(payload.ek_masraf),
-                float(payload.odenen),
-                payload.notlar,
+                payload.tarih, payload.tedarikci, payload.cinsi, payload.ayar,
+                float(payload.adet), float(payload.gram), float(payload.milyem), float(has),
+                float(payload.has_fiyati), float(payload.iscilik), float(payload.ek_masraf), float(payload.odenen), payload.notlar,
+                payload.odeme_tipi, float(paid_has), float(payload.odenen_adet), float(payload.odenen_gram), float(payload.odenen_milyem),
             ),
         )
         row = conn.execute("SELECT * FROM alis WHERE id = ?", (cur.lastrowid,)).fetchone()
         item = row_dict(row, "toplam_tutar", purchase_total(row))
         item["kalan_borc"] = as_float(purchase_total(row) - d(row["odenen"]), MONEY_Q)
         return ok(item, "Alış kaydedildi.")
-
 
 
 @app.get("/api/satis/urun-secenekleri")
@@ -1110,6 +1354,7 @@ def list_satis(_: None = Depends(require_auth)) -> dict[str, Any]:
 @app.post("/api/satis")
 def create_satis(payload: SatisIn, _: None = Depends(require_auth)) -> dict[str, Any]:
     has = calc_has(payload.adet, payload.gram, payload.milyem)
+    paid_has = calc_transaction_payment(payload.odeme_tipi, payload.odenen_has, payload.odenen_adet, payload.odenen_gram, payload.odenen_milyem, has)
     with db() as conn:
         alis = ensure_sale_stock(conn, payload, has)
         if d(payload.has_fiyati) == 0:
@@ -1117,14 +1362,19 @@ def create_satis(payload: SatisIn, _: None = Depends(require_auth)) -> dict[str,
         cur = conn.execute(
             """
             INSERT INTO satis (tarih, musteri, cinsi, ayar, adet, gram, milyem, has,
-                               has_fiyati, iscilik, ek_ucret, indirim, alinan, notlar, alis_id, purchase_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                               has_fiyati, iscilik, ek_ucret, indirim, alinan, notlar, alis_id, purchase_id,
+                               odeme_tipi, odenen_has, odenen_adet, odenen_gram, odenen_milyem)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (payload.tarih, payload.musteri, payload.cinsi, payload.ayar, float(payload.adet), float(payload.gram), float(payload.milyem), float(has), float(payload.has_fiyati), float(payload.iscilik), float(payload.ek_ucret), float(payload.indirim), float(payload.alinan), payload.notlar, payload.alis_id, payload.alis_id),
+            (
+                payload.tarih, payload.musteri, payload.cinsi, payload.ayar,
+                float(payload.adet), float(payload.gram), float(payload.milyem), float(has),
+                float(payload.has_fiyati), float(payload.iscilik), float(payload.ek_ucret), float(payload.indirim), float(payload.alinan), payload.notlar,
+                payload.alis_id, payload.alis_id, payload.odeme_tipi, float(paid_has), float(payload.odenen_adet), float(payload.odenen_gram), float(payload.odenen_milyem),
+            ),
         )
         row = conn.execute("SELECT * FROM satis WHERE id = ?", (cur.lastrowid,)).fetchone()
         return ok(sale_out(conn, row), "Satış kaydedildi.")
-
 
 @app.get("/api/hurda/urun-secenekleri")
 def hurda_sale_options(_: None = Depends(require_auth)) -> dict[str, Any]:
@@ -1170,36 +1420,27 @@ def list_hurda(_: None = Depends(require_auth)) -> dict[str, Any]:
 @app.post("/api/hurda")
 def create_hurda(payload: HurdaIn, _: None = Depends(require_auth)) -> dict[str, Any]:
     has = calc_has(payload.adet, payload.gram, payload.milyem)
+    paid_has = calc_transaction_payment(payload.odeme_tipi, payload.odenen_has, payload.odenen_adet, payload.odenen_gram, payload.odenen_milyem, has)
     total = q(has * payload.has_fiyati + payload.iscilik, MONEY_Q)
     with db() as conn:
         ensure_hurda_stock(conn, payload, has)
         cur = conn.execute(
             """
             INSERT INTO hurda (hurda_alis_id, tarih, islem_turu, kisi, cinsi, ayar, adet, gram, milyem,
-                               has, has_fiyati, iscilik, toplam_tutar, odenen_veya_alinan, notlar)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                               has, has_fiyati, iscilik, toplam_tutar, odenen_veya_alinan, notlar,
+                               odeme_tipi, odenen_has, odenen_adet, odenen_gram, odenen_milyem)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 payload.hurda_alis_id if payload.islem_turu == "SATIS" else None,
-                payload.tarih,
-                payload.islem_turu,
-                payload.kisi,
-                payload.cinsi,
-                payload.ayar,
-                float(payload.adet),
-                float(payload.gram),
-                float(payload.milyem),
-                float(has),
-                float(payload.has_fiyati),
-                float(payload.iscilik),
-                float(total),
-                float(payload.odenen_veya_alinan),
-                payload.notlar,
+                payload.tarih, payload.islem_turu, payload.kisi, payload.cinsi, payload.ayar,
+                float(payload.adet), float(payload.gram), float(payload.milyem), float(has),
+                float(payload.has_fiyati), float(payload.iscilik), float(total), float(payload.odenen_veya_alinan), payload.notlar,
+                payload.odeme_tipi, float(paid_has), float(payload.odenen_adet), float(payload.odenen_gram), float(payload.odenen_milyem),
             ),
         )
         row = conn.execute("SELECT * FROM hurda WHERE id = ?", (cur.lastrowid,)).fetchone()
         return ok(hurda_out(conn, row), "Hurda kaydedildi.")
-
 @app.get("/api/stok")
 def list_stock(_: None = Depends(require_auth)) -> dict[str, Any]:
     with db() as conn:
@@ -1225,6 +1466,99 @@ def list_cari(_: None = Depends(require_auth)) -> dict[str, Any]:
         return ok(cari_data(conn))
 
 
+
+@app.post("/api/cari/odeme")
+def create_cari_payment(payload: CariOdemeIn, _: None = Depends(require_auth)) -> dict[str, Any]:
+    with db() as conn:
+        payment_has = d(payload.odenen_has)
+        if payload.odeme_tipi == "TAM_KAPAT":
+            current = next((row for row in cari_data(conn)["kisiler"] if normalize_text(row["isim"]) == normalize_text(payload.isim)), None)
+            if not current:
+                raise HTTPException(status_code=404, detail="Cari bulunamadı.")
+            payment_has = d(current["kalan_has"])
+        cur = conn.execute(
+            """
+            INSERT INTO cari_odeme (tarih, isim, odeme_tipi, adet, gram, milyem, odenen_has, notlar)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                payload.tarih,
+                payload.isim,
+                payload.odeme_tipi,
+                float(payload.adet),
+                float(payload.gram),
+                float(payload.milyem),
+                float(payment_has),
+                payload.notlar,
+            ),
+        )
+        row = conn.execute("SELECT * FROM cari_odeme WHERE id = ?", (cur.lastrowid,)).fetchone()
+        return ok(cari_payment_out(row), "Cari ödeme kaydedildi.")
+
+
+@app.put("/api/cari/odeme/{item_id}")
+def update_cari_payment(item_id: int, payload: CariOdemeIn, _: None = Depends(require_auth)) -> dict[str, Any]:
+    with db() as conn:
+        existing = conn.execute("SELECT * FROM cari_odeme WHERE id = ?", (item_id,)).fetchone()
+        if not existing:
+            raise HTTPException(status_code=404, detail="Cari ödeme kaydı bulunamadı.")
+        payment_has = d(payload.odenen_has)
+        if payload.odeme_tipi == "TAM_KAPAT":
+            current = next((row for row in cari_data(conn)["kisiler"] if normalize_text(row["isim"]) == normalize_text(payload.isim)), None)
+            if not current:
+                raise HTTPException(status_code=404, detail="Cari bulunamadı.")
+            payment_has = d(current["kalan_has"]) + d(existing["odenen_has"])
+        conn.execute(
+            """
+            UPDATE cari_odeme
+            SET tarih = ?, isim = ?, odeme_tipi = ?, adet = ?, gram = ?, milyem = ?, odenen_has = ?, notlar = ?
+            WHERE id = ? 
+            """,
+            (payload.tarih, payload.isim, payload.odeme_tipi, float(payload.adet), float(payload.gram), float(payload.milyem), float(payment_has), payload.notlar, item_id),
+        )
+        row = conn.execute("SELECT * FROM cari_odeme WHERE id = ?", (item_id,)).fetchone()
+        return ok(cari_payment_out(row), "Cari ödeme güncellendi.")
+
+
+@app.delete("/api/cari/odeme/{item_id}")
+def delete_cari_payment(item_id: int, _: None = Depends(require_auth)) -> dict[str, Any]:
+    with db() as conn:
+        cur = conn.execute("DELETE FROM cari_odeme WHERE id = ?", (item_id,))
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Cari ödeme kaydı bulunamadı.")
+        return ok({"id": item_id}, "Cari ödeme silindi.")
+
+
+@app.put("/api/cari/kisi")
+def rename_cari_person(payload: CariRenameIn, _: None = Depends(require_auth)) -> dict[str, Any]:
+    old_key = normalize_text(payload.eski_isim)
+    with db() as conn:
+        updated = 0
+        for table, col in (("alis", "tedarikci"), ("satis", "musteri"), ("hurda", "kisi"), ("cari_odeme", "isim")):
+            rows = conn.execute(f"SELECT id, {col} FROM {table}").fetchall()
+            ids = [row["id"] for row in rows if normalize_text(row[col]) == old_key]
+            for row_id in ids:
+                conn.execute(f"UPDATE {table} SET {col} = ? WHERE id = ?", (payload.yeni_isim, row_id))
+            updated += len(ids)
+        if updated == 0:
+            raise HTTPException(status_code=404, detail="Cari bulunamadı.")
+        return ok({"eski_isim": payload.eski_isim, "yeni_isim": payload.yeni_isim, "guncellenen": updated}, "Cari adı güncellendi.")
+
+
+@app.post("/api/cari/kisi/sil")
+def delete_cari_person(payload: CariDeleteIn, _: None = Depends(require_auth)) -> dict[str, Any]:
+    key = normalize_text(payload.isim)
+    with db() as conn:
+        deleted = 0
+        for table, col in (("alis", "tedarikci"), ("satis", "musteri"), ("hurda", "kisi"), ("cari_odeme", "isim")):
+            rows = conn.execute(f"SELECT id, {col} FROM {table}").fetchall()
+            ids = [row["id"] for row in rows if normalize_text(row[col]) == key]
+            for row_id in ids:
+                conn.execute(f"DELETE FROM {table} WHERE id = ?", (row_id,))
+            deleted += len(ids)
+        if deleted == 0:
+            raise HTTPException(status_code=404, detail="Cari bulunamadı.")
+        return ok({"isim": payload.isim, "silinen": deleted}, "Cari ve bağlı kayıtlar silindi.")
 def dashboard_payload(conn: sqlite3.Connection) -> dict[str, Any]:
     alis_rows = fetch_all(conn, "alis")
     satis_rows = fetch_all(conn, "satis")
@@ -1300,16 +1634,17 @@ def settings(_: None = Depends(require_auth)) -> dict[str, Any]:
 @app.put("/api/alis/{item_id}")
 def update_alis(item_id: int, payload: AlisIn, _: None = Depends(require_auth)) -> dict[str, Any]:
     has = calc_has(payload.adet, payload.gram, payload.milyem)
+    paid_has = calc_transaction_payment(payload.odeme_tipi, payload.odenen_has, payload.odenen_adet, payload.odenen_gram, payload.odenen_milyem, has)
     with db() as conn:
         existing = conn.execute("SELECT * FROM alis WHERE id = ?", (item_id,)).fetchone()
         if not existing:
-            raise HTTPException(status_code=404, detail="Kay\u0131t bulunamad\u0131.")
+            raise HTTPException(status_code=404, detail="Kayıt bulunamadı.")
         sold = conn.execute("SELECT COALESCE(SUM(adet),0) adet, COALESCE(SUM(adet * gram),0) gram FROM satis WHERE COALESCE(purchase_id, alis_id) = ?", (item_id,)).fetchone()
         has_linked_sale = d(sold["adet"]) > 0 or d(sold["gram"]) > 0
         if has_linked_sale and (normalize_text(existing["cinsi"]) != normalize_text(payload.cinsi) or normalize_text(existing["ayar"]) != normalize_text(payload.ayar)):
-            raise HTTPException(status_code=400, detail="Bu al\u0131\u015f kayd\u0131na ba\u011fl\u0131 sat\u0131\u015f var; cinsi veya ayar de\u011fi\u015ftirilemez.")
+            raise HTTPException(status_code=400, detail="Bu alış kaydına bağlı satış var; cinsi veya ayar değiştirilemez.")
         if d(sold["adet"]) > d(payload.adet) or d(sold["gram"]) > d(payload.adet) * d(payload.gram):
-            raise HTTPException(status_code=400, detail="Bu al\u0131\u015f kayd\u0131na ba\u011fl\u0131 sat\u0131\u015f var; adet/gram mevcut sat\u0131\u015f\u0131n alt\u0131na d\u00fc\u015f\u00fcr\u00fclemez.")
+            raise HTTPException(status_code=400, detail="Bu alış kaydına bağlı satış var; adet/gram mevcut satışın altına düşürülemez.")
         if d(payload.has_fiyati) == 0 and d(payload.iscilik) == 0 and d(payload.ek_masraf) == 0 and d(payload.odenen) == 0:
             payload.has_fiyati = d(existing["has_fiyati"])
             payload.iscilik = d(existing["iscilik"])
@@ -1317,28 +1652,17 @@ def update_alis(item_id: int, payload: AlisIn, _: None = Depends(require_auth)) 
             payload.odenen = d(existing["odenen"])
         cur = conn.execute(
             """
-            UPDATE alis 
-            SET tarih = ?, tedarikci = ?, cinsi = ?, ayar = ?, adet = ?, gram = ?, 
-                milyem = ?, has = ?, has_fiyati = ?, iscilik = ?, ek_masraf = ?, 
-                odenen = ?, notlar = ?
-            WHERE id = ?
+            UPDATE alis
+            SET tarih = ?, tedarikci = ?, cinsi = ?, ayar = ?, adet = ?, gram = ?,
+                milyem = ?, has = ?, has_fiyati = ?, iscilik = ?, ek_masraf = ?,
+                odenen = ?, notlar = ?, odeme_tipi = ?, odenen_has = ?, odenen_adet = ?,
+                odenen_gram = ?, odenen_milyem = ?
+            WHERE id = ? 
             """,
-            (
-                payload.tarih,
-                payload.tedarikci,
-                payload.cinsi,
-                payload.ayar,
-                float(payload.adet),
-                float(payload.gram),
-                float(payload.milyem),
-                float(has),
-                float(payload.has_fiyati),
-                float(payload.iscilik),
-                float(payload.ek_masraf),
-                float(payload.odenen),
-                payload.notlar,
-                item_id,
-            ),
+            (payload.tarih, payload.tedarikci, payload.cinsi, payload.ayar, float(payload.adet), float(payload.gram),
+             float(payload.milyem), float(has), float(payload.has_fiyati), float(payload.iscilik), float(payload.ek_masraf),
+             float(payload.odenen), payload.notlar, payload.odeme_tipi, float(paid_has), float(payload.odenen_adet),
+             float(payload.odenen_gram), float(payload.odenen_milyem), item_id),
         )
         if cur.rowcount == 0:
             raise HTTPException(status_code=404, detail="Kayıt bulunamadı.")
@@ -1347,14 +1671,14 @@ def update_alis(item_id: int, payload: AlisIn, _: None = Depends(require_auth)) 
         item["kalan_borc"] = as_float(purchase_total(row) - d(row["odenen"]), MONEY_Q)
         return ok(item, "Alış güncellendi.")
 
-
 @app.put("/api/satis/{item_id}")
 def update_satis(item_id: int, payload: SatisIn, _: None = Depends(require_auth)) -> dict[str, Any]:
     has = calc_has(payload.adet, payload.gram, payload.milyem)
+    paid_has = calc_transaction_payment(payload.odeme_tipi, payload.odenen_has, payload.odenen_adet, payload.odenen_gram, payload.odenen_milyem, has)
     with db() as conn:
         existing = conn.execute("SELECT * FROM satis WHERE id = ?", (item_id,)).fetchone()
         if not existing:
-            raise HTTPException(status_code=404, detail="Kay\u0131t bulunamad\u0131.")
+            raise HTTPException(status_code=404, detail="Kayıt bulunamadı.")
         alis = ensure_sale_stock(conn, payload, has, item_id)
         if d(payload.has_fiyati) == 0 and d(payload.iscilik) == 0 and d(payload.ek_ucret) == 0 and d(payload.indirim) == 0 and d(payload.alinan) == 0:
             payload.has_fiyati = d(existing["has_fiyati"])
@@ -1366,26 +1690,30 @@ def update_satis(item_id: int, payload: SatisIn, _: None = Depends(require_auth)
             payload.has_fiyati = d(alis["has_fiyati"])
         cur = conn.execute(
             """
-            UPDATE satis 
-            SET tarih = ?, musteri = ?, cinsi = ?, ayar = ?, adet = ?, gram = ?, 
-                milyem = ?, has = ?, has_fiyati = ?, iscilik = ?, ek_ucret = ?, 
-                indirim = ?, alinan = ?, notlar = ?, alis_id = ?, purchase_id = ?
-            WHERE id = ?
+            UPDATE satis
+            SET tarih = ?, musteri = ?, cinsi = ?, ayar = ?, adet = ?, gram = ?,
+                milyem = ?, has = ?, has_fiyati = ?, iscilik = ?, ek_ucret = ?,
+                indirim = ?, alinan = ?, notlar = ?, alis_id = ?, purchase_id = ?,
+                odeme_tipi = ?, odenen_has = ?, odenen_adet = ?, odenen_gram = ?, odenen_milyem = ?
+            WHERE id = ? 
             """,
-            (payload.tarih, payload.musteri, payload.cinsi, payload.ayar, float(payload.adet), float(payload.gram), float(payload.milyem), float(has), float(payload.has_fiyati), float(payload.iscilik), float(payload.ek_ucret), float(payload.indirim), float(payload.alinan), payload.notlar, payload.alis_id, payload.alis_id, item_id),
+            (payload.tarih, payload.musteri, payload.cinsi, payload.ayar, float(payload.adet), float(payload.gram),
+             float(payload.milyem), float(has), float(payload.has_fiyati), float(payload.iscilik), float(payload.ek_ucret),
+             float(payload.indirim), float(payload.alinan), payload.notlar, payload.alis_id, payload.alis_id,
+             payload.odeme_tipi, float(paid_has), float(payload.odenen_adet), float(payload.odenen_gram), float(payload.odenen_milyem), item_id),
         )
         if cur.rowcount == 0:
-            raise HTTPException(status_code=404, detail="Kay\u0131t bulunamad\u0131.")
+            raise HTTPException(status_code=404, detail="Kayıt bulunamadı.")
         row = conn.execute("SELECT * FROM satis WHERE id = ?", (item_id,)).fetchone()
-        return ok(sale_out(conn, row), "Sat\u0131\u015f g\u00fcncellendi.")
-
+        return ok(sale_out(conn, row), "Satış güncellendi.")
 @app.put("/api/hurda/{item_id}")
 def update_hurda(item_id: int, payload: HurdaIn, _: None = Depends(require_auth)) -> dict[str, Any]:
     has = calc_has(payload.adet, payload.gram, payload.milyem)
+    paid_has = calc_transaction_payment(payload.odeme_tipi, payload.odenen_has, payload.odenen_adet, payload.odenen_gram, payload.odenen_milyem, has)
     with db() as conn:
         existing = conn.execute("SELECT * FROM hurda WHERE id = ?", (item_id,)).fetchone()
         if not existing:
-            raise HTTPException(status_code=404, detail="Kay\u0131t bulunamad\u0131.")
+            raise HTTPException(status_code=404, detail="Kayıt bulunamadı.")
         if d(payload.has_fiyati) == 0 and d(payload.iscilik) == 0 and d(payload.odenen_veya_alinan) == 0:
             payload.has_fiyati = d(existing["has_fiyati"])
             payload.iscilik = d(existing["iscilik"])
@@ -1397,33 +1725,19 @@ def update_hurda(item_id: int, payload: HurdaIn, _: None = Depends(require_auth)
             UPDATE hurda
             SET hurda_alis_id = ?, tarih = ?, islem_turu = ?, kisi = ?, cinsi = ?, ayar = ?, adet = ?,
                 gram = ?, milyem = ?, has = ?, has_fiyati = ?, iscilik = ?, toplam_tutar = ?,
-                odenen_veya_alinan = ?, notlar = ?
-            WHERE id = ?
+                odenen_veya_alinan = ?, notlar = ?, odeme_tipi = ?, odenen_has = ?, odenen_adet = ?,
+                odenen_gram = ?, odenen_milyem = ?
+            WHERE id = ? 
             """,
-            (
-                payload.hurda_alis_id if payload.islem_turu == "SATIS" else None,
-                payload.tarih,
-                payload.islem_turu,
-                payload.kisi,
-                payload.cinsi,
-                payload.ayar,
-                float(payload.adet),
-                float(payload.gram),
-                float(payload.milyem),
-                float(has),
-                float(payload.has_fiyati),
-                float(payload.iscilik),
-                float(total),
-                float(payload.odenen_veya_alinan),
-                payload.notlar,
-                item_id,
-            ),
+            (payload.hurda_alis_id if payload.islem_turu == "SATIS" else None, payload.tarih, payload.islem_turu,
+             payload.kisi, payload.cinsi, payload.ayar, float(payload.adet), float(payload.gram), float(payload.milyem),
+             float(has), float(payload.has_fiyati), float(payload.iscilik), float(total), float(payload.odenen_veya_alinan),
+             payload.notlar, payload.odeme_tipi, float(paid_has), float(payload.odenen_adet), float(payload.odenen_gram), float(payload.odenen_milyem), item_id),
         )
         if cur.rowcount == 0:
-            raise HTTPException(status_code=404, detail="Kay\u0131t bulunamad\u0131.")
+            raise HTTPException(status_code=404, detail="Kayıt bulunamadı.")
         row = conn.execute("SELECT * FROM hurda WHERE id = ?", (item_id,)).fetchone()
-        return ok(hurda_out(conn, row), "Hurda g\u00fcncellendi.")
-
+        return ok(hurda_out(conn, row), "Hurda güncellendi.")
 @app.delete("/api/alis/{item_id}")
 def delete_alis_item(item_id: int, _: None = Depends(require_auth)) -> dict[str, Any]:
     return delete_item("alis", item_id, _)
