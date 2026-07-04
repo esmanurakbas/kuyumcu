@@ -50,7 +50,7 @@ const columns = {
   satis: ["tarih", "musteri", "cinsi", "ayar", "adet", "gram", "alis_milyem", "satis_milyem", "milyem_farki", "milyem_kari", "not"],
   hurdaAlis: ["tarih", "kisi", "cinsi", "ayar", "adet", "gram", "milyem", "has", "not"],
   hurdaSatis: ["tarih", "kisi", "cinsi", "ayar", "adet", "gram", "alis_milyem", "satis_milyem", "milyem_farki", "milyem_kari", "kalan_adet", "not"],
-  stok: ["cinsi", "ayar", "alis_adet", "alis_gram", "alis_has", "satis_adet", "satis_gram", "satis_has", "kalan_adet", "kalan_gram", "kalan_has", "stok_degeri"],
+  stok: ["cinsi", "ayar", "alis_adet", "alis_gram", "alis_has", "satis_adet", "satis_gram", "satis_has", "kalan_adet", "kalan_gram", "kalan_has"],
   hurdaStok: ["cinsi", "ayar", "hurda_alis_adet", "hurda_alis_gram", "hurda_alis_has", "hurda_satis_adet", "hurda_satis_gram", "hurda_satis_has", "kalan_adet", "kalan_gram", "kalan_has"],
   musteriCari: ["musteri_adi", "toplam_has", "odeme_has", "kalan_has", "son_islem_tarihi"],
   tedarikciCari: ["tedarikci_adi", "toplam_has", "odeme_has", "kalan_has", "son_islem_tarihi"],
@@ -64,12 +64,12 @@ const labels = {
   odenen: "\u00d6denen", alinan: "Al\u0131nan", odenen_veya_alinan: "\u00d6denen / Al\u0131nan", kalan_borc: "Kalan Bor\u00e7", not: "Not",
   islem_turu: "\u0130\u015flem", alis_adet: "Al\u0131\u015f Adet", alis_gram: "Al\u0131\u015f Gram", alis_has: "Al\u0131\u015f Has",
   satis_adet: "Sat\u0131\u015f Adet", satis_gram: "Sat\u0131\u015f Gram", satis_has: "Sat\u0131\u015f Has", kalan_adet: "Kalan Adet", kalan_gram: "Kalan Gram", kalan_has: "Kalan Has",
-  stok_degeri: "Stok De\u011feri", alis_milyem: "Al\u0131\u015f Milyem", satis_milyem: "Sat\u0131\u015f Milyem", milyem_farki: "Milyem Fark\u0131",
+  alis_milyem: "Al\u0131\u015f Milyem", satis_milyem: "Sat\u0131\u015f Milyem", milyem_farki: "Milyem Fark\u0131",
   tahmini_kar: "Milyem K\u00e2r\u0131", has_kari: "Milyem K\u00e2r\u0131", milyem_kari: "Milyem K\u00e2r\u0131", musteri_adi: "Ad", tedarikci_adi: "Ad", toplam_satis: "Toplam Sat\u0131\u015f", toplam_alis: "Toplam Al\u0131\u015f",
   alis_borcu: "Al\u0131\u015f Borcu", satis_borcu: "Sat\u0131\u015f Borcu", net_bakiye: "Net Bakiye", son_islem_tarihi: "Son \u0130\u015flem", odeme_tipi: "\u00d6deme Tipi", odenen_has: "\u00d6denen Has", odenen_adet: "\u00d6denen Adet", odenen_gram: "\u00d6denen Gram", odenen_milyem: "\u00d6denen Milyem", hesaplanan_has: "Hesaplanan Has", toplam_has: "Toplam Has", odeme_has: "\u00d6deme Has", normal_alis_has: "Normal Al\u0131\u015f Has", normal_satis_has: "Normal Sat\u0131\u015f Has", hurda_alis_has: "Hurda Al\u0131\u015f Has", hurda_satis_has: "Hurda Sat\u0131\u015f Has", toplam_alis_has: "Toplam Al\u0131\u015f Has", toplam_satis_has: "Toplam Sat\u0131\u015f Has", hurda_alis_adet: "Hurda Al\u0131\u015f Adet", hurda_alis_gram: "Hurda Al\u0131\u015f Gram", hurda_alis_has: "Hurda Al\u0131\u015f Has", hurda_satis_adet: "Hurda Sat\u0131\u015f Adet", hurda_satis_gram: "Hurda Sat\u0131\u015f Gram", hurda_satis_has: "Hurda Sat\u0131\u015f Has",
 };
 
-const moneyFields = new Set(["has_fiyati", "iscilik", "ek_masraf", "ek_ucret", "indirim", "odenen", "alinan", "toplam_tutar", "kalan_borc", "stok_degeri", "toplam_satis", "toplam_alis", "alis_borcu", "satis_borcu", "net_bakiye", "odenen_veya_alinan"]);
+const moneyFields = new Set(["has_fiyati", "iscilik", "ek_masraf", "ek_ucret", "indirim", "odenen", "alinan", "toplam_tutar", "kalan_borc", "toplam_satis", "toplam_alis", "alis_borcu", "satis_borcu", "net_bakiye", "odenen_veya_alinan"]);
 const numberFields = new Set(["adet", "gram", "milyem", "has", "alis_adet", "alis_gram", "alis_has", "satis_adet", "satis_gram", "satis_has", "kalan_adet", "kalan_gram", "kalan_has", "alis_milyem", "satis_milyem", "milyem_farki", "has_kari", "milyem_kari", "tahmini_kar", "hurda_alis_adet", "hurda_alis_gram", "hurda_alis_has", "hurda_satis_adet", "hurda_satis_gram", "hurda_satis_has", "normal_alis_has", "normal_satis_has", "hurda_alis_has", "hurda_satis_has", "toplam_alis_has", "toplam_satis_has", "toplam_has", "odeme_has", "odenen_has", "odenen_adet", "odenen_gram", "odenen_milyem", "hesaplanan_has"]);
 
 const content = document.querySelector("#content");
@@ -157,7 +157,7 @@ function showConfirm(message, okText = "Tamam", cancelText = "\u0130ptal") {
     cancel.textContent = cancelText;
     cancel.onclick = () => { overlay.remove(); resolve(false); };
     const ok = document.createElement("button");
-    ok.className = "confirm-btn confirm-ok";
+    ok.className = `confirm-btn confirm-ok ${normalize(okText) === "sil" ? "confirm-danger" : ""}`;
     ok.type = "button";
     ok.textContent = okText;
     ok.onclick = () => { overlay.remove(); resolve(true); };
@@ -1197,14 +1197,14 @@ function renderDashboard(data) {
   hero.className = "dashboard-hero";
   const heroText = document.createElement("div");
   heroText.className = "dashboard-hero-text";
-  heroText.innerHTML = `<span>Genel Durum</span><h2>İşletme Özeti</h2><p>Normal ürün, hurda, stok ve cari hareketleri tek ekranda düzenli takip edilir.</p>`;
+  heroText.innerHTML = `<span>Genel Durum</span><h2>\u0130\u015fletme \u00d6zeti</h2><p>Normal \u00fcr\u00fcn, hurda, stok ve cari hareketleri tek ekranda d\u00fczenli takip edilir.</p>`;
   const heroMetrics = document.createElement("div");
   heroMetrics.className = "dashboard-hero-metrics";
   [
-    ["Genel Milyem Kârı", data.genel_urun_kari, "has", "good", "Normal satışlardan"],
-    ["Günlük Milyem Kârı", data.gunluk_urun_kari, "has", "good", "Bugünkü hareket"],
-    ["Normal Stok Has", data.normal_stok_has, "has", "neutral", "Ürün stoğu"],
-    ["Hurda Kalan Has", data.hurda_kalan_has, "has", "accent", "Hurda stoğu"],
+    ["Genel Milyem K\u00e2r\u0131", data.genel_urun_kari, "has", "good", "Normal sat\u0131\u015flardan"],
+    ["G\u00fcnl\u00fck Milyem K\u00e2r\u0131", data.gunluk_urun_kari, "has", "good", "Bug\u00fcnk\u00fc hareket"],
+    ["Normal Stok Has", data.normal_stok_has, "has", "neutral", "\u00dcr\u00fcn sto\u011fu"],
+    ["Hurda Kalan Has", data.hurda_kalan_has, "has", "accent", "Hurda sto\u011fu"],
   ].forEach((card) => heroMetrics.appendChild(renderMetricCard(...card)));
   hero.append(heroText, heroMetrics);
 
@@ -1213,34 +1213,35 @@ function renderDashboard(data) {
   const bottomGroups = document.createElement("div");
   bottomGroups.className = "dashboard-groups dashboard-groups-polished dashboard-groups-bottom";
 
+  const toplamStokHas = Number(data.normal_stok_has || 0) + Number(data.hurda_kalan_has || 0);
   const topPanels = [
-    ["Genel Özet", "Alış, satış ve kârlılık", [
-      ["Toplam Normal Alış", data.toplam_normal_alis, "toplam_tutar", "neutral"],
-      ["Toplam Normal Satış", data.toplam_normal_satis, "toplam_tutar", "accent"],
-      ["Alış Kayıt", data.alis_adedi, "", "neutral"],
-      ["Satış Kayıt", data.satis_adedi, "", "neutral"],
+    ["Genel \u00d6zet", "Al\u0131\u015f, sat\u0131\u015f ve k\u00e2rl\u0131l\u0131k", [
+      ["Toplam Normal Al\u0131\u015f Has", data.toplam_normal_alis_has, "has", "neutral"],
+      ["Toplam Normal Sat\u0131\u015f Has", data.toplam_normal_satis_has, "has", "accent"],
+      ["Al\u0131\u015f Kay\u0131t", data.alis_adedi, "", "neutral"],
+      ["Sat\u0131\u015f Kay\u0131t", data.satis_adedi, "", "neutral"],
     ]],
-    ["Stok Özeti", "Normal ürün ve hurda ayrı izlenir", [
+    ["Stok \u00d6zeti", "Normal \u00fcr\u00fcn ve hurda ayr\u0131 izlenir", [
       ["Normal Stok Gram", data.normal_stok_gram, "gram", "neutral"],
-      ["Normal Stok Değeri", data.normal_stok_degeri, "toplam_tutar", "accent"],
+      ["Normal Stok Has", data.normal_stok_has, "has", "accent"],
       ["Hurda Stok Gram", data.hurda_kalan_gram, "gram", "neutral"],
-      ["Toplam Stok Değeri", data.stok_degeri, "toplam_tutar", "neutral"],
+      ["Toplam Stok Has", toplamStokHas, "has", "neutral"],
     ]],
-    ["Cari Özeti", "Müşteri ve tedarikçi borçları", [
-      ["Müşteri Borcu", data.toplam_musteri_borcu, "toplam_tutar", "warn"],
-      ["Tedarikçi Borcu", data.toplam_tedarikci_borcu, "toplam_tutar", "warn"],
+    ["Cari \u00d6zeti", "M\u00fc\u015fteri ve tedarik\u00e7i has bor\u00e7lar\u0131", [
+      ["M\u00fc\u015fteri Has Borcu", data.toplam_musteri_has_borcu, "has", "warn"],
+      ["Tedarik\u00e7i Has Borcu", data.toplam_tedarikci_has_borcu, "has", "warn"],
     ]],
   ];
 
   const bottomPanels = [
-    ["Hurda Özeti", "Hurda alış/satış ayrı hesaplanır", [
-      ["Hurda Alış", data.hurda_alis_toplami, "toplam_tutar", "neutral"],
-      ["Hurda Satış", data.hurda_satis_toplami, "toplam_tutar", "accent"],
-      ["Hurda Kârı", data.hurda_kar, "toplam_tutar", "good"],
-      ["Hurda Kayıt", data.hurda_adedi, "", "neutral"],
+    ["Hurda \u00d6zeti", "Hurda al\u0131\u015f/sat\u0131\u015f ayr\u0131 hesaplan\u0131r", [
+      ["Hurda Al\u0131\u015f Has", data.hurda_alis_has_toplami, "has", "neutral"],
+      ["Hurda Sat\u0131\u015f Has", data.hurda_satis_has_toplami, "has", "accent"],
+      ["Hurda Milyem K\u00e2r\u0131", data.hurda_milyem_kari, "has", "good"],
+      ["Hurda Kay\u0131t", data.hurda_adedi, "", "neutral"],
     ]],
-    ["Uyarılar", "Kontrol gerektiren durumlar", [
-      ["Stok Yetersiz Uyarısı", data.uyari_sayisi, "", data.uyari_sayisi ? "warn" : "good", data.uyari_sayisi ? "Kontrol edin" : "Sorun yok"],
+    ["Uyar\u0131lar", "Kontrol gerektiren durumlar", [
+      ["Stok Yetersiz Uyar\u0131s\u0131", data.uyari_sayisi, "", data.uyari_sayisi ? "warn" : "good", data.uyari_sayisi ? "Kontrol edin" : "Sorun yok"],
     ]],
   ];
 

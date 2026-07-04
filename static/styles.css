@@ -823,11 +823,19 @@ tr:last-child td {
 }
 
 .confirm-ok {
-  background: var(--red);
+  background: #2563eb;
   color: #fff;
 }
 
 .confirm-ok:hover {
+  background: #1d4ed8;
+}
+
+.confirm-ok.confirm-danger {
+  background: var(--red);
+}
+
+.confirm-ok.confirm-danger:hover {
   filter: brightness(0.9);
 }
 

@@ -291,6 +291,34 @@ def test_turkish_encoding_login_and_frontend_flow_guards():
     assert 'api("/api/session")' in app_js
     assert 'api("/api/logout", { method: "POST" })' in app_js
 
+def test_macos_desktop_packaging_files_are_configured():
+    desktop = Path("desktop.py").read_text(encoding="utf-8")
+    build = Path("build_mac.sh").read_text(encoding="utf-8")
+    requirements = Path("requirements.txt").read_text(encoding="utf-8")
+    readme = Path("README.md").read_text(encoding="utf-8")
+    static_js = Path("static/app.js").read_text(encoding="utf-8")
+    login_html = Path("static/login.html").read_text(encoding="utf-8")
+    export_js = Path("static/export.js").read_text(encoding="utf-8")
+
+    assert 'APP_NAME = "Kuyumcu Takip"' in desktop
+    assert 'def resource_path(relative_path: str)' in desktop
+    assert 'Library" / "Application Support" / "KuyumcuTakip"' in desktop
+    assert 'os.environ.setdefault("DB_PATH", str(db_path))' in desktop
+    assert 'wait_until_ready(f"{url}/login")' in desktop
+    assert 'window.events.closed += stop_backend' in desktop
+    assert 'webview.start(debug=False)' in desktop
+    assert 'pywebview' in requirements
+    assert '--name "Kuyumcu Takip"' in build
+    assert '--add-data "static:static"' in build
+    assert '--add-data "data:data"' in build
+    assert 'desktop.py' in build
+    assert 'dist/Kuyumcu Takip.app' in readme
+    assert '~/Library/Application Support/KuyumcuTakip/kuyumcu.db' in readme
+    for text in (static_js, login_html, export_js):
+        assert 'http://127.0.0.1:8000' not in text
+        assert 'localhost:8000' not in text
+
+
 def test_frontend_layout_tabs_columns_and_confirmations():
     app_js = Path("static/app.js").read_text(encoding="utf-8")
     index_html = Path("static/index.html").read_text(encoding="utf-8")
@@ -378,6 +406,8 @@ def test_frontend_layout_tabs_columns_and_confirmations():
     assert 'showConfirm("T\\u00fcm verileri JSON' in app_js
 
     columns_block = app_js.split("const columns =", 1)[1].split("};", 1)[0]
+    assert "stok_degeri" not in columns_block.split("stok:", 1)[1].split("hurdaStok:", 1)[0]
+    assert "Stok De\\u011feri" not in app_js
     assert "kisiCari" in columns_block
     musteri_block = columns_block.split("musteriCari:", 1)[1].split("tedarikciCari:", 1)[0]
     tedarikci_block = columns_block.split("tedarikciCari:", 1)[1].split("kisiCari:", 1)[0]

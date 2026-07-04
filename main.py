@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import shutil
 import sqlite3
+import sys
 import unicodedata
 import secrets
 import hashlib
@@ -22,10 +23,17 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 
 BASE_DIR = Path(__file__).resolve().parent
+
+
+def resource_path(relative_path: str) -> Path:
+    base = Path(getattr(sys, "_MEIPASS", BASE_DIR))
+    return base / relative_path
+
+
 DEFAULT_DB_PATH = BASE_DIR / "data" / "kuyumcu.db"
 LEGACY_DB_PATH = BASE_DIR / "kuyumcu.db"
 DB_PATH = Path(os.getenv("DB_PATH", str(DEFAULT_DB_PATH)))
-STATIC_DIR = BASE_DIR / "static"
+STATIC_DIR = resource_path("static")
 
 ZERO = Decimal("0")
 MONEY_Q = Decimal("0.01")
@@ -1570,11 +1578,20 @@ def dashboard_payload(conn: sqlite3.Connection) -> dict[str, Any]:
     total_profit = sum((sale_profit(conn, row) for row in satis_rows), ZERO)
     today_profit = sum((sale_profit(conn, row) for row in satis_rows if row["tarih"] == today_text), ZERO)
     hurda_profit_total = sum((hurda_profit(conn, row) for row in hurda_rows), ZERO)
+    hurda_milyem_profit_total = sum((d(hurda_out(conn, row)["milyem_kari"]) for row in hurda_rows if row["islem_turu"] == "SATIS"), ZERO)
     hurda_buy_total = sum((scrap_total(row) for row in hurda_rows if row["islem_turu"] == "ALIS"), ZERO)
     hurda_sale_total = sum((scrap_total(row) for row in hurda_rows if row["islem_turu"] == "SATIS"), ZERO)
+    normal_alis_has_total = sum((d(row["has"]) for row in alis_rows), ZERO)
+    normal_satis_has_total = sum((d(row["has"]) for row in satis_rows), ZERO)
+    hurda_alis_has_total = sum((d(row["has"]) for row in hurda_rows if row["islem_turu"] == "ALIS"), ZERO)
+    hurda_satis_has_total = sum((d(row["has"]) for row in hurda_rows if row["islem_turu"] == "SATIS"), ZERO)
+    musteri_has_borcu = sum((d(row["kalan_has"]) for row in cari["musteriler"]), ZERO)
+    tedarikci_has_borcu = sum((d(row["kalan_has"]) for row in cari["tedarikciler"]), ZERO)
     return {
         "toplam_normal_alis": as_float(sum((purchase_total(row) for row in alis_rows), ZERO), MONEY_Q),
         "toplam_normal_satis": as_float(sum((sale_total(row) for row in satis_rows), ZERO), MONEY_Q),
+        "toplam_normal_alis_has": as_float(normal_alis_has_total, HAS_Q),
+        "toplam_normal_satis_has": as_float(normal_satis_has_total, HAS_Q),
         "toplam_alis": as_float(sum((purchase_total(row) for row in alis_rows), ZERO), MONEY_Q),
         "toplam_satis": as_float(sum((sale_total(row) for row in satis_rows), ZERO), MONEY_Q),
         "gunluk_satis": as_float(sum((sale_total(row) for row in satis_rows if row["tarih"] == today_text), ZERO), MONEY_Q),
@@ -1584,9 +1601,14 @@ def dashboard_payload(conn: sqlite3.Connection) -> dict[str, Any]:
         "toplam_kar": as_float(total_profit, HAS_Q),
         "hurda_alis_toplami": as_float(hurda_buy_total, MONEY_Q),
         "hurda_satis_toplami": as_float(hurda_sale_total, MONEY_Q),
+        "hurda_alis_has_toplami": as_float(hurda_alis_has_total, HAS_Q),
+        "hurda_satis_has_toplami": as_float(hurda_satis_has_total, HAS_Q),
         "hurda_kar": as_float(hurda_profit_total, MONEY_Q),
+        "hurda_milyem_kari": as_float(hurda_milyem_profit_total, HAS_Q),
         "toplam_musteri_borcu": as_float(sum((d(row["kalan_borc"]) for row in cari["musteriler"]), ZERO), MONEY_Q),
         "toplam_tedarikci_borcu": as_float(sum((d(row["kalan_borc"]) for row in cari["tedarikciler"]), ZERO), MONEY_Q),
+        "toplam_musteri_has_borcu": as_float(musteri_has_borcu, HAS_Q),
+        "toplam_tedarikci_has_borcu": as_float(tedarikci_has_borcu, HAS_Q),
         "normal_stok_has": as_float(sum((d(item["kalan_has"]) for item in stocks), ZERO), HAS_Q),
         "normal_stok_gram": as_float(sum((d(item["kalan_gram"]) for item in stocks), ZERO), NUM_Q),
         "normal_stok_degeri": as_float(sum((d(item["stok_degeri"]) for item in stocks), ZERO), MONEY_Q),
