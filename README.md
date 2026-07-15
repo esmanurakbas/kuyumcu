@@ -21,15 +21,35 @@ Giriş şifresi:
 2526E
 ```
 
-## Windows'ta çalıştırma
+## Windows masaüstü uygulaması
+
+`desktop.py`, mevcut FastAPI uygulamasını arka planda boş bir local portta başlatır ve arayüzü PyWebView penceresinde açar. Kullanıcı tarayıcı veya localhost adresi görmez.
+
+### Windows local çalıştırma
+
+Windows'ta normal kullanım için `start.bat` dosyasına çift tıkla. Script `.venv` yoksa oluşturur, eksik paketleri kurar ve masaüstü uygulamasını açar.
 
 ```text
 start.bat
 ```
 
-## macOS masaüstü uygulaması
+### Windows exe oluşturma
 
-`desktop.py`, mevcut FastAPI uygulamasını arka planda boş bir local portta başlatır ve arayüzü PyWebView penceresinde açar. Kullanıcı tarayıcı veya localhost adresi görmez.
+`.exe` paketi Windows üzerinde oluşturulmalıdır. Windows için PyInstaller `;` data ayıracını kullanır.
+
+```text
+build_windows.bat
+```
+
+Oluşan dosya:
+
+```text
+dist\Kuyumcu Takip\Kuyumcu Takip.exe
+```
+
+`build_windows.bat`, PyInstaller ile Python runtime'ını ve gerekli Python bağımlılıklarını `.exe` klasörünün içine alacak şekilde hazırlandı. Temiz bir Windows bilgisayarda ayrı Python kurulumu gerekmeden çalışması hedeflenir.
+
+## macOS masaüstü uygulaması
 
 ### macOS local çalıştırma
 
@@ -85,13 +105,19 @@ Normal geliştirme modunda SQLite yolu:
 data/kuyumcu.db
 ```
 
+Windows masaüstü uygulamasında SQLite yolu:
+
+```text
+%APPDATA%\KuyumcuTakip\kuyumcu.db
+```
+
 macOS masaüstü uygulamasında SQLite yolu:
 
 ```text
 ~/Library/Application Support/KuyumcuTakip/kuyumcu.db
 ```
 
-Uygulama ilk açılışta bu dosya yoksa, paket içindeki `data/kuyumcu.db` varsa kullanıcı klasörüne kopyalar. Böylece `.app` paketinin yazılamayan iç klasörlerine database yazmaya çalışmaz.
+Uygulama ilk açılışta bu dosya yoksa, paket içindeki `data/kuyumcu.db` varsa kullanıcı klasörüne kopyalar. Böylece `.exe` veya `.app` paketinin yazılamayan iç klasörlerine database yazmaya çalışmaz.
 
 Farklı bir yol kullanmak istersen `DB_PATH` ortam değişkeni verilebilir.
 
@@ -99,9 +125,10 @@ Farklı bir yol kullanmak istersen `DB_PATH` ortam değişkeni verilebilir.
 
 Dashboard üzerindeki `TÜM VERİLERİ DIŞA AKTAR` butonu tüm verileri JSON olarak indirir.
 
-macOS masaüstü sürümünde database dosyası ayrıca burada bulunur:
+Masaüstü sürümünde database dosyası ayrıca burada bulunur:
 
 ```text
+%APPDATA%\KuyumcuTakip\kuyumcu.db
 ~/Library/Application Support/KuyumcuTakip/kuyumcu.db
 ```
 

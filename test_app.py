@@ -67,7 +67,7 @@ def test_pages_and_required_business_flow(tmp_path, monkeypatch):
 
     alis = ok(client.post("/api/alis", json={
         "tarih": "2026-06-29", "tedarikci": "TEST TEDARIKCI", "cinsi": "BILEZIK", "ayar": "22",
-        "adet": 2, "gram": 10, "milyem": 916, "has_fiyati": 3000, "iscilik": 500,
+        "adet": 1, "gram": 20, "milyem": 916, "has_fiyati": 3000, "iscilik": 500,
         "ek_masraf": 0, "odenen": 20000, "notlar": "test alis",
     }))
     assert alis["has"] == 18.320
@@ -106,13 +106,12 @@ def test_pages_and_required_business_flow(tmp_path, monkeypatch):
 
     stok = ok(client.get("/api/stok"))[0]
     assert stok["satis_has"] == 4.700
-    assert stok["kalan_adet"] == 1.000
     assert stok["kalan_gram"] == 15.000
     assert stok["kalan_has"] == 13.620
 
     fazla = client.post("/api/satis", json={
         "tarih": "2026-06-29", "musteri": "FAZLA", "alis_id": alis["id"],
-        "cinsi": "BILEZIK", "ayar": "22", "adet": 20, "gram": 200, "satis_milyem": 940,
+        "cinsi": "BILEZIK", "ayar": "22", "adet": 1, "gram": 200, "satis_milyem": 940,
     })
     assert fazla.status_code == 400
     assert "STOK" in fazla.json()["message"]
@@ -129,7 +128,7 @@ def test_pages_and_required_business_flow(tmp_path, monkeypatch):
     hurda_options = ok(client.get("/api/hurda/urun-secenekleri"))
     assert len(hurda_options) == 1
     assert hurda_options[0]["id"] == hurda_alis["id"]
-    assert hurda_options[0]["kalan_adet"] == 1.000
+    assert hurda_options[0]["kalan_gram"] == 10.000
 
     hurda_satis = ok(client.post("/api/hurda", json={
         "tarih": "2026-06-29", "islem_turu": "SATIS", "hurda_alis_id": hurda_alis["id"],
@@ -150,7 +149,7 @@ def test_pages_and_required_business_flow(tmp_path, monkeypatch):
     assert hurda["ozet"]["hurda_kar"] == 1832.00
     assert hurda["stok"][0]["kalan_has"] == 5.496
     sale_rows = [row for row in hurda["kayitlar"] if main.normalize_text(row["islem_turu"]) == "satis"]
-    assert sale_rows[0]["kalan_adet"] == 0.000
+    assert sale_rows[0]["kalan_gram"] == 6.000
     assert sale_rows[0]["alis_milyem"] == 916.000
     assert sale_rows[0]["satis_milyem"] == 916.000
     assert sale_rows[0]["milyem_farki"] == 0.000
@@ -172,6 +171,9 @@ def test_pages_and_required_business_flow(tmp_path, monkeypatch):
     dashboard = ok(client.get("/api/dashboard"))
     assert dashboard["toplam_normal_alis"] == 55460.00
     assert dashboard["toplam_normal_satis"] == 14400.00
+    assert dashboard["gunluk_tarih"] == "2026-06-29"
+    assert dashboard["gunluk_satis"] == 14400.00
+    assert dashboard["gunluk_urun_kari"] == 0.120
     assert dashboard["genel_urun_kari"] == 0.120
     assert dashboard["hurda_alis_toplami"] == 27480.00
     assert dashboard["hurda_satis_toplami"] == 12824.00
@@ -180,6 +182,7 @@ def test_pages_and_required_business_flow(tmp_path, monkeypatch):
     assert dashboard["normal_stok_gram"] == 15.000
     assert dashboard["hurda_kalan_has"] == 5.496
     assert dashboard["hurda_kalan_gram"] == 6.000
+    assert dashboard["toplam_stok_has"] == 19.116
     assert dashboard["uyari_sayisi"] == 0
 
     normal_stock_rows = ok(client.get("/api/stok/normal"))
@@ -187,8 +190,14 @@ def test_pages_and_required_business_flow(tmp_path, monkeypatch):
     cari_totals = ok(client.get("/api/cari"))
     assert dashboard["normal_stok_has"] == round(sum(row["kalan_has"] for row in normal_stock_rows), 3)
     assert dashboard["normal_stok_gram"] == round(sum(row["kalan_gram"] for row in normal_stock_rows), 3)
+    assert dashboard["normal_stok_degeri"] == round(sum(row["stok_degeri"] for row in normal_stock_rows), 2)
     assert dashboard["hurda_kalan_has"] == round(sum(row["kalan_has"] for row in hurda_stock_rows), 3)
     assert dashboard["hurda_kalan_gram"] == round(sum(row["kalan_gram"] for row in hurda_stock_rows), 3)
+    assert dashboard["hurda_stok_degeri"] == round(sum(row["stok_degeri"] for row in hurda_stock_rows), 2)
+    assert dashboard["toplam_stok_has"] == round(dashboard["normal_stok_has"] + dashboard["hurda_kalan_has"], 3)
+    assert dashboard["stok_degeri"] == round(dashboard["normal_stok_degeri"] + dashboard["hurda_stok_degeri"], 2)
+    assert dashboard["musteri_emanet_has"] == 0.000
+    assert dashboard["tedarikci_alacak_has"] == 0.000
     assert dashboard["toplam_musteri_borcu"] == round(sum(row["kalan_borc"] for row in cari_totals["musteriler"]), 2)
     assert dashboard["toplam_tedarikci_borcu"] == round(sum(row["kalan_borc"] for row in cari_totals["tedarikciler"]), 2)
 
@@ -240,14 +249,14 @@ def test_purchase_id_and_turkish_char_flow_without_milyem_stock_block(tmp_path, 
     stock = ok(client.get("/api/stok"))[0]
     assert stock["kalan_gram"] == 0.000
     assert stock["kalan_has"] == -0.100
-    assert "SATI\u015e HASI" in stock["uyari"]
+    assert "HASI" in stock["uyari"]
 
     cari = ok(client.get("/api/cari"))
     assert cari["tedarikciler"][0]["tedarikci_adi"] == "\u015eAH\u0130N TEDAR\u0130K\u00c7\u0130"
     assert cari["musteriler"][0]["musteri_adi"] == "\u0130SMA\u0130L M\u00dc\u015eTER\u0130"
     fazla = client.post("/api/satis", json={
         "tarih": "2026-06-30", "musteri": "FAZLA", "purchase_id": alis["id"],
-        "cinsi": "B\u0130LEZ\u0130K", "ayar": "14", "adet": 1.001, "gram": 10, "satis_milyem": 560,
+        "cinsi": "B\u0130LEZ\u0130K", "ayar": "14", "adet": 1, "gram": 10, "satis_milyem": 560,
     })
     assert fazla.status_code == 400
     assert "STOK" in fazla.json()["message"]
@@ -291,9 +300,11 @@ def test_turkish_encoding_login_and_frontend_flow_guards():
     assert 'api("/api/session")' in app_js
     assert 'api("/api/logout", { method: "POST" })' in app_js
 
-def test_macos_desktop_packaging_files_are_configured():
+def test_desktop_packaging_files_are_configured_for_macos_and_windows():
     desktop = Path("desktop.py").read_text(encoding="utf-8")
-    build = Path("build_mac.sh").read_text(encoding="utf-8")
+    build_mac = Path("build_mac.sh").read_text(encoding="utf-8")
+    build_windows = Path("build_windows.bat").read_text(encoding="utf-8")
+    start_windows = Path("start.bat").read_text(encoding="utf-8")
     requirements = Path("requirements.txt").read_text(encoding="utf-8")
     readme = Path("README.md").read_text(encoding="utf-8")
     static_js = Path("static/app.js").read_text(encoding="utf-8")
@@ -303,17 +314,33 @@ def test_macos_desktop_packaging_files_are_configured():
     assert 'APP_NAME = "Kuyumcu Takip"' in desktop
     assert 'def resource_path(relative_path: str)' in desktop
     assert 'Library" / "Application Support" / "KuyumcuTakip"' in desktop
+    assert 'APPDATA", Path.home()' in desktop
     assert 'os.environ.setdefault("DB_PATH", str(db_path))' in desktop
     assert 'wait_until_ready(f"{url}/login")' in desktop
-    assert 'window.events.closed += stop_backend' in desktop
+    assert 'log_config=None' in desktop
+    assert 'window.events.closed += lambda: stop_backend(desktop_server)' in desktop
+    assert 'def run_pywebview()' in desktop
     assert 'webview.start(debug=False)' in desktop
+    assert 'def run_windows()' in desktop
+    assert 'launch_windows_browser_app(desktop_server.url)' in desktop
     assert 'pywebview' in requirements
-    assert '--name "Kuyumcu Takip"' in build
-    assert '--add-data "static:static"' in build
-    assert '--add-data "data:data"' in build
-    assert 'desktop.py' in build
+    assert '--name "Kuyumcu Takip"' in build_mac
+    assert '--add-data "static:static"' in build_mac
+    assert '--add-data "data:data"' in build_mac
+    assert 'desktop.py' in build_mac
+    assert '--name "Kuyumcu Takip"' in build_windows
+    assert '--add-data "static;static"' in build_windows
+    assert '--add-data "data;data"' in build_windows
+    assert 'desktop.py' in build_windows
+    assert '--exclude-module webview' in build_windows
+    assert '--exclude-module pythonnet' in build_windows
+    assert '--exclude-module clr_loader' in build_windows
+    assert r'dist\Kuyumcu Takip\Kuyumcu Takip.exe' in build_windows
+    assert '"%PY%" desktop.py' in start_windows
     assert 'dist/Kuyumcu Takip.app' in readme
+    assert r'dist\Kuyumcu Takip\Kuyumcu Takip.exe' in readme
     assert '~/Library/Application Support/KuyumcuTakip/kuyumcu.db' in readme
+    assert r'%APPDATA%\KuyumcuTakip\kuyumcu.db' in readme
     for text in (static_js, login_html, export_js):
         assert 'http://127.0.0.1:8000' not in text
         assert 'localhost:8000' not in text
@@ -342,7 +369,14 @@ def test_frontend_layout_tabs_columns_and_confirmations():
     forms_block = app_js.split("const forms =", 1)[1].split("const columns =", 1)[0]
     alis_form = forms_block.split("alis:", 1)[1].split("satis:", 1)[0]
     satis_form = forms_block.split("satis:", 1)[1].split("hurda:", 1)[0]
-    assert "HURDA" not in app_js.split("suggestions:", 1)[1].split("customers", 1)[0]
+    suggestions_block = app_js.split("suggestions:", 1)[1].split("customers", 1)[0]
+    assert "HURDA" not in suggestions_block
+    assert "RE\\u015eAT \\u00c7EYREK" in suggestions_block
+    assert "ATA L\\u0130RA" in suggestions_block
+    assert "autocomplete" in alis_form.split("cinsi", 1)[1].split("ayar", 1)[0]
+    assert "select" not in alis_form.split("cinsi", 1)[1].split("ayar", 1)[0]
+    assert "document.createElement(\"datalist\")" in app_js
+    assert "input.setAttribute(\"list\", list.id)" in app_js
     for removed in ["has_fiyati", "iscilik", "ek_masraf"]:
         assert removed not in alis_form
     for removed in ["has_fiyati", "iscilik", "ek_ucret", "indirim", "alinan"]:
@@ -376,7 +410,7 @@ def test_frontend_layout_tabs_columns_and_confirmations():
     assert "if (key === \"odeme_tipi\") return paymentLabel(value);" in app_js
     assert "cari-date-field" in app_js
     assert "cari-product-payment-field" in app_js
-    assert "payment-adet-field" in app_js
+    assert "payment-adet-field" not in app_js
     assert "payment-gram-field" in app_js
     assert "payment-milyem-field" in app_js
     assert "cari-has-card" in app_js
@@ -428,9 +462,9 @@ def test_frontend_layout_tabs_columns_and_confirmations():
     hurda_alis_block = columns_block.split("hurdaAlis:", 1)[1].split("hurdaSatis:", 1)[0]
     hurda_satis_block = columns_block.split("hurdaSatis:", 1)[1].split("stok:", 1)[0]
     assert "kalan_adet" not in hurda_alis_block
-    assert "kalan_adet" in hurda_satis_block
-    assert "hurda_alis_adet" in columns_block
-    assert "hurda_satis_adet" in columns_block
+    assert "kalan_gram" in hurda_satis_block
+    assert "hurda_alis_adet" not in columns_block
+    assert "hurda_satis_adet" not in columns_block
     assert "purchase_id" not in columns_block
     assert "alis_id" not in columns_block
     assert "hurda_alis_id" not in columns_block
@@ -442,12 +476,12 @@ def test_edit_endpoints_update_without_duplicates(tmp_path, monkeypatch):
 
     alis = ok(client.post("/api/alis", json={
         "tarih": "2026-06-30", "tedarikci": "EDIT TEDARIKCI", "cinsi": "BILEZIK", "ayar": "22",
-        "adet": 2, "gram": 10, "milyem": 916, "has_fiyati": 3000, "iscilik": 0,
+        "adet": 1, "gram": 20, "milyem": 916, "has_fiyati": 3000, "iscilik": 0,
         "ek_masraf": 0, "odenen": 1000,
     }))
     updated_alis = ok(client.put(f"/api/alis/{alis['id']}", json={
         "tarih": "2026-06-30", "tedarikci": "EDIT TEDARIKCI", "cinsi": "BILEZIK", "ayar": "22",
-        "adet": 2, "gram": 10, "milyem": 916, "has_fiyati": 3100, "iscilik": 100,
+        "adet": 1, "gram": 20, "milyem": 916, "has_fiyati": 3100, "iscilik": 100,
         "ek_masraf": 0, "odenen": 2000,
     }))
     assert updated_alis["toplam_tutar"] == 56892.00
@@ -468,7 +502,7 @@ def test_edit_endpoints_update_without_duplicates(tmp_path, monkeypatch):
     assert len(ok(client.get("/api/satis"))) == 1
     linked_alis_edit = ok(client.put(f"/api/alis/{alis['id']}", json={
         "tarih": "2026-06-30", "tedarikci": "EDIT TEDARIKCI 2", "cinsi": "BILEZIK", "ayar": "22",
-        "adet": 2, "gram": 10, "milyem": 917, "notlar": "linked edit",
+        "adet": 1, "gram": 20, "milyem": 917, "notlar": "linked edit",
     }))
     assert linked_alis_edit["tedarikci"] == "EDIT TEDARIKCI 2"
     assert linked_alis_edit["milyem"] == 917.000
@@ -477,7 +511,7 @@ def test_edit_endpoints_update_without_duplicates(tmp_path, monkeypatch):
     assert linked_alis_edit["odenen"] == 2000.00
     blocked_product_edit = client.put(f"/api/alis/{alis['id']}", json={
         "tarih": "2026-06-30", "tedarikci": "EDIT TEDARIKCI 2", "cinsi": "YUZUK", "ayar": "22",
-        "adet": 2, "gram": 10, "milyem": 917,
+        "adet": 1, "gram": 20, "milyem": 917,
     })
     assert blocked_product_edit.status_code == 400
 
@@ -522,20 +556,20 @@ def test_edit_endpoints_update_without_duplicates(tmp_path, monkeypatch):
     assert hurda_after_delete["stok"][0]["kalan_gram"] == 10.000
 
 
-def test_hurda_sale_stock_check_uses_adet_and_gram_not_milyem(tmp_path, monkeypatch):
+def test_hurda_sale_stock_check_uses_gram_not_milyem(tmp_path, monkeypatch):
     client = make_client(tmp_path, monkeypatch)
     login(client)
 
     hurda_alis = ok(client.post("/api/hurda", json={
         "tarih": "2026-06-30", "islem_turu": "ALIS", "kisi": "HURDA TEDARIKCI",
-        "cinsi": "HURDA", "ayar": "22", "adet": 100, "gram": 1, "milyem": 930,
+        "cinsi": "HURDA", "ayar": "22", "adet": 1, "gram": 100, "milyem": 930,
         "has_fiyati": 0, "iscilik": 0, "odenen_veya_alinan": 0,
     }))
 
     allowed = ok(client.post("/api/hurda", json={
         "tarih": "2026-06-30", "islem_turu": "SATIS", "hurda_alis_id": hurda_alis["id"],
-        "kisi": "HURDA MUSTERI", "cinsi": "HURDA", "ayar": "22", "adet": 100,
-        "gram": 1, "milyem": 940, "has_fiyati": 0, "iscilik": 0, "odenen_veya_alinan": 0,
+        "kisi": "HURDA MUSTERI", "cinsi": "HURDA", "ayar": "22", "adet": 1,
+        "gram": 100, "milyem": 940, "has_fiyati": 0, "iscilik": 0, "odenen_veya_alinan": 0,
     }))
     assert allowed["has"] == 94.000
     assert allowed["hurda_alis_id"] == hurda_alis["id"]
@@ -545,7 +579,7 @@ def test_hurda_sale_stock_check_uses_adet_and_gram_not_milyem(tmp_path, monkeypa
     assert allowed["milyem_kari"] == 1.000
 
     stok = ok(client.get("/api/hurda"))["stok"][0]
-    assert stok["kalan_adet"] == 0.000
+    assert stok["kalan_gram"] == 0.000
     assert stok["kalan_gram"] == 0.000
     assert stok["kalan_has"] == -1.000
 
@@ -732,7 +766,7 @@ def test_cari_has_payment_methods(tmp_path, monkeypatch):
 
     pay1 = ok(client.post("/api/cari/odeme", json={
         "tarih": "2026-07-04", "isim": "CARI TEDARIKCI", "odeme_tipi": "ADET_GRAM_MILYEM",
-        "adet": 100, "gram": 1, "milyem": 940,
+        "adet": 1, "gram": 100, "milyem": 940,
     }))
     assert pay1["odenen_has"] == 94.000
 
@@ -760,6 +794,9 @@ def test_cari_has_payment_methods(tmp_path, monkeypatch):
     assert pay3["odenen_has"] == 2.500
     after = {main.normalize_text(row["isim"]): row for row in ok(client.get("/api/cari"))["kisiler"]}[main.normalize_text("CARI TEDARIKCI")]
     assert after["kalan_has"] == round(before["kalan_has"] - 2.5, 3)
+    overpaid_dashboard = ok(client.get("/api/dashboard"))
+    assert overpaid_dashboard["toplam_tedarikci_has_borcu"] == 0.000
+    assert overpaid_dashboard["tedarikci_alacak_has"] == abs(after["kalan_has"])
 
 
 def test_transaction_level_cari_payments_are_included_and_editable(tmp_path, monkeypatch):
@@ -768,7 +805,7 @@ def test_transaction_level_cari_payments_are_included_and_editable(tmp_path, mon
 
     alis = ok(client.post("/api/alis", json={
         "tarih": "2026-07-04", "tedarikci": "ISLEM TEDARIKCI", "cinsi": "BILEZIK", "ayar": "22",
-        "adet": 10, "gram": 1, "milyem": 930, "odeme_tipi": "HAS", "odenen_has": 3,
+        "adet": 1, "gram": 10, "milyem": 930, "odeme_tipi": "HAS", "odenen_has": 3,
     }))
     assert alis["has"] == 9.300
     assert alis["odenen_has"] == 3.000
@@ -779,7 +816,7 @@ def test_transaction_level_cari_payments_are_included_and_editable(tmp_path, mon
 
     satis = ok(client.post("/api/satis", json={
         "tarih": "2026-07-04", "musteri": "ISLEM MUSTERI", "purchase_id": alis["id"],
-        "cinsi": "BILEZIK", "ayar": "22", "adet": 10, "gram": 1, "satis_milyem": 940,
+        "cinsi": "BILEZIK", "ayar": "22", "adet": 1, "gram": 10, "satis_milyem": 940,
         "odeme_tipi": "HAS", "odenen_has": 4,
     }))
     assert satis["has"] == 9.400
@@ -792,7 +829,7 @@ def test_transaction_level_cari_payments_are_included_and_editable(tmp_path, mon
     ok(client.delete(f"/api/satis/{satis['id']}"))
     tam = ok(client.post("/api/satis", json={
         "tarih": "2026-07-04", "musteri": "TAM MUSTERI", "purchase_id": alis["id"],
-        "cinsi": "BILEZIK", "ayar": "22", "adet": 10, "gram": 1, "satis_milyem": 940,
+        "cinsi": "BILEZIK", "ayar": "22", "adet": 1, "gram": 10, "satis_milyem": 940,
         "odeme_tipi": "TAM_KAPAT",
     }))
     assert tam["odenen_has"] == 9.400
@@ -802,8 +839,8 @@ def test_transaction_level_cari_payments_are_included_and_editable(tmp_path, mon
 
     pay_by_product = ok(client.post("/api/satis", json={
         "tarih": "2026-07-04", "musteri": "URUN ODEME MUSTERI", "purchase_id": alis["id"],
-        "cinsi": "BILEZIK", "ayar": "22", "adet": 5, "gram": 1, "satis_milyem": 940,
-        "odeme_tipi": "ADET_GRAM_MILYEM", "odenen_adet": 5, "odenen_gram": 1, "odenen_milyem": 940,
+        "cinsi": "BILEZIK", "ayar": "22", "adet": 1, "gram": 5, "satis_milyem": 940,
+        "odeme_tipi": "ADET_GRAM_MILYEM", "odenen_adet": 1, "odenen_gram": 5, "odenen_milyem": 940,
     }))
     assert pay_by_product["odenen_has"] == 4.700
     product_customer = {main.normalize_text(row["isim"]): row for row in ok(client.get("/api/cari"))["kisiler"]}[main.normalize_text("URUN ODEME MUSTERI")]
@@ -811,7 +848,7 @@ def test_transaction_level_cari_payments_are_included_and_editable(tmp_path, mon
 
     updated = ok(client.put(f"/api/satis/{pay_by_product['id']}", json={
         "tarih": "2026-07-04", "musteri": "URUN ODEME MUSTERI", "purchase_id": alis["id"],
-        "cinsi": "BILEZIK", "ayar": "22", "adet": 5, "gram": 1, "satis_milyem": 940,
+        "cinsi": "BILEZIK", "ayar": "22", "adet": 1, "gram": 5, "satis_milyem": 940,
         "odeme_tipi": "HAS", "odenen_has": 2.5,
     }))
     assert updated["id"] == pay_by_product["id"]
@@ -829,13 +866,13 @@ def test_transaction_level_cari_payments_are_included_and_editable(tmp_path, mon
     assert after_manual["kalan_has"] == round(before_manual - 2.5, 3)
 
 
-def test_transaction_payment_blank_adet_defaults_to_one(tmp_path, monkeypatch):
+def test_transaction_payment_gram_milyem_without_adet(tmp_path, monkeypatch):
     client = make_client(tmp_path, monkeypatch)
     login(client)
 
     alis = ok(client.post("/api/alis", json={
         "tarih": "2026-07-04", "tedarikci": "BOS ADET TEDARIKCI", "cinsi": "BILEZIK", "ayar": "22",
-        "adet": 10, "gram": 1, "milyem": 930,
+        "adet": 1, "gram": 10, "milyem": 930,
         "odeme_tipi": "ADET_GRAM_MILYEM", "odenen_adet": "", "odenen_gram": 5, "odenen_milyem": 940,
     }))
     assert alis["odenen_has"] == 4.700
@@ -849,11 +886,11 @@ def test_cari_person_actions_payment_edit_delete_and_rename(tmp_path, monkeypatc
 
     alis = ok(client.post("/api/alis", json={
         "tarih": "2026-07-04", "tedarikci": "AKSIYON TEDARIKCI", "cinsi": "BILEZIK", "ayar": "22",
-        "adet": 10, "gram": 1, "milyem": 930,
+        "adet": 1, "gram": 10, "milyem": 930,
     }))
     satis = ok(client.post("/api/satis", json={
         "tarih": "2026-07-04", "musteri": "AKSIYON MUSTERI", "purchase_id": alis["id"],
-        "cinsi": "BILEZIK", "ayar": "22", "adet": 5, "gram": 1, "satis_milyem": 940,
+        "cinsi": "BILEZIK", "ayar": "22", "adet": 1, "gram": 5, "satis_milyem": 940,
     }))
     assert satis["has"] == 4.700
 

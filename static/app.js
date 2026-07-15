@@ -9,7 +9,7 @@ const state = {
   stokFilter: "normal",
   selectedPurchase: null,
   selectedHurdaPurchase: null,
-  suggestions: { products: ["B\u0130LEZ\u0130K", "Y\u00dcZ\u00dcK", "KOLYE", "K\u00dcPE", "SET", "\u00c7EYREK", "YARIM", "TAM", "GRAM ALTIN", "D\u0130\u011eER"], customers: [], suppliers: [], people: [] },
+  suggestions: { products: ["B\u0130LEZ\u0130K", "Y\u00dcZ\u00dcK", "KOLYE", "K\u00dcPE", "SET", "\u00c7EYREK", "YARIM", "TAM", "GRAM ALTIN", "RE\u015eAT", "RE\u015eAT \u00c7EYREK", "RE\u015eAT YARIM", "RE\u015eAT TAM", "RE\u015eAT GREMSE", "RE\u015eAT BE\u015eL\u0130", "ATA L\u0130RA", "CUMHUR\u0130YET", "GREMSE", "BE\u015eL\u0130", "D\u0130\u011eER"], customers: [], suppliers: [], people: [] },
 };
 
 const views = {
@@ -26,7 +26,7 @@ const forms = {
   alis: [
     ["tarih", "Tarih", "date"], ["tedarikci", "Tedarik\u00e7i", "autocomplete", "suppliers"],
     ["cinsi", "Cinsi", "autocomplete", "products"], ["ayar", "Ayar", "text"],
-    ["adet", "Adet", "number"], ["gram", "Gram", "decimal"], ["milyem", "Al\u0131\u015f Milyem", "decimal"],
+    ["gram", "Gram", "decimal"], ["milyem", "Al\u0131\u015f Milyem", "decimal"],
     ["notlar", "Not", "textarea"],
   ],
   satis: [
@@ -34,24 +34,24 @@ const forms = {
     ["tarih", "Tarih", "date"], ["musteri", "M\u00fc\u015fteri", "autocomplete", "customers"],
     ["cinsi", "Cinsi", "text", null, true], ["ayar", "Ayar", "text", null, true],
     ["alis_milyem", "Al\u0131\u015f Milyem", "decimal", null, true],
-    ["adet", "Sat\u0131\u015f Adet", "number"], ["gram", "Sat\u0131\u015f Gram", "decimal"], ["satis_milyem", "Sat\u0131\u015f Milyem", "decimal"],
+    ["gram", "Sat\u0131\u015f Gram", "decimal"], ["satis_milyem", "Sat\u0131\u015f Milyem", "decimal"],
     ["notlar", "Not", "textarea"],
   ],
   hurda: [
     ["hurda_alis_id", "", "hidden"], ["tarih", "Tarih", "date"], ["islem_turu", "", "hidden"],
     ["kisi", "Ki\u015fi / Firma", "autocomplete", "people"], ["cinsi", "Cinsi", "text"], ["ayar", "Ayar", "text"],
-    ["adet", "Adet", "number"], ["gram", "Gram", "decimal"], ["milyem", "Al\u0131\u015f Milyem", "decimal"],
+    ["gram", "Gram", "decimal"], ["milyem", "Al\u0131\u015f Milyem", "decimal"],
     ["notlar", "Not", "textarea"],
   ],
 };
 
 const columns = {
-  alis: ["tarih", "tedarikci", "cinsi", "ayar", "adet", "gram", "milyem", "has", "not"],
-  satis: ["tarih", "musteri", "cinsi", "ayar", "adet", "gram", "alis_milyem", "satis_milyem", "milyem_farki", "milyem_kari", "not"],
-  hurdaAlis: ["tarih", "kisi", "cinsi", "ayar", "adet", "gram", "milyem", "has", "not"],
-  hurdaSatis: ["tarih", "kisi", "cinsi", "ayar", "adet", "gram", "alis_milyem", "satis_milyem", "milyem_farki", "milyem_kari", "kalan_adet", "not"],
-  stok: ["cinsi", "ayar", "alis_adet", "alis_gram", "alis_has", "satis_adet", "satis_gram", "satis_has", "kalan_adet", "kalan_gram", "kalan_has"],
-  hurdaStok: ["cinsi", "ayar", "hurda_alis_adet", "hurda_alis_gram", "hurda_alis_has", "hurda_satis_adet", "hurda_satis_gram", "hurda_satis_has", "kalan_adet", "kalan_gram", "kalan_has"],
+  alis: ["tarih", "tedarikci", "cinsi", "ayar", "gram", "milyem", "has", "not"],
+  satis: ["tarih", "musteri", "cinsi", "ayar", "gram", "alis_milyem", "satis_milyem", "milyem_farki", "milyem_kari", "not"],
+  hurdaAlis: ["tarih", "kisi", "cinsi", "ayar", "gram", "milyem", "has", "not"],
+  hurdaSatis: ["tarih", "kisi", "cinsi", "ayar", "gram", "alis_milyem", "satis_milyem", "milyem_farki", "milyem_kari", "kalan_gram", "not"],
+  stok: ["cinsi", "ayar", "alis_gram", "alis_has", "satis_gram", "satis_has", "kalan_gram", "kalan_has"],
+  hurdaStok: ["cinsi", "ayar", "hurda_alis_gram", "hurda_alis_has", "hurda_satis_gram", "hurda_satis_has", "kalan_gram", "kalan_has"],
   musteriCari: ["musteri_adi", "toplam_has", "odeme_has", "kalan_has", "son_islem_tarihi"],
   tedarikciCari: ["tedarikci_adi", "toplam_has", "odeme_has", "kalan_has", "son_islem_tarihi"],
   kisiCari: ["isim", "toplam_has", "odeme_has", "kalan_has", "son_islem_tarihi"],
@@ -60,17 +60,17 @@ const columns = {
 
 const labels = {
   tarih: "Tarih", tedarikci: "Tedarik\u00e7i", musteri: "M\u00fc\u015fteri", kisi: "Ki\u015fi / Firma", cinsi: "Cinsi", ayar: "Ayar",
-  adet: "Adet", gram: "Gram", milyem: "Milyem", has: "Has", has_fiyati: "Has Fiyat\u0131", toplam_tutar: "Toplam",
+  gram: "Gram", milyem: "Milyem", has: "Has", has_fiyati: "Has Fiyat\u0131", toplam_tutar: "Toplam",
   odenen: "\u00d6denen", alinan: "Al\u0131nan", odenen_veya_alinan: "\u00d6denen / Al\u0131nan", kalan_borc: "Kalan Bor\u00e7", not: "Not",
-  islem_turu: "\u0130\u015flem", alis_adet: "Al\u0131\u015f Adet", alis_gram: "Al\u0131\u015f Gram", alis_has: "Al\u0131\u015f Has",
-  satis_adet: "Sat\u0131\u015f Adet", satis_gram: "Sat\u0131\u015f Gram", satis_has: "Sat\u0131\u015f Has", kalan_adet: "Kalan Adet", kalan_gram: "Kalan Gram", kalan_has: "Kalan Has",
+  islem_turu: "\u0130\u015flem", alis_gram: "Al\u0131\u015f Gram", alis_has: "Al\u0131\u015f Has",
+  satis_gram: "Sat\u0131\u015f Gram", satis_has: "Sat\u0131\u015f Has", kalan_gram: "Kalan Gram", kalan_has: "Kalan Has",
   alis_milyem: "Al\u0131\u015f Milyem", satis_milyem: "Sat\u0131\u015f Milyem", milyem_farki: "Milyem Fark\u0131",
   tahmini_kar: "Milyem K\u00e2r\u0131", has_kari: "Milyem K\u00e2r\u0131", milyem_kari: "Milyem K\u00e2r\u0131", musteri_adi: "Ad", tedarikci_adi: "Ad", toplam_satis: "Toplam Sat\u0131\u015f", toplam_alis: "Toplam Al\u0131\u015f",
-  alis_borcu: "Al\u0131\u015f Borcu", satis_borcu: "Sat\u0131\u015f Borcu", net_bakiye: "Net Bakiye", son_islem_tarihi: "Son \u0130\u015flem", odeme_tipi: "\u00d6deme Tipi", odenen_has: "\u00d6denen Has", odenen_adet: "\u00d6denen Adet", odenen_gram: "\u00d6denen Gram", odenen_milyem: "\u00d6denen Milyem", hesaplanan_has: "Hesaplanan Has", toplam_has: "Toplam Has", odeme_has: "\u00d6deme Has", normal_alis_has: "Normal Al\u0131\u015f Has", normal_satis_has: "Normal Sat\u0131\u015f Has", hurda_alis_has: "Hurda Al\u0131\u015f Has", hurda_satis_has: "Hurda Sat\u0131\u015f Has", toplam_alis_has: "Toplam Al\u0131\u015f Has", toplam_satis_has: "Toplam Sat\u0131\u015f Has", hurda_alis_adet: "Hurda Al\u0131\u015f Adet", hurda_alis_gram: "Hurda Al\u0131\u015f Gram", hurda_alis_has: "Hurda Al\u0131\u015f Has", hurda_satis_adet: "Hurda Sat\u0131\u015f Adet", hurda_satis_gram: "Hurda Sat\u0131\u015f Gram", hurda_satis_has: "Hurda Sat\u0131\u015f Has",
+  alis_borcu: "Al\u0131\u015f Borcu", satis_borcu: "Sat\u0131\u015f Borcu", net_bakiye: "Net Bakiye", son_islem_tarihi: "Son \u0130\u015flem", odeme_tipi: "\u00d6deme Tipi", odenen_has: "\u00d6denen Has", odenen_gram: "\u00d6denen Gram", odenen_milyem: "\u00d6denen Milyem", hesaplanan_has: "Hesaplanan Has", toplam_has: "Toplam Has", odeme_has: "\u00d6deme Has", normal_alis_has: "Normal Al\u0131\u015f Has", normal_satis_has: "Normal Sat\u0131\u015f Has", hurda_alis_has: "Hurda Al\u0131\u015f Has", hurda_satis_has: "Hurda Sat\u0131\u015f Has", toplam_alis_has: "Toplam Al\u0131\u015f Has", toplam_satis_has: "Toplam Sat\u0131\u015f Has", hurda_alis_gram: "Hurda Al\u0131\u015f Gram", hurda_alis_has: "Hurda Al\u0131\u015f Has", hurda_satis_gram: "Hurda Sat\u0131\u015f Gram", hurda_satis_has: "Hurda Sat\u0131\u015f Has",
 };
 
 const moneyFields = new Set(["has_fiyati", "iscilik", "ek_masraf", "ek_ucret", "indirim", "odenen", "alinan", "toplam_tutar", "kalan_borc", "toplam_satis", "toplam_alis", "alis_borcu", "satis_borcu", "net_bakiye", "odenen_veya_alinan"]);
-const numberFields = new Set(["adet", "gram", "milyem", "has", "alis_adet", "alis_gram", "alis_has", "satis_adet", "satis_gram", "satis_has", "kalan_adet", "kalan_gram", "kalan_has", "alis_milyem", "satis_milyem", "milyem_farki", "has_kari", "milyem_kari", "tahmini_kar", "hurda_alis_adet", "hurda_alis_gram", "hurda_alis_has", "hurda_satis_adet", "hurda_satis_gram", "hurda_satis_has", "normal_alis_has", "normal_satis_has", "hurda_alis_has", "hurda_satis_has", "toplam_alis_has", "toplam_satis_has", "toplam_has", "odeme_has", "odenen_has", "odenen_adet", "odenen_gram", "odenen_milyem", "hesaplanan_has"]);
+const numberFields = new Set(["gram", "milyem", "has", "alis_gram", "alis_has", "satis_gram", "satis_has", "kalan_gram", "kalan_has", "alis_milyem", "satis_milyem", "milyem_farki", "has_kari", "milyem_kari", "tahmini_kar", "hurda_alis_gram", "hurda_alis_has", "hurda_satis_gram", "hurda_satis_has", "normal_alis_has", "normal_satis_has", "hurda_alis_has", "hurda_satis_has", "toplam_alis_has", "toplam_satis_has", "toplam_has", "odeme_has", "odenen_has", "odenen_gram", "odenen_milyem", "hesaplanan_has"]);
 
 const content = document.querySelector("#content");
 const search = document.querySelector("#search");
@@ -177,13 +177,22 @@ async function refreshSuggestions() {
 }
 
 function attachAutocomplete(input, source) {
+  const values = state.suggestions[source] || [];
+  const list = document.createElement("datalist");
+  list.id = `${source}-${input.name || "field"}-options`;
+  values.forEach((value) => {
+    const option = document.createElement("option");
+    option.value = value;
+    list.appendChild(option);
+  });
+  input.setAttribute("list", list.id);
+  input.parentElement.appendChild(list);
   const box = document.createElement("div");
   box.className = "suggest-box hidden";
   input.parentElement.appendChild(box);
   const close = () => box.classList.add("hidden");
   const open = () => {
     const needle = normalize(input.value);
-    const values = state.suggestions[source] || [];
     const matches = values.filter((item) => !needle || normalize(item).includes(needle)).slice(0, 8);
     if (!matches.length) { close(); return; }
     box.innerHTML = "";
@@ -200,13 +209,12 @@ function attachAutocomplete(input, source) {
   input.addEventListener("focus", open);
   input.addEventListener("blur", () => setTimeout(close, 120));
 }
-
 function fieldElement(name, type, source, readonly) {
   if (type === "hidden") { const input = document.createElement("input"); input.type = "hidden"; return input; }
   if (type === "textarea") { const input = document.createElement("textarea"); input.rows = 2; return input; }
   if (type === "select") {
     const input = document.createElement("select");
-    source.forEach((value) => { const opt = document.createElement("option"); opt.value = value; opt.textContent = value; input.appendChild(opt); });
+    const values = Array.isArray(source) ? source : (state.suggestions[source] || []); values.forEach((value) => { const opt = document.createElement("option"); opt.value = value; opt.textContent = value; input.appendChild(opt); });
     return input;
   }
   const input = document.createElement("input");
@@ -215,17 +223,17 @@ function fieldElement(name, type, source, readonly) {
   if (type === "autocomplete") input.autocomplete = "off";
   if (type === "number") input.min = "0";
   if (readonly) input.readOnly = true;
-  if (["adet", "gram", "milyem", "satis_milyem"].includes(name)) input.required = true;
+  if (["gram", "milyem", "satis_milyem"].includes(name)) input.required = true;
   return input;
 }
 
 function calcHas(form) {
   const milyem = form.elements.satis_milyem ? parseNum(form.elements.satis_milyem.value) : parseNum(form.elements.milyem?.value);
-  return parseNum(form.elements.adet.value) * parseNum(form.elements.gram.value) * milyem / 1000;
+  return parseNum(form.elements.gram.value) * milyem / 1000;
 }
 
 function ensureTransactionPaymentFields(form) {
-  const defaults = { odeme_tipi: "ODEME_YOK", odenen_has: "0", odenen_adet: "", odenen_gram: "0", odenen_milyem: "0" };
+  const defaults = { odeme_tipi: "ODEME_YOK", odenen_has: "0", odenen_gram: "0", odenen_milyem: "0" };
   Object.entries(defaults).forEach(([name, value]) => {
     if (!form.elements[name]) {
       const input = document.createElement("input");
@@ -238,13 +246,13 @@ function ensureTransactionPaymentFields(form) {
 }
 
 function paymentLabel(value) {
-  return ({ ODEME_YOK: "Ödeme Yok", HAS: "Has ile Ödeme", ADET_GRAM_MILYEM: "Adet + Gram + Milyem", TAM_KAPAT: "Borcu Tam Kapat" })[value] || "Ödeme Yok";
+  return ({ ODEME_YOK: "Ödeme Yok", HAS: "Has ile Ödeme", ADET_GRAM_MILYEM: "Gram + Milyem", TAM_KAPAT: "Borcu Tam Kapat" })[value] || "deme Yok";
 }
 
 function calculatedTransactionPayment(form) {
   const tip = form.elements.odeme_tipi.value || "ODEME_YOK";
   if (tip === "HAS") return parseNum(form.elements.odenen_has.value);
-  if (tip === "ADET_GRAM_MILYEM") return (parseNum(form.elements.odenen_adet.value) || 1) * parseNum(form.elements.odenen_gram.value) * parseNum(form.elements.odenen_milyem.value) / 1000;
+  if (tip === "ADET_GRAM_MILYEM") return parseNum(form.elements.odenen_gram.value) * parseNum(form.elements.odenen_milyem.value) / 1000;
   if (tip === "TAM_KAPAT") return calcHas(form);
   return 0;
 }
@@ -254,7 +262,6 @@ function syncTransactionPayment(form) {
   if (tip === "ADET_GRAM_MILYEM" || tip === "TAM_KAPAT") form.elements.odenen_has.value = String(calculatedTransactionPayment(form));
   if (tip === "ODEME_YOK") {
     form.elements.odenen_has.value = "0";
-    form.elements.odenen_adet.value = "";
     form.elements.odenen_gram.value = "0";
     form.elements.odenen_milyem.value = "0";
   }
@@ -275,7 +282,7 @@ function attachPaymentButton(form) {
     box.querySelector("[data-payment-summary]").textContent = text;
   };
   box.querySelector("button").addEventListener("click", () => openTransactionPaymentModal(form));
-  [form.elements.adet, form.elements.gram, form.elements.milyem, form.elements.satis_milyem].filter(Boolean).forEach((input) => input.addEventListener("input", () => syncTransactionPayment(form)));
+  [form.elements.gram, form.elements.milyem, form.elements.satis_milyem].filter(Boolean).forEach((input) => input.addEventListener("input", () => syncTransactionPayment(form)));
   form._refreshPaymentSummary();
   return box;
 }
@@ -291,7 +298,7 @@ function paymentInput(name, placeholder = "") {
   const input = document.createElement("input");
   input.type = "text";
   input.inputMode = "decimal";
-  input.value = name === "odenen_adet" ? (document.querySelector(`.entry-form [name="${name}"]`)?.value || "") : "";
+  input.value = "";
   input.placeholder = placeholder;
   return input;
 }
@@ -311,7 +318,7 @@ function openTransactionPaymentModal(form) {
   const paymentOptions = [
     ["ODEME_YOK", "\u00d6deme Yok"],
     ["HAS", "Has ile \u00d6deme"],
-    ["ADET_GRAM_MILYEM", "Adet + Gram + Milyem"],
+    ["ADET_GRAM_MILYEM", "Gram + Milyem"],
     ["TAM_KAPAT", "Borcu Tam Kapat"],
   ];
   paymentOptions.forEach(([value, label]) => {
@@ -333,12 +340,6 @@ function openTransactionPaymentModal(form) {
   paidInput.value = paymentDisplayValue(form.elements.odenen_has.value);
   paidInput.placeholder = "\u00d6denen has";
 
-  const adetInput = document.createElement("input");
-  adetInput.type = "text";
-  adetInput.inputMode = "decimal";
-  adetInput.value = paymentDisplayValue(form.elements.odenen_adet.value);
-  adetInput.placeholder = "Bo\u015fsa 1 kabul edilir";
-
   const gramInput = document.createElement("input");
   gramInput.type = "text";
   gramInput.inputMode = "decimal";
@@ -354,11 +355,9 @@ function openTransactionPaymentModal(form) {
   calculated.innerHTML = `<span>Hesaplanan \u00d6denen Has</span><strong data-calculated-payment>0</strong>`;
 
   const paidField = modalField("\u00d6denen Has", paidInput);
-  const adetField = modalField("Adet", adetInput);
   const gramField = modalField("Gram", gramInput);
   const milyemField = modalField("Milyem", milyemInput);
   paidField.classList.add("payment-fill-field", "transaction-paid-field");
-  adetField.classList.add("payment-fill-field", "transaction-product-payment-field", "payment-adet-field");
   gramField.classList.add("payment-fill-field", "transaction-product-payment-field", "payment-gram-field");
   milyemField.classList.add("payment-fill-field", "transaction-product-payment-field", "payment-milyem-field");
   const closeBtn = document.createElement("button");
@@ -375,17 +374,17 @@ function openTransactionPaymentModal(form) {
     paymentTabs.querySelectorAll(".payment-type-tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.value === tip));
     paidField.classList.toggle("payment-inactive", tip !== "HAS");
     paidInput.disabled = tip !== "HAS";
-    [adetField, gramField, milyemField].forEach((field) => field.classList.toggle("payment-inactive", tip !== "ADET_GRAM_MILYEM"));
-    [adetInput, gramInput, milyemInput].forEach((input) => input.disabled = tip !== "ADET_GRAM_MILYEM");
+    [gramField, milyemField].forEach((field) => field.classList.toggle("payment-inactive", tip !== "ADET_GRAM_MILYEM"));
+    [gramInput, milyemInput].forEach((input) => input.disabled = tip !== "ADET_GRAM_MILYEM");
     calculated.classList.toggle("payment-inactive", tip === "HAS" || tip === "ODEME_YOK");
     let value = 0;
     if (tip === "HAS") value = parseNum(paidInput.value);
-    if (tip === "ADET_GRAM_MILYEM") value = (parseNum(adetInput.value) || 1) * parseNum(gramInput.value) * parseNum(milyemInput.value) / 1000;
+    if (tip === "ADET_GRAM_MILYEM") value = parseNum(gramInput.value) * parseNum(milyemInput.value) / 1000;
     if (tip === "TAM_KAPAT") value = calcHas(form);
     calculated.querySelector("[data-calculated-payment]").textContent = formatValue("has", value);
   };
 
-  [paidInput, adetInput, gramInput, milyemInput].forEach((input) => {
+  [paidInput, gramInput, milyemInput].forEach((input) => {
     attachDecimalGuard(input);
     input.addEventListener("input", update);
     input.addEventListener("change", update);
@@ -394,16 +393,14 @@ function openTransactionPaymentModal(form) {
     try {
       if (selectedPaymentType === "HAS") positiveValue(paidInput, "\u00d6denen has");
       if (selectedPaymentType === "ADET_GRAM_MILYEM") {
-        positiveValue(adetInput, "Adet", true);
         positiveValue(gramInput, "Gram");
         positiveValue(milyemInput, "Milyem");
       }
       if (selectedPaymentType === "TAM_KAPAT" && calcHas(form) <= 0) throw new Error("Kapat\u0131lacak has bulunamad\u0131.");
       form.elements.odeme_tipi.value = selectedPaymentType;
-      form.elements.odenen_adet.value = adetInput.value;
-      form.elements.odenen_gram.value = gramInput.value || "0";
+        form.elements.odenen_gram.value = gramInput.value || "0";
       form.elements.odenen_milyem.value = milyemInput.value || "0";
-      form.elements.odenen_has.value = selectedPaymentType === "HAS" ? paidInput.value : String(selectedPaymentType === "ODEME_YOK" ? 0 : (selectedPaymentType === "TAM_KAPAT" ? calcHas(form) : (parseNum(adetInput.value) || 1) * parseNum(gramInput.value) * parseNum(milyemInput.value) / 1000));
+      form.elements.odenen_has.value = selectedPaymentType === "HAS" ? paidInput.value : String(selectedPaymentType === "ODEME_YOK" ? 0 : (selectedPaymentType === "TAM_KAPAT" ? calcHas(form) : parseNum(gramInput.value) * parseNum(milyemInput.value) / 1000));
       syncTransactionPayment(form);
       form._refreshPaymentSummary?.();
       overlay.remove();
@@ -415,7 +412,7 @@ function openTransactionPaymentModal(form) {
   const actions = document.createElement("div");
   actions.className = "form-bottom-actions";
   actions.append(closeBtn, saveBtn);
-  box.append(title, paymentTabs, paidField, adetField, gramField, milyemField, calculated, actions);
+  box.append(title, paymentTabs, paidField, gramField, milyemField, calculated, actions);
   overlay.appendChild(box);
   document.body.appendChild(overlay);
   update();
@@ -472,14 +469,14 @@ function openTransactionPaymentModal(form) {
   }
   const preview = document.createElement("div");
   preview.className = "has-preview";
-  preview.innerHTML = "<span>Hesaplanan Has</span><strong data-has>0</strong><span>Toplam Gram</span><strong data-gram>0</strong>";
+  preview.innerHTML = "<span>Hesaplanan Has</span><strong data-has>0</strong><span>Gram</span><strong data-gram>0</strong>";
   form.appendChild(preview);
   form.appendChild(attachPaymentButton(form));
   const updatePreview = () => {
     preview.querySelector("[data-has]").textContent = formatValue("has", calcHas(form));
-    preview.querySelector("[data-gram]").textContent = formatValue("gram", parseNum(form.elements.adet.value) * parseNum(form.elements.gram.value));
+    preview.querySelector("[data-gram]").textContent = formatValue("gram", parseNum(form.elements.gram.value));
   };
-  ["adet", "gram", "milyem", "satis_milyem"].map((name) => form.elements[name]).filter(Boolean).forEach((input) => input.addEventListener("input", updatePreview));
+  ["gram", "milyem", "satis_milyem"].map((name) => form.elements[name]).filter(Boolean).forEach((input) => input.addEventListener("input", updatePreview));
   updatePreview();
 
   const actions = document.createElement("div");
@@ -566,7 +563,7 @@ async function openPurchaseModal(form, chosenLabel) {
   try {
     const rows = await api("/api/satis/urun-secenekleri");
     if (!rows.length) { showMessage("Se\u00e7ilebilir al\u0131\u015f kayd\u0131 yok.", true); return; }
-    openSelectableModal("Al\u0131\u015ftan \u00dcr\u00fcn Se\u00e7", ["tarih", "tedarikci", "cinsi", "ayar", "kalan_adet", "kalan_gram", "alis_milyem"], rows, (row) => {
+    openSelectableModal("Al\u0131\u015ftan \u00dcr\u00fcn Se\u00e7", ["tarih", "tedarikci", "cinsi", "ayar", "kalan_gram", "alis_milyem"], rows, (row) => {
       state.selectedPurchase = row;
       form.elements.purchase_id.value = row.id;
       form.elements.alis_id.value = row.id;
@@ -576,7 +573,7 @@ async function openPurchaseModal(form, chosenLabel) {
       if (form.elements.alis_has_maliyeti) form.elements.alis_has_maliyeti.value = row.alis_has_maliyeti || "";
       form.elements.satis_milyem.value = "";
       form.elements.satis_milyem.placeholder = "Sat\u0131\u015f milyem girin";
-      chosenLabel.textContent = `Se\u00e7ilen: ${row.cinsi} ${row.ayar} | Kalan ${row.kalan_adet} adet / ${row.kalan_gram} gr / ${row.kalan_has} has`;
+      chosenLabel.textContent = `Se\u00e7ilen: ${row.cinsi} ${row.ayar} | Kalan ${row.kalan_gram} gr / ${row.kalan_has} has`;
     });
   } catch (error) { showMessage(error.message, true); }
 }
@@ -586,14 +583,14 @@ async function openHurdaPurchaseModal(form, chosenLabel) {
     if (form.elements.islem_turu) { form.elements.islem_turu.value = "SATIS"; form.elements.islem_turu.dispatchEvent(new Event("change")); }
     const rows = await api("/api/hurda/urun-secenekleri");
     if (!rows.length) { showMessage("Se\u00e7ilebilir hurda al\u0131\u015f kayd\u0131 yok.", true); return; }
-    openSelectableModal("Hurda Al\u0131\u015ftan Se\u00e7", ["tarih", "kisi", "cinsi", "ayar", "kalan_adet", "kalan_gram", "milyem", "has", "kalan_has"], rows, (row) => {
+    openSelectableModal("Hurda Al\u0131\u015ftan Se\u00e7", ["tarih", "kisi", "cinsi", "ayar", "kalan_gram", "milyem", "has", "kalan_has"], rows, (row) => {
       state.selectedHurdaPurchase = row;
       form.elements.hurda_alis_id.value = row.id;
       form.elements.cinsi.value = row.cinsi;
       form.elements.ayar.value = row.ayar;
       form.elements.milyem.value = "";
       form.elements.milyem.placeholder = "Sat\u0131\u015f milyem girin";
-      chosenLabel.textContent = `Se\u00e7ilen: ${row.cinsi} ${row.ayar} | Al\u0131\u015f milyem ${row.milyem} | Kalan ${row.kalan_adet} adet / ${row.kalan_gram} gr / ${row.kalan_has} has`;
+      chosenLabel.textContent = `Se\u00e7ilen: ${row.cinsi} ${row.ayar} | Al\u0131\u015f milyem ${row.milyem} | Kalan ${row.kalan_gram} gr / ${row.kalan_has} has`;
     });
   } catch (error) { showMessage(error.message, true); }
 }
@@ -661,9 +658,8 @@ function enrichHurdaRows(rows) {
     if (!normalize(row.islem_turu).startsWith("satis")) return;
     const purchaseId = Number(row.hurda_alis_id || 0);
     if (!purchaseId) return;
-    const current = saleTotalsByPurchase.get(purchaseId) || { adet: 0, gram: 0, has: 0 };
-    current.adet += parseNum(row.adet);
-    current.gram += parseNum(row.adet) * parseNum(row.gram);
+    const current = saleTotalsByPurchase.get(purchaseId) || { gram: 0, has: 0 };
+    current.gram += parseNum(row.gram);
     current.has += parseNum(row.has);
     saleTotalsByPurchase.set(purchaseId, current);
   });
@@ -671,13 +667,12 @@ function enrichHurdaRows(rows) {
   return allRows.map((row) => {
     if (!normalize(row.islem_turu).startsWith("satis")) return row;
     const purchase = purchases.get(Number(row.hurda_alis_id));
-    const totals = saleTotalsByPurchase.get(Number(row.hurda_alis_id)) || { adet: 0, gram: 0, has: 0 };
+    const totals = saleTotalsByPurchase.get(Number(row.hurda_alis_id)) || { gram: 0, has: 0 };
     const alisMilyem = Number(valueOrFallback(row.alis_milyem, purchase.milyem || 0));
     const satisMilyem = Number(valueOrFallback(row.satis_milyem, row.milyem || 0));
     const milyemFarki = Number(valueOrFallback(row.milyem_farki, satisMilyem - alisMilyem));
-    const milyemKari = Number(valueOrFallback(row.milyem_kari, parseNum(row.adet) * parseNum(row.gram) * milyemFarki / 1000));
-    const kalanAdet = valueOrFallback(row.kalan_adet, purchase ? parseNum(purchase.adet) - totals.adet : "");
-    const kalanGram = valueOrFallback(row.kalan_gram, purchase ? parseNum(purchase.adet) * parseNum(purchase.gram) - totals.gram : "");
+    const milyemKari = Number(valueOrFallback(row.milyem_kari, parseNum(row.gram) * milyemFarki / 1000));
+    const kalanGram = valueOrFallback(row.kalan_gram, purchase ? parseNum(purchase.gram) - totals.gram : "");
     const kalanHas = valueOrFallback(row.kalan_has, purchase ? parseNum(purchase.has) - totals.has : "");
     return {
       ...row,
@@ -686,7 +681,6 @@ function enrichHurdaRows(rows) {
       milyem_farki: milyemFarki,
       milyem_kari: milyemKari,
       has_kari: valueOrFallback(row.has_kari, milyemKari),
-      kalan_adet: kalanAdet,
       kalan_gram: kalanGram,
       kalan_has: kalanHas,
     };
@@ -730,8 +724,10 @@ function renderTable(type, rows, title = "") {
     cols.forEach((col) => {
       const td = document.createElement("td");
       td.dataset.label = columnLabel(type, col);
+      td.dataset.col = col;
       td.textContent = formatValue(col, row[col]);
       if (moneyFields.has(col) || numberFields.has(col)) td.className = "num";
+      if (["stok", "hurdaStok"].includes(type) && ["kalan_gram", "kalan_has"].includes(col)) td.classList.add("stock-priority");
       if (["milyem_farki", "has_kari", "milyem_kari"].includes(col)) td.classList.add(Number(row[col]) >= 0 ? "pos" : "neg");
       tr.appendChild(td);
     });
@@ -925,7 +921,7 @@ function renderCariPaymentForm(data) {
   paymentTabs.className = "payment-type-tabs cari-payment-tabs";
   [
     ["HAS", "Has ile \u00d6deme"],
-    ["ADET_GRAM_MILYEM", "Adet + Gram + Milyem"],
+    ["ADET_GRAM_MILYEM", "Gram + Milyem"],
     ["TAM_KAPAT", "Borcu Tam Kapat"],
   ].forEach(([value, label]) => {
     const tab = document.createElement("button");
@@ -946,11 +942,6 @@ function renderCariPaymentForm(data) {
   paidInput.inputMode = "decimal";
   paidInput.placeholder = "\u00d6denen has";
 
-  const adetInput = document.createElement("input");
-  adetInput.name = "adet";
-  adetInput.inputMode = "decimal";
-  adetInput.placeholder = "Bo\u015fsa 1 kabul edilir";
-
   const gramInput = document.createElement("input");
   gramInput.name = "gram";
   gramInput.inputMode = "decimal";
@@ -970,11 +961,9 @@ function renderCariPaymentForm(data) {
   noteInput.rows = 2;
 
   const paidField = makeField("\u00d6denen Has", paidInput);
-  const adetField = makeField("Adet", adetInput);
   const gramField = makeField("Gram", gramInput);
   const milyemField = makeField("Milyem", milyemInput);
   paidField.classList.add("payment-fill-field", "cari-paid-field");
-  adetField.classList.add("payment-fill-field", "cari-product-payment-field", "payment-adet-field");
   gramField.classList.add("payment-fill-field", "cari-product-payment-field", "payment-gram-field");
   milyemField.classList.add("payment-fill-field", "cari-product-payment-field", "payment-milyem-field");
   const noteField = makeField("Not", noteInput);
@@ -986,7 +975,6 @@ function renderCariPaymentForm(data) {
     typeInput,
     paymentTabs,
     paidField,
-    adetField,
     gramField,
     milyemField,
     calcBox,
@@ -1004,7 +992,7 @@ function renderCariPaymentForm(data) {
   const selectedCari = () => people.find((row) => normalize(row.isim) === normalize(personSelect.value));
   const selectedCariKalanHas = () => parseNum(selectedCari()?.kalan_has);
   const calculatedHas = () => {
-    if (selectedPaymentType === "ADET_GRAM_MILYEM") return (parseNum(adetInput.value) || 1) * parseNum(gramInput.value) * parseNum(milyemInput.value) / 1000;
+    if (selectedPaymentType === "ADET_GRAM_MILYEM") return parseNum(gramInput.value) * parseNum(milyemInput.value) / 1000;
     if (selectedPaymentType === "TAM_KAPAT") return selectedCariKalanHas();
     return parseNum(paidInput.value);
   };
@@ -1012,16 +1000,16 @@ function renderCariPaymentForm(data) {
     paymentTabs.querySelectorAll(".payment-type-tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.value === selectedPaymentType));
     paidField.classList.toggle("payment-inactive", selectedPaymentType !== "HAS");
     paidInput.disabled = selectedPaymentType !== "HAS";
-    [adetField, gramField, milyemField].forEach((field) => field.classList.toggle("payment-inactive", selectedPaymentType !== "ADET_GRAM_MILYEM"));
-    [adetInput, gramInput, milyemInput].forEach((input) => input.disabled = selectedPaymentType !== "ADET_GRAM_MILYEM");
+    [gramField, milyemField].forEach((field) => field.classList.toggle("payment-inactive", selectedPaymentType !== "ADET_GRAM_MILYEM"));
+    [gramInput, milyemInput].forEach((input) => input.disabled = selectedPaymentType !== "ADET_GRAM_MILYEM");
     calcBox.classList.toggle("payment-inactive", selectedPaymentType === "HAS");
     if (selectedPaymentType === "TAM_KAPAT") paidInput.value = formatValue("has", selectedCariKalanHas()).replaceAll(".", "").replace(",", ".");
     calcBox.querySelector("[data-calc-has]").textContent = formatValue("has", calculatedHas());
     calcBox.querySelector("[data-kalan-has]").textContent = formatValue("has", selectedCariKalanHas());
   }
 
-  [paidInput, adetInput, gramInput, milyemInput].forEach(attachDecimalGuard);
-  [personSelect, paidInput, adetInput, gramInput, milyemInput].forEach((input) => input.addEventListener("input", updateMode));
+  [paidInput, gramInput, milyemInput].forEach(attachDecimalGuard);
+  [personSelect, paidInput, gramInput, milyemInput].forEach((input) => input.addEventListener("input", updateMode));
   personSelect.addEventListener("change", updateMode);
   updateMode();
 
@@ -1031,7 +1019,6 @@ function renderCariPaymentForm(data) {
     try {
       if (selectedPaymentType === "HAS") positiveValue(paidInput, "\u00d6denen has");
       if (selectedPaymentType === "ADET_GRAM_MILYEM") {
-        positiveValue(adetInput, "Adet", true);
         positiveValue(gramInput, "Gram");
         positiveValue(milyemInput, "Milyem");
       }
@@ -1085,7 +1072,6 @@ function openCariPaymentModal(data, personName = "", payment = null) {
     form.elements.isim.value = payment.isim || personName;
     form.elements.notlar.value = payment.not || payment.notlar || "";
     form.elements.odenen_has.value = paymentDisplayValue(payment.odenen_has);
-    form.elements.adet.value = paymentDisplayValue(payment.adet);
     form.elements.gram.value = paymentDisplayValue(payment.gram);
     form.elements.milyem.value = paymentDisplayValue(payment.milyem);
     const tab = form.querySelector(`.payment-type-tab[data-value="${payment.odeme_tipi || "HAS"}"]`);
@@ -1202,7 +1188,7 @@ function renderDashboard(data) {
   heroMetrics.className = "dashboard-hero-metrics";
   [
     ["Genel Milyem K\u00e2r\u0131", data.genel_urun_kari, "has", "good", "Normal sat\u0131\u015flardan"],
-    ["G\u00fcnl\u00fck Milyem K\u00e2r\u0131", data.gunluk_urun_kari, "has", "good", "Bug\u00fcnk\u00fc hareket"],
+    ["G\u00fcnl\u00fck Milyem K\u00e2r\u0131", data.gunluk_urun_kari, "has", "good", data.gunluk_tarih ? `Tarih: ${data.gunluk_tarih}` : "G\u00fcnl\u00fck hareket"],
     ["Normal Stok Has", data.normal_stok_has, "has", "neutral", "\u00dcr\u00fcn sto\u011fu"],
     ["Hurda Kalan Has", data.hurda_kalan_has, "has", "accent", "Hurda sto\u011fu"],
   ].forEach((card) => heroMetrics.appendChild(renderMetricCard(...card)));
@@ -1212,8 +1198,6 @@ function renderDashboard(data) {
   topGroups.className = "dashboard-groups dashboard-groups-polished dashboard-groups-top";
   const bottomGroups = document.createElement("div");
   bottomGroups.className = "dashboard-groups dashboard-groups-polished dashboard-groups-bottom";
-
-  const toplamStokHas = Number(data.normal_stok_has || 0) + Number(data.hurda_kalan_has || 0);
   const topPanels = [
     ["Genel \u00d6zet", "Al\u0131\u015f, sat\u0131\u015f ve k\u00e2rl\u0131l\u0131k", [
       ["Toplam Normal Al\u0131\u015f Has", data.toplam_normal_alis_has, "has", "neutral"],
@@ -1225,11 +1209,13 @@ function renderDashboard(data) {
       ["Normal Stok Gram", data.normal_stok_gram, "gram", "neutral"],
       ["Normal Stok Has", data.normal_stok_has, "has", "accent"],
       ["Hurda Stok Gram", data.hurda_kalan_gram, "gram", "neutral"],
-      ["Toplam Stok Has", toplamStokHas, "has", "neutral"],
+      ["Toplam Stok Has", data.toplam_stok_has, "has", "neutral"],
     ]],
-    ["Cari \u00d6zeti", "M\u00fc\u015fteri ve tedarik\u00e7i has bor\u00e7lar\u0131", [
-      ["M\u00fc\u015fteri Has Borcu", data.toplam_musteri_has_borcu, "has", "warn"],
-      ["Tedarik\u00e7i Has Borcu", data.toplam_tedarikci_has_borcu, "has", "warn"],
+    ["Cari \u00d6zeti", "Bor\u00e7 ve alacak has y\u00f6n\u00fc ayr\u0131 g\u00f6sterilir", [
+      ["M\u00fc\u015fteriden Alacak Has", data.toplam_musteri_has_borcu, "has", "warn"],
+      ["M\u00fc\u015fteri Emanet Has", data.musteri_emanet_has, "has", data.musteri_emanet_has ? "accent" : "neutral"],
+      ["Tedarik\u00e7iye Bor\u00e7 Has", data.toplam_tedarikci_has_borcu, "has", "warn"],
+      ["Tedarik\u00e7iden Alacak Has", data.tedarikci_alacak_has, "has", data.tedarikci_alacak_has ? "accent" : "neutral"],
     ]],
   ];
 

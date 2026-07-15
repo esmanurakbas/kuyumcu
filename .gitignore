@@ -35,3 +35,9 @@ kuyumcu_backup_*.json
 /data/*.db
 /data/*.sqlite
 /data/*.sqlite3
+
+# Build artifacts
+build/
+dist/
+KuyumcuTakip-Windows/
+KuyumcuTakip-Windows.zip
