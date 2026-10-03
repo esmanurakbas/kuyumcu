@@ -41,6 +41,9 @@ jobs:
       - name: Verify clean app bundle
         run: |
           test -d "dist/Kuyumcu Takip.app"
+          ICON_NAME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "dist/Kuyumcu Takip.app/Contents/Info.plist")
+          test -n "$ICON_NAME"
+          test -f "dist/Kuyumcu Takip.app/Contents/Resources/$ICON_NAME"
           if find "dist/Kuyumcu Takip.app" -name '*.db' -print -quit | grep -q .; then
             echo "Build must not contain a database"
             exit 1
@@ -78,5 +81,5 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             artifacts/*/*.dmg \
             --repo "$GITHUB_REPOSITORY" \
-            --title "Kuyumcu Takip macOS 1.0.0" \
-            --notes "İmzasız ilk macOS sürümü. Apple Silicon ve Intel için ayrı paketler içerir."
+            --title "Kuyumcu Takip $GITHUB_REF_NAME" \
+            --notes "Kurumsal uygulama ikonlu macOS sürümü. Apple Silicon ve Intel için ayrı paketler içerir."

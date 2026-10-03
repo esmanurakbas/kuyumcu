@@ -325,6 +325,9 @@ def test_desktop_packaging_files_are_configured_for_macos_and_windows():
     assert 'launch_windows_browser_app(desktop_server.url)' in desktop
     assert 'pywebview' in requirements
     assert '--name "Kuyumcu Takip"' in build_mac
+    assert '--icon "$ICON_FILE"' in build_mac
+    assert "static/logo.png" in build_mac
+    assert "iconutil -c icns" in build_mac
     assert '--add-data "static:static"' in build_mac
     assert '--add-data "data:data"' not in build_mac
     assert 'desktop.py' in build_mac
