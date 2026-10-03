@@ -1149,30 +1149,78 @@ td {
 }
 
 .brand {
-  padding: 8px 8px 18px;
+  position: relative;
+  gap: 13px;
+  padding: 9px 8px 20px;
   border-bottom-color: rgba(255, 255, 255, .16);
 }
 
+.brand::after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  bottom: -1px;
+  width: 42px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #d9b66f, #f3dfaa);
+  box-shadow: 0 0 14px rgba(217, 182, 111, .35);
+}
+
+.brand-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 54px;
+  height: 54px;
+  border: 1px solid rgba(232, 204, 145, .48);
+  border-radius: 16px;
+  background: linear-gradient(145deg, rgba(255, 253, 248, .98), rgba(235, 222, 190, .94));
+  box-shadow: 0 12px 26px rgba(0, 0, 0, .18), inset 0 1px 0 rgba(255, 255, 255, .9);
+}
+
+.brand-mark::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border: 1px solid rgba(151, 110, 43, .18);
+  border-radius: 12px;
+  pointer-events: none;
+}
+
 .brand-logo {
-  width: 48px;
-  height: 48px;
-  padding: 5px;
-  background: rgba(255, 253, 248, .94);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, .12);
+  position: relative;
+  width: 44px;
+  height: 44px;
+  padding: 3px;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.brand-copy {
+  min-width: 0;
 }
 
 .brand strong {
   display: block;
   color: #fffaf0;
-  font-size: 19px;
-  letter-spacing: .08em;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: .12em;
   line-height: 1;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, .22);
 }
 
 .brand small {
-  color: #d8e0d8;
-  font-size: 11px;
-  letter-spacing: .02em;
+  color: #e1c98f;
+  margin-top: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .13em;
+  text-transform: uppercase;
 }
 
 .nav {
@@ -1496,8 +1544,13 @@ td {
   }
 
   .brand-logo {
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
+  }
+
+  .brand-mark {
+    width: 46px;
+    height: 46px;
   }
 
   .brand strong {
@@ -1600,8 +1653,13 @@ td {
   }
 
   .brand-logo {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
+  }
+
+  .brand-mark {
+    width: 42px;
+    height: 42px;
   }
 
   .topbar {
