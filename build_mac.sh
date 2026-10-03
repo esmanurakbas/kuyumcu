@@ -6,11 +6,6 @@ if [[ "${OSTYPE:-}" != darwin* ]]; then
   exit 1
 fi
 
-mkdir -p data
-if [[ ! -f "data/kuyumcu.db" ]]; then
-  python -c "import main; main.init_db()"
-fi
-
 if ! python -c "import PyInstaller" >/dev/null 2>&1; then
   echo "PyInstaller kurulu degil. Once su komutu calistir:"
   echo "python -m pip install pyinstaller"
@@ -23,7 +18,6 @@ python -m PyInstaller \
   --windowed \
   --name "Kuyumcu Takip" \
   --add-data "static:static" \
-  --add-data "data:data" \
   --collect-all webview \
   --collect-submodules uvicorn \
   --collect-submodules fastapi \

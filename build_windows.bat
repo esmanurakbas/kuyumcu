@@ -29,21 +29,12 @@ if errorlevel 1 (
   exit /b 1
 )
 
-if not exist "data" mkdir data
-if not exist "data\kuyumcu.db" "%PY%" -c "import main; main.init_db()"
-if errorlevel 1 (
-  echo Database hazirlanamadi.
-  pause
-  exit /b 1
-)
-
 "%PY%" -m PyInstaller ^
   --noconfirm ^
   --clean ^
   --windowed ^
   --name "Kuyumcu Takip" ^
   --add-data "static;static" ^
-  --add-data "data;data" ^
   --collect-submodules uvicorn ^
   --collect-submodules fastapi ^
   --collect-submodules starlette ^

@@ -887,6 +887,32 @@ async function downloadAllData() {
   }
 }
 
+async function createDatabaseBackup() {
+  try {
+    const result = await api("/api/backup", { method: "POST" });
+    showMessage(`Yedek oluşturuldu: ${result.file}`);
+  } catch (error) {
+    showMessage(error.message || "Yedek oluşturulamadı.", true);
+  }
+}
+
+async function restoreLatestDatabaseBackup() {
+  const confirmed = await showConfirm(
+    "En son veritabanı yedeği geri yüklenecek. Mevcut veriler önce ayrıca yedeklenecek. Devam edilsin mi",
+    "Geri Yükle",
+    "İptal",
+  );
+  if (!confirmed) return;
+  try {
+    const result = await api("/api/restore-latest", { method: "POST" });
+    showMessage(`Yedek geri yüklendi: ${result.restored_from}`);
+    await refreshSuggestions();
+    await render();
+  } catch (error) {
+    showMessage(error.message || "Yedek geri yüklenemedi.", true);
+  }
+}
+
 function renderCariPaymentForm(data) {
   const panel = document.createElement("section");
   panel.className = "panel form-panel cari-payment-panel";
@@ -1297,6 +1323,8 @@ search.addEventListener("input", () => { state.search = search.value; render(); 
 
 
 document.querySelector("#exportBtn").addEventListener("click", downloadAllData);
+document.querySelector("#backupBtn").addEventListener("click", createDatabaseBackup);
+document.querySelector("#restoreBtn").addEventListener("click", restoreLatestDatabaseBackup);
 
 document.querySelector("#logoutBtn").addEventListener("click", async () => {
   if (!(await showConfirm("\u00c7\u0131k\u0131\u015f yapmak istedi\u011finize emin misiniz", "\u00c7\u0131k\u0131\u015f", "\u0130ptal"))) return;

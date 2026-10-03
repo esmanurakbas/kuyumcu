@@ -49,6 +49,14 @@ dist\Kuyumcu Takip\Kuyumcu Takip.exe
 
 `build_windows.bat`, PyInstaller ile Python runtime'ını ve gerekli Python bağımlılıklarını `.exe` klasörünün içine alacak şekilde hazırlandı. Temiz bir Windows bilgisayarda ayrı Python kurulumu gerekmeden çalışması hedeflenir.
 
+Inno Setup 6 kurulu bir geliştirme bilgisayarında installer oluşturmak için:
+
+```text
+build_installer_windows.bat
+```
+
+Oluşan installer: `installer-dist\KuyumcuTakip-Setup-1.0.0.exe`
+
 ## macOS masaüstü uygulaması
 
 ### macOS local çalıştırma
@@ -89,7 +97,6 @@ python -m PyInstaller \
   --windowed \
   --name "Kuyumcu Takip" \
   --add-data "static:static" \
-  --add-data "data:data" \
   --collect-all webview \
   --collect-submodules uvicorn \
   --collect-submodules fastapi \
@@ -117,20 +124,24 @@ macOS masaüstü uygulamasında SQLite yolu:
 ~/Library/Application Support/KuyumcuTakip/kuyumcu.db
 ```
 
-Uygulama ilk açılışta bu dosya yoksa, paket içindeki `data/kuyumcu.db` varsa kullanıcı klasörüne kopyalar. Böylece `.exe` veya `.app` paketinin yazılamayan iç klasörlerine database yazmaya çalışmaz.
+Uygulama ilk açılışta temiz ve boş bir database oluşturur. Database build veya uygulama klasörüne yazılmaz; bu nedenle uygulama güncellendiğinde mevcut kayıtlar korunur.
 
 Farklı bir yol kullanmak istersen `DB_PATH` ortam değişkeni verilebilir.
 
-## Yedek alma
+## Yedekleme ve geri yükleme
 
-Dashboard üzerindeki `TÜM VERİLERİ DIŞA AKTAR` butonu tüm verileri JSON olarak indirir.
+Uygulama açıldığında günde bir kez otomatik SQLite yedeği alınır ve son 14 günlük yedekler saklanır. Migration öncesinde de ayrıca yedek alınır. Dashboard üzerindeki `YEDEK AL` düğmesi elle yedek oluşturur. `SON YEDEĞİ GERİ YÜKLE` düğmesi restore öncesinde mevcut database'i ayrıca yedekleyip son sağlam yedeği geri yükler.
 
-Masaüstü sürümünde database dosyası ayrıca burada bulunur:
+Database ve backup klasörleri:
 
 ```text
 %APPDATA%\KuyumcuTakip\kuyumcu.db
+%APPDATA%\KuyumcuTakip\backups\
 ~/Library/Application Support/KuyumcuTakip/kuyumcu.db
+~/Library/Application Support/KuyumcuTakip/backups/
 ```
+
+`TÜM VERİLERİ DIŞA AKTAR` düğmesi ayrıca okunabilir JSON dışa aktarımı üretir.
 
 ## Deploy
 

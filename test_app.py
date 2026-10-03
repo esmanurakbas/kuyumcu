@@ -326,11 +326,11 @@ def test_desktop_packaging_files_are_configured_for_macos_and_windows():
     assert 'pywebview' in requirements
     assert '--name "Kuyumcu Takip"' in build_mac
     assert '--add-data "static:static"' in build_mac
-    assert '--add-data "data:data"' in build_mac
+    assert '--add-data "data:data"' not in build_mac
     assert 'desktop.py' in build_mac
     assert '--name "Kuyumcu Takip"' in build_windows
     assert '--add-data "static;static"' in build_windows
-    assert '--add-data "data;data"' in build_windows
+    assert '--add-data "data;data"' not in build_windows
     assert 'desktop.py' in build_windows
     assert '--exclude-module webview' in build_windows
     assert '--exclude-module pythonnet' in build_windows
@@ -344,6 +344,67 @@ def test_desktop_packaging_files_are_configured_for_macos_and_windows():
     for text in (static_js, login_html, export_js):
         assert 'http://127.0.0.1:8000' not in text
         assert 'localhost:8000' not in text
+
+
+def test_database_persists_and_uses_safe_sqlite_settings(tmp_path, monkeypatch):
+    monkeypatch.setattr(main, "DB_PATH", tmp_path / "persistent.db")
+    main.init_db()
+    with main.db() as conn:
+        conn.execute(
+            "INSERT INTO alis (tarih, tedarikci, cinsi, ayar, gram) VALUES (?, ?, ?, ?, ?)",
+            ("2026-10-03", "KALICI", "BİLEZİK", "22", 10),
+        )
+        assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
+        assert conn.execute("PRAGMA busy_timeout").fetchone()[0] == 10000
+        assert conn.execute("PRAGMA journal_mode").fetchone()[0].lower() == "wal"
+
+    main.init_db()  # Uygulamanın yeniden açılmasını temsil eder.
+    with main.db() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM alis WHERE tedarikci='KALICI'").fetchone()[0] == 1
+    assert main.database_integrity()
+
+
+def test_backup_restore_and_pre_restore_safety_copy(tmp_path, monkeypatch):
+    monkeypatch.setattr(main, "DB_PATH", tmp_path / "restore.db")
+    main.init_db()
+    with main.db() as conn:
+        conn.execute(
+            "INSERT INTO alis (tarih, tedarikci, cinsi, ayar, gram) VALUES (?, ?, ?, ?, ?)",
+            ("2026-10-03", "YEDEKTE", "YÜZÜK", "14", 5),
+        )
+    backup = main.create_database_backup("manual")
+    with main.db() as conn:
+        conn.execute("DELETE FROM alis")
+
+    client = TestClient(main.app)
+    login(client)
+    result = ok(client.post("/api/restore-latest"))
+    assert result["restored_from"] == backup.name
+    assert (main.backup_dir() / result["safety_backup"]).exists()
+    with main.db() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM alis WHERE tedarikci='YEDEKTE'").fetchone()[0] == 1
+
+
+def test_migration_creates_backup_and_empty_install_starts_clean(tmp_path, monkeypatch):
+    monkeypatch.setattr(main, "DB_PATH", tmp_path / "upgrade.db")
+    main.init_db()
+    with main.db() as conn:
+        conn.execute(
+            "INSERT INTO alis (tarih, tedarikci, cinsi, ayar, gram) VALUES (?, ?, ?, ?, ?)",
+            ("2026-10-03", "ESKI SURUM", "KOLYE", "14", 3),
+        )
+        conn.execute("DELETE FROM app_meta WHERE key='schema_version'")
+    main.init_db()
+    assert list(main.backup_dir().glob("kuyumcu_pre_migration_*.db"))
+    with main.db() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM alis WHERE tedarikci='ESKI SURUM'").fetchone()[0] == 1
+
+    clean_path = tmp_path / "new-user" / "kuyumcu.db"
+    monkeypatch.setattr(main, "DB_PATH", clean_path)
+    main.init_db()
+    with main.db() as conn:
+        for table in main.BUSINESS_TABLES:
+            assert conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] == 0
 
 
 def test_frontend_layout_tabs_columns_and_confirmations():

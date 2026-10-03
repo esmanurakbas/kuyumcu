@@ -8,6 +8,7 @@ import unicodedata
 import secrets
 import hashlib
 import time
+import tempfile
 from contextlib import asynccontextmanager, contextmanager
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
@@ -34,6 +35,8 @@ DEFAULT_DB_PATH = BASE_DIR / "data" / "kuyumcu.db"
 LEGACY_DB_PATH = BASE_DIR / "kuyumcu.db"
 DB_PATH = Path(os.getenv("DB_PATH", str(DEFAULT_DB_PATH)))
 STATIC_DIR = resource_path("static")
+BACKUP_KEEP_DAYS = 14
+SCHEMA_VERSION = "2"
 
 ZERO = Decimal("0")
 MONEY_Q = Decimal("0.01")
@@ -267,8 +270,12 @@ def scrap_total(row: sqlite3.Row | dict[str, Any]) -> Decimal:
 @contextmanager
 def db() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA busy_timeout = 10000")
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA synchronous = NORMAL")
     try:
         conn.execute("BEGIN")
         yield conn
@@ -276,6 +283,75 @@ def db() -> sqlite3.Connection:
     except Exception:
         conn.rollback()
         raise
+    finally:
+        conn.close()
+
+
+def backup_dir() -> Path:
+    path = DB_PATH.parent / "backups"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def database_integrity(path: Path | None = None) -> bool:
+    target = path or DB_PATH
+    if not target.exists():
+        return True
+    try:
+        conn = sqlite3.connect(target, timeout=10)
+        try:
+            return conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+        finally:
+            conn.close()
+    except sqlite3.DatabaseError:
+        return False
+
+
+def create_database_backup(reason: str = "manual") -> Path:
+    if not DB_PATH.exists():
+        raise FileNotFoundError("Veritabanı henüz oluşturulmadı.")
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    target = backup_dir() / f"kuyumcu_{reason}_{stamp}.db"
+    source = sqlite3.connect(DB_PATH, timeout=10)
+    destination = sqlite3.connect(target)
+    try:
+        source.backup(destination)
+    finally:
+        destination.close()
+        source.close()
+    if not database_integrity(target):
+        target.unlink(missing_ok=True)
+        raise RuntimeError("Oluşturulan yedek doğrulanamadı.")
+    return target
+
+
+def cleanup_old_backups() -> None:
+    cutoff = time.time() - BACKUP_KEEP_DAYS * 24 * 60 * 60
+    for path in backup_dir().glob("kuyumcu_*.db"):
+        if path.stat().st_mtime < cutoff:
+            path.unlink(missing_ok=True)
+
+
+def create_daily_backup() -> Path:
+    today_marker = datetime.now().strftime("%Y%m%d")
+    existing = list(backup_dir().glob(f"kuyumcu_daily_{today_marker}_*.db"))
+    result = existing[0] if existing else create_database_backup(f"daily_{today_marker}")
+    cleanup_old_backups()
+    return result
+
+
+def schema_version() -> str | None:
+    if not DB_PATH.exists() or not database_integrity():
+        return None
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        has_meta = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='app_meta'"
+        ).fetchone()
+        if not has_meta:
+            return None
+        row = conn.execute("SELECT value FROM app_meta WHERE key='schema_version'").fetchone()
+        return row[0] if row else None
     finally:
         conn.close()
 
@@ -381,6 +457,11 @@ def migrate_quantity_to_total_gram(conn: sqlite3.Connection) -> None:
 
 def init_db() -> None:
     maybe_copy_legacy_database()
+    database_existed = DB_PATH.exists()
+    if database_existed and not database_integrity():
+        raise RuntimeError(f"Veritabanı bütünlük kontrolü başarısız: {DB_PATH}")
+    if database_existed and schema_version() != SCHEMA_VERSION:
+        create_database_backup("pre_migration")
     with db() as conn:
         conn.executescript(
             """
@@ -443,6 +524,13 @@ def init_db() -> None:
             add_column(conn, table, "odenen_gram REAL NOT NULL DEFAULT 0")
             add_column(conn, table, "odenen_milyem REAL NOT NULL DEFAULT 0")
         migrate_quantity_to_total_gram(conn)
+        conn.execute(
+            "INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', ?)",
+            (SCHEMA_VERSION,),
+        )
+    if not database_integrity():
+        raise RuntimeError(f"Migration sonrası veritabanı kontrolü başarısız: {DB_PATH}")
+    create_daily_backup()
 
 
 class BaseTransaction(BaseModel):
@@ -1621,6 +1709,45 @@ def export_all(_: None = Depends(require_auth)) -> dict[str, Any]:
 @app.get("/api/ayarlar")
 def settings(_: None = Depends(require_auth)) -> dict[str, Any]:
     return ok([{"baslik": "Login", "deger": "Aktif"}, {"baslik": "Stok", "deger": "Otomatik hesaplanir"}, {"baslik": "Hurda", "deger": "Normal stoktan ayridir"}])
+
+
+@app.post("/api/backup")
+def create_backup(_: None = Depends(require_auth)) -> dict[str, Any]:
+    path = create_database_backup("manual")
+    cleanup_old_backups()
+    return ok({"file": path.name}, "Veritabanı yedeği oluşturuldu.")
+
+
+@app.post("/api/restore-latest")
+def restore_latest_backup(_: None = Depends(require_auth)) -> dict[str, Any]:
+    candidates = sorted(
+        (path for path in backup_dir().glob("kuyumcu_*.db") if "pre_restore" not in path.name),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    if not candidates:
+        raise HTTPException(status_code=404, detail="Geri yüklenecek yedek bulunamadı.")
+    source = candidates[0]
+    if not database_integrity(source):
+        raise HTTPException(status_code=500, detail="Son yedek bozuk; geri yükleme yapılmadı.")
+    safety_copy = create_database_backup("pre_restore")
+    fd, temp_name = tempfile.mkstemp(prefix="restore_", suffix=".db", dir=DB_PATH.parent)
+    os.close(fd)
+    temp_path = Path(temp_name)
+    try:
+        shutil.copy2(source, temp_path)
+        if not database_integrity(temp_path):
+            raise HTTPException(status_code=500, detail="Yedek doğrulanamadı.")
+        os.replace(temp_path, DB_PATH)
+        for suffix in ("-wal", "-shm"):
+            Path(f"{DB_PATH}{suffix}").unlink(missing_ok=True)
+        init_db()
+    finally:
+        temp_path.unlink(missing_ok=True)
+    return ok(
+        {"restored_from": source.name, "safety_backup": safety_copy.name},
+        "Son yedek başarıyla geri yüklendi.",
+    )
 
 
 @app.put("/api/alis/{item_id}")

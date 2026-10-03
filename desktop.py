@@ -3,7 +3,6 @@ from __future__ import annotations
 import contextlib
 import importlib
 import os
-import shutil
 import socket
 import subprocess
 import sys
@@ -37,10 +36,6 @@ def prepare_database_path() -> None:
     data_dir.mkdir(parents=True, exist_ok=True)
     db_path = data_dir / "kuyumcu.db"
     os.environ.setdefault("DB_PATH", str(db_path))
-
-    bundled_seed = resource_path("data") / "kuyumcu.db"
-    if not db_path.exists() and bundled_seed.exists():
-        shutil.copy2(bundled_seed, db_path)
 
 
 prepare_database_path()
