@@ -41,3 +41,4 @@ build/
 dist/
 KuyumcuTakip-Windows/
 KuyumcuTakip-Windows.zip
+*.dmg
