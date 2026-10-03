@@ -88,6 +88,8 @@ dist/Kuyumcu Takip.app
 
 `build_mac.sh`, PyInstaller ile Python runtime'ını ve gerekli Python bağımlılıklarını `.app` paketinin içine alacak şekilde hazırlandı. Temiz bir Mac'te ayrı Python kurulumu gerekmeden çalışması hedeflenir.
 
+GitHub Actions workflow'u sürüm etiketi pushlandığında Apple Silicon ve Intel için ayrı `.dmg` paketleri üretir.
+
 PyInstaller komutu macOS için `:` data ayıracını kullanır:
 
 ```bash
