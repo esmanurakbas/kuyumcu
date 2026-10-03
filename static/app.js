@@ -52,10 +52,10 @@ const columns = {
   hurdaSatis: ["tarih", "kisi", "cinsi", "ayar", "gram", "alis_milyem", "satis_milyem", "milyem_farki", "milyem_kari", "kalan_gram", "not"],
   stok: ["cinsi", "ayar", "alis_gram", "alis_has", "satis_gram", "satis_has", "kalan_gram", "kalan_has"],
   hurdaStok: ["cinsi", "ayar", "hurda_alis_gram", "hurda_alis_has", "hurda_satis_gram", "hurda_satis_has", "kalan_gram", "kalan_has"],
-  musteriCari: ["musteri_adi", "toplam_has", "odeme_has", "kalan_has", "son_islem_tarihi"],
-  tedarikciCari: ["tedarikci_adi", "toplam_has", "odeme_has", "kalan_has", "son_islem_tarihi"],
-  kisiCari: ["isim", "toplam_has", "odeme_has", "kalan_has", "son_islem_tarihi"],
-  cariOdeme: ["tarih", "isim", "odeme_tipi", "odenen_has", "not"],
+  musteriCari: ["musteri_adi", "toplam_satis_has", "tahsil_edilen_has", "toplam_alis_has", "odedigimiz_has", "net_bakiye_has", "son_islem_tarihi"],
+  tedarikciCari: ["tedarikci_adi", "toplam_alis_has", "odedigimiz_has", "odeyecegimiz_has", "net_bakiye_has", "son_islem_tarihi"],
+  kisiCari: ["isim", "toplam_satis_has", "toplam_alis_has", "tahsil_edilen_has", "odedigimiz_has", "net_bakiye_has", "son_islem_tarihi"],
+  cariOdeme: ["tarih", "isim", "yon", "odeme_tipi", "odenen_has", "not"],
 };
 
 const labels = {
@@ -66,11 +66,11 @@ const labels = {
   satis_gram: "Sat\u0131\u015f Gram", satis_has: "Sat\u0131\u015f Has", kalan_gram: "Kalan Gram", kalan_has: "Kalan Has",
   alis_milyem: "Al\u0131\u015f Milyem", satis_milyem: "Sat\u0131\u015f Milyem", milyem_farki: "Milyem Fark\u0131",
   tahmini_kar: "Milyem K\u00e2r\u0131", has_kari: "Milyem K\u00e2r\u0131", milyem_kari: "Milyem K\u00e2r\u0131", musteri_adi: "Ad", tedarikci_adi: "Ad", toplam_satis: "Toplam Sat\u0131\u015f", toplam_alis: "Toplam Al\u0131\u015f",
-  alis_borcu: "Al\u0131\u015f Borcu", satis_borcu: "Sat\u0131\u015f Borcu", net_bakiye: "Net Bakiye", son_islem_tarihi: "Son \u0130\u015flem", odeme_tipi: "\u00d6deme Tipi", odenen_has: "\u00d6denen Has", odenen_gram: "\u00d6denen Gram", odenen_milyem: "\u00d6denen Milyem", hesaplanan_has: "Hesaplanan Has", toplam_has: "Toplam Has", odeme_has: "\u00d6deme Has", normal_alis_has: "Normal Al\u0131\u015f Has", normal_satis_has: "Normal Sat\u0131\u015f Has", hurda_alis_has: "Hurda Al\u0131\u015f Has", hurda_satis_has: "Hurda Sat\u0131\u015f Has", toplam_alis_has: "Toplam Al\u0131\u015f Has", toplam_satis_has: "Toplam Sat\u0131\u015f Has", hurda_alis_gram: "Hurda Al\u0131\u015f Gram", hurda_alis_has: "Hurda Al\u0131\u015f Has", hurda_satis_gram: "Hurda Sat\u0131\u015f Gram", hurda_satis_has: "Hurda Sat\u0131\u015f Has",
+  alis_borcu: "Al\u0131\u015f Borcu", satis_borcu: "Sat\u0131\u015f Borcu", net_bakiye: "Net Bakiye", net_bakiye_has: "Net Has Bakiyesi", son_islem_tarihi: "Son \u0130\u015flem", odeme_tipi: "\u00d6deme Tipi", yon: "\u0130\u015flem Y\u00f6n\u00fc", odenen_has: "\u0130\u015flem Has\u0131", odenen_gram: "\u00d6denen Gram", odenen_milyem: "\u00d6denen Milyem", hesaplanan_has: "Hesaplanan Has", toplam_has: "Toplam Has", odeme_has: "\u00d6deme Has", odedigimiz_has: "\u00d6dedi\u011fimiz Has", tahsil_edilen_has: "Tahsil Etti\u011fimiz Has", odeyecegimiz_has: "\u00d6deyece\u011fimiz Has", tahsil_edilecek_has: "Tahsil Edilecek Has", normal_alis_has: "Normal Al\u0131\u015f Has", normal_satis_has: "Normal Sat\u0131\u015f Has", hurda_alis_has: "Hurda Al\u0131\u015f Has", hurda_satis_has: "Hurda Sat\u0131\u015f Has", toplam_alis_has: "Toplam Al\u0131\u015f Has", toplam_satis_has: "Toplam Sat\u0131\u015f Has", hurda_alis_gram: "Hurda Al\u0131\u015f Gram", hurda_satis_gram: "Hurda Sat\u0131\u015f Gram",
 };
 
 const moneyFields = new Set(["has_fiyati", "iscilik", "ek_masraf", "ek_ucret", "indirim", "odenen", "alinan", "toplam_tutar", "kalan_borc", "toplam_satis", "toplam_alis", "alis_borcu", "satis_borcu", "net_bakiye", "odenen_veya_alinan"]);
-const numberFields = new Set(["gram", "milyem", "has", "alis_gram", "alis_has", "satis_gram", "satis_has", "kalan_gram", "kalan_has", "alis_milyem", "satis_milyem", "milyem_farki", "has_kari", "milyem_kari", "tahmini_kar", "hurda_alis_gram", "hurda_alis_has", "hurda_satis_gram", "hurda_satis_has", "normal_alis_has", "normal_satis_has", "hurda_alis_has", "hurda_satis_has", "toplam_alis_has", "toplam_satis_has", "toplam_has", "odeme_has", "odenen_has", "odenen_gram", "odenen_milyem", "hesaplanan_has"]);
+const numberFields = new Set(["gram", "milyem", "has", "alis_gram", "alis_has", "satis_gram", "satis_has", "kalan_gram", "kalan_has", "alis_milyem", "satis_milyem", "milyem_farki", "has_kari", "milyem_kari", "tahmini_kar", "hurda_alis_gram", "hurda_alis_has", "hurda_satis_gram", "hurda_satis_has", "normal_alis_has", "normal_satis_has", "toplam_alis_has", "toplam_satis_has", "toplam_has", "odeme_has", "odedigimiz_has", "tahsil_edilen_has", "odeyecegimiz_has", "tahsil_edilecek_has", "net_bakiye_has", "odenen_has", "odenen_gram", "odenen_milyem", "hesaplanan_has"]);
 
 const content = document.querySelector("#content");
 const search = document.querySelector("#search");
@@ -110,6 +110,8 @@ function attachDecimalGuard(input) {
 function formatValue(key, value) {
   if (value === null || value === undefined || value === "") return "";
   if (key === "odeme_tipi") return paymentLabel(value);
+  if (key === "yon") return value === "ODEME" ? "Tedarik\u00e7iye \u00d6deme" : "M\u00fc\u015fteriden Tahsilat";
+  if (key === "net_bakiye_has") return `${Number(value) > 0 ? "+" : ""}${Number(value).toLocaleString("tr-TR", { maximumFractionDigits: 3 })}`;
   if (moneyFields.has(key)) return Number(value).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   if (numberFields.has(key)) return Number(value).toLocaleString("tr-TR", { maximumFractionDigits: 3 });
   return String(value);
@@ -697,12 +699,6 @@ function iconSvg(kind) {
 }
 
 function columnLabel(type, col) {
-  const cariTypes = ["kisiCari", "musteriCari", "tedarikciCari"];
-  if (cariTypes.includes(type)) {
-    if (col === "toplam_has") return "Toplam Has";
-    if (col === "odeme_has") return "\u00d6dedi\u011fi Has";
-    if (col === "kalan_has") return "\u00d6deyece\u011fi Has";
-  }
   return labels[col] || col;
 }
 
@@ -728,7 +724,7 @@ function renderTable(type, rows, title = "") {
       td.textContent = formatValue(col, row[col]);
       if (moneyFields.has(col) || numberFields.has(col)) td.className = "num";
       if (["stok", "hurdaStok"].includes(type) && ["kalan_gram", "kalan_has"].includes(col)) td.classList.add("stock-priority");
-      if (["milyem_farki", "has_kari", "milyem_kari"].includes(col)) td.classList.add(Number(row[col]) >= 0 ? "pos" : "neg");
+      if (["milyem_farki", "has_kari", "milyem_kari", "net_bakiye_has"].includes(col)) td.classList.add(Number(row[col]) >= 0 ? "pos" : "neg");
       tr.appendChild(td);
     });
     if (type === "kisiCari") {
@@ -938,6 +934,10 @@ function renderCariPaymentForm(data) {
   personSelect.required = true;
   personSelect.innerHTML = `<option value="">Cari ki\u015fi/firma se\u00e7</option>${people.map((row) => `<option value="${row.isim}">${row.isim} | Kalan ${formatValue("has", row.kalan_has)} has</option>`).join("")}`;
 
+  const directionSelect = document.createElement("select");
+  directionSelect.name = "yon";
+  directionSelect.innerHTML = '<option value="TAHSILAT">M\u00fc\u015fteriden Tahsilat</option><option value="ODEME">Tedarik\u00e7iye \u00d6deme</option>';
+
   const typeInput = document.createElement("input");
   typeInput.type = "hidden";
   typeInput.name = "odeme_tipi";
@@ -998,6 +998,7 @@ function renderCariPaymentForm(data) {
   form.append(
     (() => { const field = makeField("Tarih", dateInput); field.classList.add("cari-date-field"); return field; })(),
     (() => { const field = makeField("Cari Ki\u015fi / Firma", personSelect); field.classList.add("cari-person-field"); return field; })(),
+    makeField("\u0130\u015flem Y\u00f6n\u00fc", directionSelect),
     typeInput,
     paymentTabs,
     paidField,
@@ -1019,7 +1020,7 @@ function renderCariPaymentForm(data) {
   const selectedCariKalanHas = () => parseNum(selectedCari()?.kalan_has);
   const calculatedHas = () => {
     if (selectedPaymentType === "ADET_GRAM_MILYEM") return parseNum(gramInput.value) * parseNum(milyemInput.value) / 1000;
-    if (selectedPaymentType === "TAM_KAPAT") return selectedCariKalanHas();
+    if (selectedPaymentType === "TAM_KAPAT") return Math.abs(selectedCariKalanHas());
     return parseNum(paidInput.value);
   };
   function updateMode() {
@@ -1029,14 +1030,18 @@ function renderCariPaymentForm(data) {
     [gramField, milyemField].forEach((field) => field.classList.toggle("payment-inactive", selectedPaymentType !== "ADET_GRAM_MILYEM"));
     [gramInput, milyemInput].forEach((input) => input.disabled = selectedPaymentType !== "ADET_GRAM_MILYEM");
     calcBox.classList.toggle("payment-inactive", selectedPaymentType === "HAS");
-    if (selectedPaymentType === "TAM_KAPAT") paidInput.value = formatValue("has", selectedCariKalanHas()).replaceAll(".", "").replace(",", ".");
+    if (selectedPaymentType === "TAM_KAPAT") paidInput.value = formatValue("has", Math.abs(selectedCariKalanHas())).replaceAll(".", "").replace(",", ".");
     calcBox.querySelector("[data-calc-has]").textContent = formatValue("has", calculatedHas());
-    calcBox.querySelector("[data-kalan-has]").textContent = formatValue("has", selectedCariKalanHas());
+    const projected = selectedCariKalanHas() + (directionSelect.value === "ODEME" ? calculatedHas() : -calculatedHas());
+    calcBox.querySelector("[data-kalan-has]").textContent = formatValue("net_bakiye_has", projected);
   }
 
   [paidInput, gramInput, milyemInput].forEach(attachDecimalGuard);
-  [personSelect, paidInput, gramInput, milyemInput].forEach((input) => input.addEventListener("input", updateMode));
-  personSelect.addEventListener("change", updateMode);
+  [personSelect, directionSelect, paidInput, gramInput, milyemInput].forEach((input) => input.addEventListener("input", updateMode));
+  personSelect.addEventListener("change", () => {
+    directionSelect.value = selectedCariKalanHas() < 0 ? "ODEME" : "TAHSILAT";
+    updateMode();
+  });
   updateMode();
 
   form.addEventListener("submit", async (event) => {
@@ -1100,6 +1105,7 @@ function openCariPaymentModal(data, personName = "", payment = null) {
     form.elements.odenen_has.value = paymentDisplayValue(payment.odenen_has);
     form.elements.gram.value = paymentDisplayValue(payment.gram);
     form.elements.milyem.value = paymentDisplayValue(payment.milyem);
+    form.elements.yon.value = payment.yon || "TAHSILAT";
     const tab = form.querySelector(`.payment-type-tab[data-value="${payment.odeme_tipi || "HAS"}"]`);
     tab.click();
     const save = form.querySelector('button[type="submit"]');
@@ -1170,7 +1176,7 @@ function openCariActions(row, data) {
   box.className = "modal-box cari-actions-modal";
   const title = document.createElement("div");
   title.className = "modal-title cari-actions-title";
-  title.innerHTML = `<h2>${row.isim}</h2><p>Toplam ${formatValue("has", row.toplam_has)} has | \u00d6dedi\u011fi ${formatValue("has", row.odeme_has)} has | \u00d6deyece\u011fi ${formatValue("has", row.kalan_has)} has</p>`;
+  title.innerHTML = `<h2>${row.isim}</h2><p>Sat\u0131\u015f ${formatValue("has", row.toplam_satis_has)} | Al\u0131\u015f ${formatValue("has", row.toplam_alis_has)} | Net ${formatValue("net_bakiye_has", row.net_bakiye_has)} has</p>`;
   const actions = document.createElement("div");
   actions.className = "cari-action-list";
   const items = [
@@ -1238,10 +1244,10 @@ function renderDashboard(data) {
       ["Toplam Stok Has", data.toplam_stok_has, "has", "neutral"],
     ]],
     ["Cari \u00d6zeti", "Bor\u00e7 ve alacak has y\u00f6n\u00fc ayr\u0131 g\u00f6sterilir", [
-      ["M\u00fc\u015fteriden Alacak Has", data.toplam_musteri_has_borcu, "has", "warn"],
-      ["M\u00fc\u015fteri Emanet Has", data.musteri_emanet_has, "has", data.musteri_emanet_has ? "accent" : "neutral"],
-      ["Tedarik\u00e7iye Bor\u00e7 Has", data.toplam_tedarikci_has_borcu, "has", "warn"],
-      ["Tedarik\u00e7iden Alacak Has", data.tedarikci_alacak_has, "has", data.tedarikci_alacak_has ? "accent" : "neutral"],
+      ["Kar\u015f\u0131 Taraftan Alaca\u011f\u0131m\u0131z Has", data.net_cari_alacak_has, "has", "good"],
+      ["Bizim \u00d6deyece\u011fimiz Has", data.net_cari_borc_has, "has", data.net_cari_borc_has ? "warn" : "neutral"],
+      ["Bize Bor\u00e7lu Cari", data.alacakli_cari_sayisi, "", "neutral"],
+      ["Bizim Bor\u00e7lu Oldu\u011fumuz Cari", data.borclu_cari_sayisi, "", "neutral"],
     ]],
   ];
 

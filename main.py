@@ -36,7 +36,7 @@ LEGACY_DB_PATH = BASE_DIR / "kuyumcu.db"
 DB_PATH = Path(os.getenv("DB_PATH", str(DEFAULT_DB_PATH)))
 STATIC_DIR = resource_path("static")
 BACKUP_KEEP_DAYS = 14
-SCHEMA_VERSION = "2"
+SCHEMA_VERSION = "3"
 
 ZERO = Decimal("0")
 MONEY_Q = Decimal("0.01")
@@ -455,12 +455,33 @@ def migrate_quantity_to_total_gram(conn: sqlite3.Connection) -> None:
     conn.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('quantity_to_total_gram_v1', 'done')")
 
 
+def migrate_cari_payment_directions(conn: sqlite3.Connection) -> None:
+    purchases: dict[str, Decimal] = {}
+    sales: dict[str, Decimal] = {}
+    for row in conn.execute("SELECT tedarikci, has, odenen_has FROM alis"):
+        key = normalize_text(row["tedarikci"])
+        purchases[key] = purchases.get(key, ZERO) + d(row["has"]) - d(row["odenen_has"])
+    for row in conn.execute("SELECT musteri, has, odenen_has FROM satis"):
+        key = normalize_text(row["musteri"])
+        sales[key] = sales.get(key, ZERO) + d(row["has"]) - d(row["odenen_has"])
+    for row in conn.execute("SELECT kisi, islem_turu, has, odenen_has FROM hurda"):
+        key = normalize_text(row["kisi"])
+        target = purchases if row["islem_turu"] == "ALIS" else sales
+        target[key] = target.get(key, ZERO) + d(row["has"]) - d(row["odenen_has"])
+    for row in conn.execute("SELECT id, isim FROM cari_odeme"):
+        key = normalize_text(row["isim"])
+        transaction_balance = sales.get(key, ZERO) - purchases.get(key, ZERO)
+        direction = "TAHSILAT" if transaction_balance >= ZERO else "ODEME"
+        conn.execute("UPDATE cari_odeme SET yon = ? WHERE id = ?", (direction, row["id"]))
+
+
 def init_db() -> None:
     maybe_copy_legacy_database()
     database_existed = DB_PATH.exists()
+    previous_schema_version = schema_version() if database_existed else None
     if database_existed and not database_integrity():
         raise RuntimeError(f"Veritabanı bütünlük kontrolü başarısız: {DB_PATH}")
-    if database_existed and schema_version() != SCHEMA_VERSION:
+    if database_existed and previous_schema_version != SCHEMA_VERSION:
         create_database_backup("pre_migration")
     with db() as conn:
         conn.executescript(
@@ -510,6 +531,7 @@ def init_db() -> None:
                 gram REAL NOT NULL DEFAULT 0,
                 milyem REAL NOT NULL DEFAULT 0,
                 odenen_has REAL NOT NULL DEFAULT 0,
+                yon TEXT NOT NULL DEFAULT 'TAHSILAT',
                 notlar TEXT NOT NULL DEFAULT ''
             );
             """
@@ -523,7 +545,10 @@ def init_db() -> None:
             add_column(conn, table, "odenen_adet REAL NOT NULL DEFAULT 0")
             add_column(conn, table, "odenen_gram REAL NOT NULL DEFAULT 0")
             add_column(conn, table, "odenen_milyem REAL NOT NULL DEFAULT 0")
+        add_column(conn, "cari_odeme", "yon TEXT NOT NULL DEFAULT 'TAHSILAT'")
         migrate_quantity_to_total_gram(conn)
+        if database_existed and previous_schema_version != SCHEMA_VERSION:
+            migrate_cari_payment_directions(conn)
         conn.execute(
             "INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', ?)",
             (SCHEMA_VERSION,),
@@ -633,6 +658,7 @@ class CariOdemeIn(BaseModel):
     tarih: str = Field(default_factory=lambda: date.today().isoformat())
     isim: str
     odeme_tipi: str = "HAS"
+    yon: str = "OTOMATIK"
     odenen_has: Any = ZERO
     adet: Any = ZERO
     gram: Any = ZERO
@@ -660,6 +686,18 @@ class CariOdemeIn(BaseModel):
         if key in {"tam", "borcu_tam_kapat", "tam_kapat"}:
             return "TAM_KAPAT"
         raise ValueError("deme tipi geersiz.")
+
+    @field_validator("yon")
+    @classmethod
+    def valid_direction(cls, value: str) -> str:
+        key = normalize_text(value).replace(" ", "_")
+        if key in {"otomatik", "auto"}:
+            return "OTOMATIK"
+        if key in {"tahsilat", "musteriden_tahsilat", "alinan"}:
+            return "TAHSILAT"
+        if key in {"odeme", "tedarikciye_odeme", "odenmis"}:
+            return "ODEME"
+        raise ValueError("Cari ödeme yönü geçersiz.")
 
     @model_validator(mode="after")
     def validate_payment_numbers(self):
@@ -984,20 +1022,15 @@ def cari_payment_out(row: sqlite3.Row) -> dict[str, Any]:
     item = row_dict(row)
     item["odenen_has"] = as_float(row["odenen_has"], HAS_Q)
     item["hesaplanan_has"] = item["odenen_has"]
+    item["yon"] = row["yon"] if "yon" in row.keys() else "TAHSILAT"
     item["not"] = item.get("not", "")
     return item
 
 
 def cari_data(conn: sqlite3.Connection) -> dict[str, Any]:
-    customers: dict[str, dict[str, Any]] = {}
-    suppliers: dict[str, dict[str, Any]] = {}
     combined: dict[str, dict[str, Any]] = {}
-
-    def get(bucket: dict[str, dict[str, Any]], name: str) -> dict[str, Any]:
-        key = normalize_text(name)
-        if key not in bucket:
-            bucket[key] = {"isim": clean_text(name), "toplam": ZERO, "odenen_alinan": ZERO, "toplam_has": ZERO, "odeme_has": ZERO, "son_islem_tarihi": ""}
-        return bucket[key]
+    customer_keys: set[str] = set()
+    supplier_keys: set[str] = set()
 
     def get_combined(name: str) -> dict[str, Any]:
         key = normalize_text(name)
@@ -1012,37 +1045,28 @@ def cari_data(conn: sqlite3.Connection) -> dict[str, Any]:
                 "normal_satis_has": ZERO,
                 "hurda_alis_has": ZERO,
                 "hurda_satis_has": ZERO,
-                "odeme_has": ZERO,
+                "odedigimiz_has": ZERO,
+                "tahsil_edilen_has": ZERO,
                 "son_islem_tarihi": "",
             }
         return combined[key]
 
     def add_purchase(name: str, total: Decimal, paid: Decimal, has_value: Decimal, paid_has: Decimal, tarih: str, hurda: bool = False) -> None:
-        supplier = get(suppliers, name)
-        supplier["toplam"] += total
-        supplier["odenen_alinan"] += paid
-        supplier["toplam_has"] += has_value
-        supplier["odeme_has"] += paid_has
-        supplier["son_islem_tarihi"] = max(supplier["son_islem_tarihi"], tarih)
+        supplier_keys.add(normalize_text(name))
         person = get_combined(name)
         person["toplam_alis"] += total
         person["odenen"] += paid
         person["hurda_alis_has" if hurda else "normal_alis_has"] += has_value
-        person["odeme_has"] += paid_has
+        person["odedigimiz_has"] += paid_has
         person["son_islem_tarihi"] = max(person["son_islem_tarihi"], tarih)
 
     def add_sale(name: str, total: Decimal, received: Decimal, has_value: Decimal, paid_has: Decimal, tarih: str, hurda: bool = False) -> None:
-        customer = get(customers, name)
-        customer["toplam"] += total
-        customer["odenen_alinan"] += received
-        customer["toplam_has"] += has_value
-        customer["odeme_has"] += paid_has
-        customer["son_islem_tarihi"] = max(customer["son_islem_tarihi"], tarih)
+        customer_keys.add(normalize_text(name))
         person = get_combined(name)
         person["toplam_satis"] += total
         person["alinan"] += received
         person["hurda_satis_has" if hurda else "normal_satis_has"] += has_value
-        person["odeme_has"] += paid_has
+        person["tahsil_edilen_has"] += paid_has
         person["son_islem_tarihi"] = max(person["son_islem_tarihi"], tarih)
 
     for row in fetch_all(conn, "alis"):
@@ -1060,37 +1084,14 @@ def cari_data(conn: sqlite3.Connection) -> dict[str, Any]:
     has_payment_table = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='cari_odeme'").fetchone() is not None
     payments = fetch_all(conn, "cari_odeme") if has_payment_table else []
     for row in payments:
-        key = normalize_text(row["isim"])
         paid_has = d(row["odenen_has"])
         person = get_combined(row["isim"])
-        person["odeme_has"] += paid_has
+        direction = row["yon"] if "yon" in row.keys() else "TAHSILAT"
+        if direction == "ODEME":
+            person["odedigimiz_has"] += paid_has
+        else:
+            person["tahsil_edilen_has"] += paid_has
         person["son_islem_tarihi"] = max(person["son_islem_tarihi"], row["tarih"])
-        if key in customers:
-            customers[key]["odeme_has"] += paid_has
-            customers[key]["son_islem_tarihi"] = max(customers[key]["son_islem_tarihi"], row["tarih"])
-        if key in suppliers:
-            suppliers[key]["odeme_has"] += paid_has
-            suppliers[key]["son_islem_tarihi"] = max(suppliers[key]["son_islem_tarihi"], row["tarih"])
-
-    def out(bucket: dict[str, dict[str, Any]], customer: bool) -> list[dict[str, Any]]:
-        rows = []
-        for cari in bucket.values():
-            debt = cari["toplam"] - cari["odenen_alinan"]
-            kalan_has = cari["toplam_has"] - cari["odeme_has"]
-            row = {
-                "isim": cari["isim"],
-                "toplam_has": as_float(cari["toplam_has"], HAS_Q),
-                "odeme_has": as_float(cari["odeme_has"], HAS_Q),
-                "kalan_has": as_float(kalan_has, HAS_Q),
-                "kalan_borc": as_float(debt, MONEY_Q),
-                "son_islem_tarihi": cari["son_islem_tarihi"],
-            }
-            if customer:
-                row.update({"musteri_adi": cari["isim"], "toplam_satis": as_float(cari["toplam"], MONEY_Q), "alinan": as_float(cari["odenen_alinan"], MONEY_Q), "tip": "MSTERI"})
-            else:
-                row.update({"tedarikci_adi": cari["isim"], "toplam_alis": as_float(cari["toplam"], MONEY_Q), "odenen": as_float(cari["odenen_alinan"], MONEY_Q), "tip": "TEDARIKI"})
-            rows.append(row)
-        return sorted(rows, key=lambda item: normalize_text(item["isim"]))
 
     def out_combined() -> list[dict[str, Any]]:
         rows = []
@@ -1101,7 +1102,7 @@ def cari_data(conn: sqlite3.Connection) -> dict[str, Any]:
             toplam_alis_has = cari["normal_alis_has"] + cari["hurda_alis_has"]
             toplam_satis_has = cari["normal_satis_has"] + cari["hurda_satis_has"]
             toplam_has = toplam_alis_has + toplam_satis_has
-            kalan_has = toplam_has - cari["odeme_has"]
+            kalan_has = toplam_satis_has - cari["tahsil_edilen_has"] - toplam_alis_has + cari["odedigimiz_has"]
             rows.append({
                 "isim": cari["isim"],
                 "toplam_alis": as_float(cari["toplam_alis"], MONEY_Q),
@@ -1118,16 +1119,35 @@ def cari_data(conn: sqlite3.Connection) -> dict[str, Any]:
                 "toplam_alis_has": as_float(toplam_alis_has, HAS_Q),
                 "toplam_satis_has": as_float(toplam_satis_has, HAS_Q),
                 "toplam_has": as_float(toplam_has, HAS_Q),
-                "odeme_has": as_float(cari["odeme_has"], HAS_Q),
+                "odeme_has": as_float(cari["odedigimiz_has"] + cari["tahsil_edilen_has"], HAS_Q),
+                "odedigimiz_has": as_float(cari["odedigimiz_has"], HAS_Q),
+                "tahsil_edilen_has": as_float(cari["tahsil_edilen_has"], HAS_Q),
+                "odeyecegimiz_has": as_float(max(-kalan_has, ZERO), HAS_Q),
+                "tahsil_edilecek_has": as_float(max(kalan_has, ZERO), HAS_Q),
                 "kalan_has": as_float(kalan_has, HAS_Q),
+                "net_bakiye_has": as_float(kalan_has, HAS_Q),
                 "son_islem_tarihi": cari["son_islem_tarihi"],
             })
         return sorted(rows, key=lambda item: normalize_text(item["isim"]))
 
+    people = out_combined()
+    by_key = {normalize_text(row["isim"]): row for row in people}
+
+    def role_rows(keys: set[str], customer: bool) -> list[dict[str, Any]]:
+        rows = []
+        for key in sorted(keys):
+            person = dict(by_key[key])
+            if customer:
+                person.update({"musteri_adi": person["isim"], "kalan_borc": person["satis_borcu"], "tip": "MSTERI"})
+            else:
+                person.update({"tedarikci_adi": person["isim"], "kalan_borc": person["alis_borcu"], "tip": "TEDARIKI"})
+            rows.append(person)
+        return rows
+
     return {
-        "kisiler": out_combined(),
-        "musteriler": out(customers, True),
-        "tedarikciler": out(suppliers, False),
+        "kisiler": people,
+        "musteriler": role_rows(customer_keys, True),
+        "tedarikciler": role_rows(supplier_keys, False),
         "odemeler": [cari_payment_out(row) for row in payments],
         "uyari": "Ayni kisi/firma farkli yazilirsa ayri cari olarak grnr.",
     }
@@ -1517,20 +1537,32 @@ def list_cari(_: None = Depends(require_auth)) -> dict[str, Any]:
         return ok(cari_data(conn))
 
 
+def resolved_cari_payment(conn: sqlite3.Connection, payload: CariOdemeIn, existing: sqlite3.Row | None = None) -> tuple[Decimal, str]:
+    current = next((row for row in cari_data(conn)["kisiler"] if normalize_text(row["isim"]) == normalize_text(payload.isim)), None)
+    if not current:
+        raise HTTPException(status_code=404, detail="Cari bulunamadı.")
+    balance = d(current["kalan_has"])
+    if existing and normalize_text(existing["isim"]) == normalize_text(payload.isim):
+        old_direction = existing["yon"] if "yon" in existing.keys() else "TAHSILAT"
+        balance += d(existing["odenen_has"]) if old_direction == "TAHSILAT" else -d(existing["odenen_has"])
+    direction = payload.yon
+    if direction == "OTOMATIK":
+        if balance == ZERO:
+            raise HTTPException(status_code=400, detail="Cari bakiye kapalı; ödeme yönü belirlenemedi.")
+        direction = "TAHSILAT" if balance > ZERO else "ODEME"
+    payment_has = abs(balance) if payload.odeme_tipi == "TAM_KAPAT" else d(payload.odenen_has)
+    return payment_has, direction
+
+
 
 @app.post("/api/cari/odeme")
 def create_cari_payment(payload: CariOdemeIn, _: None = Depends(require_auth)) -> dict[str, Any]:
     with db() as conn:
-        payment_has = d(payload.odenen_has)
-        if payload.odeme_tipi == "TAM_KAPAT":
-            current = next((row for row in cari_data(conn)["kisiler"] if normalize_text(row["isim"]) == normalize_text(payload.isim)), None)
-            if not current:
-                raise HTTPException(status_code=404, detail="Cari bulunamadi.")
-            payment_has = d(current["kalan_has"])
+        payment_has, direction = resolved_cari_payment(conn, payload)
         cur = conn.execute(
             """
-            INSERT INTO cari_odeme (tarih, isim, odeme_tipi, adet, gram, milyem, odenen_has, notlar)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO cari_odeme (tarih, isim, odeme_tipi, adet, gram, milyem, odenen_has, yon, notlar)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 payload.tarih,
@@ -1540,6 +1572,7 @@ def create_cari_payment(payload: CariOdemeIn, _: None = Depends(require_auth)) -
                 float(payload.gram),
                 float(payload.milyem),
                 float(payment_has),
+                direction,
                 payload.notlar,
             ),
         )
@@ -1553,19 +1586,14 @@ def update_cari_payment(item_id: int, payload: CariOdemeIn, _: None = Depends(re
         existing = conn.execute("SELECT * FROM cari_odeme WHERE id = ?", (item_id,)).fetchone()
         if not existing:
             raise HTTPException(status_code=404, detail="Cari deme kaydi bulunamadi.")
-        payment_has = d(payload.odenen_has)
-        if payload.odeme_tipi == "TAM_KAPAT":
-            current = next((row for row in cari_data(conn)["kisiler"] if normalize_text(row["isim"]) == normalize_text(payload.isim)), None)
-            if not current:
-                raise HTTPException(status_code=404, detail="Cari bulunamadi.")
-            payment_has = d(current["kalan_has"]) + d(existing["odenen_has"])
+        payment_has, direction = resolved_cari_payment(conn, payload, existing)
         conn.execute(
             """
             UPDATE cari_odeme
-            SET tarih = ?, isim = ?, odeme_tipi = ?, adet = ?, gram = ?, milyem = ?, odenen_has = ?, notlar = ?
+            SET tarih = ?, isim = ?, odeme_tipi = ?, adet = ?, gram = ?, milyem = ?, odenen_has = ?, yon = ?, notlar = ?
             WHERE id = ? 
             """,
-            (payload.tarih, payload.isim, payload.odeme_tipi, float(payload.adet), float(payload.gram), float(payload.milyem), float(payment_has), payload.notlar, item_id),
+            (payload.tarih, payload.isim, payload.odeme_tipi, float(payload.adet), float(payload.gram), float(payload.milyem), float(payment_has), direction, payload.notlar, item_id),
         )
         row = conn.execute("SELECT * FROM cari_odeme WHERE id = ?", (item_id,)).fetchone()
         return ok(cari_payment_out(row), "Cari deme gncellendi.")
@@ -1631,10 +1659,8 @@ def dashboard_payload(conn: sqlite3.Connection) -> dict[str, Any]:
     normal_satis_has_total = sum((d(row["has"]) for row in satis_rows), ZERO)
     hurda_alis_has_total = sum((d(row["has"]) for row in hurda_rows if row["islem_turu"] == "ALIS"), ZERO)
     hurda_satis_has_total = sum((d(row["has"]) for row in hurda_rows if row["islem_turu"] == "SATIS"), ZERO)
-    musteri_has_alacagi = sum((max(d(row["kalan_has"]), ZERO) for row in cari["musteriler"]), ZERO)
-    musteri_emanet_has = sum((-min(d(row["kalan_has"]), ZERO) for row in cari["musteriler"]), ZERO)
-    tedarikci_has_borcu = sum((max(d(row["kalan_has"]), ZERO) for row in cari["tedarikciler"]), ZERO)
-    tedarikci_alacak_has = sum((-min(d(row["kalan_has"]), ZERO) for row in cari["tedarikciler"]), ZERO)
+    net_cari_alacak_has = sum((max(d(row["kalan_has"]), ZERO) for row in cari["kisiler"]), ZERO)
+    net_cari_borc_has = sum((-min(d(row["kalan_has"]), ZERO) for row in cari["kisiler"]), ZERO)
     normal_stock_has = sum((d(item["kalan_has"]) for item in stocks), ZERO)
     normal_stock_gram = sum((d(item["kalan_gram"]) for item in stocks), ZERO)
     normal_stock_value = sum((d(item["stok_degeri"]) for item in stocks), ZERO)
@@ -1662,10 +1688,14 @@ def dashboard_payload(conn: sqlite3.Connection) -> dict[str, Any]:
         "hurda_milyem_kari": as_float(hurda_milyem_profit_total, HAS_Q),
         "toplam_musteri_borcu": as_float(sum((d(row["kalan_borc"]) for row in cari["musteriler"]), ZERO), MONEY_Q),
         "toplam_tedarikci_borcu": as_float(sum((d(row["kalan_borc"]) for row in cari["tedarikciler"]), ZERO), MONEY_Q),
-        "toplam_musteri_has_borcu": as_float(musteri_has_alacagi, HAS_Q),
-        "musteri_emanet_has": as_float(musteri_emanet_has, HAS_Q),
-        "toplam_tedarikci_has_borcu": as_float(tedarikci_has_borcu, HAS_Q),
-        "tedarikci_alacak_has": as_float(tedarikci_alacak_has, HAS_Q),
+        "toplam_musteri_has_borcu": as_float(net_cari_alacak_has, HAS_Q),
+        "musteri_emanet_has": as_float(net_cari_borc_has, HAS_Q),
+        "toplam_tedarikci_has_borcu": as_float(net_cari_borc_has, HAS_Q),
+        "tedarikci_alacak_has": as_float(net_cari_alacak_has, HAS_Q),
+        "net_cari_alacak_has": as_float(net_cari_alacak_has, HAS_Q),
+        "net_cari_borc_has": as_float(net_cari_borc_has, HAS_Q),
+        "alacakli_cari_sayisi": sum(1 for row in cari["kisiler"] if d(row["kalan_has"]) > ZERO),
+        "borclu_cari_sayisi": sum(1 for row in cari["kisiler"] if d(row["kalan_has"]) < ZERO),
         "normal_stok_has": as_float(normal_stock_has, HAS_Q),
         "normal_stok_gram": as_float(normal_stock_gram, NUM_Q),
         "normal_stok_degeri": as_float(normal_stock_value, MONEY_Q),

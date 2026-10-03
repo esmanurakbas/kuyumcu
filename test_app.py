@@ -196,8 +196,8 @@ def test_pages_and_required_business_flow(tmp_path, monkeypatch):
     assert dashboard["hurda_stok_degeri"] == round(sum(row["stok_degeri"] for row in hurda_stock_rows), 2)
     assert dashboard["toplam_stok_has"] == round(dashboard["normal_stok_has"] + dashboard["hurda_kalan_has"], 3)
     assert dashboard["stok_degeri"] == round(dashboard["normal_stok_degeri"] + dashboard["hurda_stok_degeri"], 2)
-    assert dashboard["musteri_emanet_has"] == 0.000
-    assert dashboard["tedarikci_alacak_has"] == 0.000
+    assert dashboard["net_cari_alacak_has"] == 8.364
+    assert dashboard["net_cari_borc_has"] == 27.480
     assert dashboard["toplam_musteri_borcu"] == round(sum(row["kalan_borc"] for row in cari_totals["musteriler"]), 2)
     assert dashboard["toplam_tedarikci_borcu"] == round(sum(row["kalan_borc"] for row in cari_totals["tedarikciler"]), 2)
 
@@ -511,17 +511,14 @@ def test_frontend_layout_tabs_columns_and_confirmations():
     tedarikci_block = columns_block.split("tedarikciCari:", 1)[1].split("kisiCari:", 1)[0]
     kisi_block = columns_block.split("kisiCari:", 1)[1].split("cariOdeme:", 1)[0]
     for block in (musteri_block, tedarikci_block, kisi_block):
-        assert "toplam_has" in block
-        assert "odeme_has" in block
-        assert "kalan_has" in block
-    assert "toplam_satis" not in musteri_block
-    assert "kalan_borc" not in musteri_block
-    assert "toplam_alis" not in tedarikci_block
-    assert "kalan_borc" not in tedarikci_block
+        assert "net_bakiye_has" in block
+    assert "tahsil_edilen_has" in musteri_block
+    assert "odedigimiz_has" in tedarikci_block
+    assert "odeyecegimiz_has" in tedarikci_block
     assert "normal_alis_has" not in kisi_block
     assert "hurda_alis_has" not in kisi_block
-    assert "\\u00d6dedi\\u011fi Has" in app_js
-    assert "\\u00d6deyece\\u011fi Has" in app_js
+    assert "\\u00d6dedi\\u011fimiz Has" in app_js
+    assert "\\u00d6deyece\\u011fimiz Has" in app_js
     assert "milyem_kari" in columns_block
     hurda_alis_block = columns_block.split("hurdaAlis:", 1)[1].split("hurdaSatis:", 1)[0]
     hurda_satis_block = columns_block.split("hurdaSatis:", 1)[1].split("stok:", 1)[0]
@@ -829,13 +826,13 @@ def test_cari_has_payment_methods(tmp_path, monkeypatch):
     assert customer["kalan_has"] == 0.000
 
     pay1 = ok(client.post("/api/cari/odeme", json={
-        "tarih": "2026-07-04", "isim": "CARI TEDARIKCI", "odeme_tipi": "ADET_GRAM_MILYEM",
+        "tarih": "2026-07-04", "isim": "CARI TEDARIKCI", "yon": "ODEME", "odeme_tipi": "ADET_GRAM_MILYEM",
         "adet": 1, "gram": 100, "milyem": 940,
     }))
     assert pay1["odenen_has"] == 94.000
 
     pay2 = ok(client.post("/api/cari/odeme", json={
-        "tarih": "2026-07-04", "isim": "CARI TEDARIKCI", "odeme_tipi": "ADET_GRAM_MILYEM",
+        "tarih": "2026-07-04", "isim": "CARI TEDARIKCI", "yon": "ODEME", "odeme_tipi": "ADET_GRAM_MILYEM",
         "adet": "", "gram": 5, "milyem": 940,
     }))
     assert pay2["odenen_has"] == 4.700
@@ -853,11 +850,11 @@ def test_cari_has_payment_methods(tmp_path, monkeypatch):
     assert negative_gram.status_code == 422
 
     pay3 = ok(client.post("/api/cari/odeme", json={
-        "tarih": "2026-07-04", "isim": "CARI TEDARIKCI", "odeme_tipi": "HAS", "odenen_has": 2.5,
+        "tarih": "2026-07-04", "isim": "CARI TEDARIKCI", "yon": "ODEME", "odeme_tipi": "HAS", "odenen_has": 2.5,
     }))
     assert pay3["odenen_has"] == 2.500
     after = {main.normalize_text(row["isim"]): row for row in ok(client.get("/api/cari"))["kisiler"]}[main.normalize_text("CARI TEDARIKCI")]
-    assert after["kalan_has"] == round(before["kalan_has"] - 2.5, 3)
+    assert after["kalan_has"] == round(before["kalan_has"] + 2.5, 3)
     overpaid_dashboard = ok(client.get("/api/dashboard"))
     assert overpaid_dashboard["toplam_tedarikci_has_borcu"] == 0.000
     assert overpaid_dashboard["tedarikci_alacak_has"] == abs(after["kalan_has"])
@@ -876,7 +873,7 @@ def test_transaction_level_cari_payments_are_included_and_editable(tmp_path, mon
     supplier = {main.normalize_text(row["isim"]): row for row in ok(client.get("/api/cari"))["kisiler"]}[main.normalize_text("ISLEM TEDARIKCI")]
     assert supplier["toplam_has"] == 9.300
     assert supplier["odeme_has"] == 3.000
-    assert supplier["kalan_has"] == 6.300
+    assert supplier["kalan_has"] == -6.300
 
     satis = ok(client.post("/api/satis", json={
         "tarih": "2026-07-04", "musteri": "ISLEM MUSTERI", "purchase_id": alis["id"],
@@ -995,3 +992,92 @@ def test_cari_person_actions_payment_edit_delete_and_rename(tmp_path, monkeypatc
     cari_after_person_delete = ok(client.get("/api/cari"))
     people_after_delete = {main.normalize_text(row["isim"]): row for row in cari_after_person_delete["kisiler"]}
     assert main.normalize_text("YENI AKSIYON MUSTERI") not in people_after_delete
+
+
+def test_net_cari_balance_combines_all_purchase_sale_and_payment_directions(tmp_path, monkeypatch):
+    client = make_client(tmp_path, monkeypatch)
+    login(client)
+
+    ok(client.post("/api/alis", json={
+        "tarih": "2026-10-03", "tedarikci": "SADE TEDARIKCI", "cinsi": "BILEZIK", "ayar": "22",
+        "adet": 1, "gram": 100, "milyem": 1000,
+    }))
+    supplier = {main.normalize_text(row["isim"]): row for row in ok(client.get("/api/cari"))["kisiler"]}[main.normalize_text("SADE TEDARIKCI")]
+    assert supplier["kalan_has"] == -100.000
+    assert supplier["odeyecegimiz_has"] == 100.000
+
+    payment = ok(client.post("/api/cari/odeme", json={
+        "tarih": "2026-10-03", "isim": "SADE TEDARIKCI", "yon": "ODEME",
+        "odeme_tipi": "HAS", "odenen_has": 40,
+    }))
+    supplier = {main.normalize_text(row["isim"]): row for row in ok(client.get("/api/cari"))["kisiler"]}[main.normalize_text("SADE TEDARIKCI")]
+    assert supplier["odedigimiz_has"] == 40.000
+    assert supplier["kalan_has"] == -60.000
+
+    ok(client.put(f"/api/cari/odeme/{payment['id']}", json={
+        "tarih": "2026-10-03", "isim": "SADE TEDARIKCI", "yon": "ODEME",
+        "odeme_tipi": "HAS", "odenen_has": 25,
+    }))
+    supplier = {main.normalize_text(row["isim"]): row for row in ok(client.get("/api/cari"))["kisiler"]}[main.normalize_text("SADE TEDARIKCI")]
+    assert supplier["odedigimiz_has"] == 25.000
+    assert supplier["kalan_has"] == -75.000
+
+    inventory = ok(client.post("/api/alis", json={
+        "tarih": "2026-10-03", "tedarikci": "STOK TEDARIKCI", "cinsi": "KOLYE", "ayar": "22",
+        "adet": 1, "gram": 200, "milyem": 1000,
+    }))
+    ok(client.post("/api/satis", json={
+        "tarih": "2026-10-03", "musteri": "SONER", "purchase_id": inventory["id"],
+        "cinsi": "KOLYE", "ayar": "22", "adet": 1, "gram": 100, "satis_milyem": 1000,
+    }))
+    ok(client.post("/api/hurda", json={
+        "tarih": "2026-10-03", "islem_turu": "ALIS", "kisi": "SONER", "cinsi": "HURDA",
+        "ayar": "22", "adet": 1, "gram": 30, "milyem": 1000,
+    }))
+    soner = {main.normalize_text(row["isim"]): row for row in ok(client.get("/api/cari"))["kisiler"]}[main.normalize_text("SONER")]
+    assert soner["toplam_satis_has"] == 100.000
+    assert soner["toplam_alis_has"] == 30.000
+    assert soner["kalan_has"] == 70.000
+
+    ok(client.post("/api/hurda", json={
+        "tarih": "2026-10-04", "islem_turu": "ALIS", "kisi": "soner", "cinsi": "HURDA",
+        "ayar": "22", "adet": 1, "gram": 90, "milyem": 1000,
+    }))
+    cari = ok(client.get("/api/cari"))
+    soner_rows = [row for row in cari["kisiler"] if main.normalize_text(row["isim"]) == main.normalize_text("SONER")]
+    assert len(soner_rows) == 1
+    assert soner_rows[0]["toplam_alis_has"] == 120.000
+    assert soner_rows[0]["kalan_has"] == -20.000
+    assert soner_rows[0]["odeyecegimiz_has"] == 20.000
+
+    soner_payment = ok(client.post("/api/cari/odeme", json={
+        "tarih": "2026-10-04", "isim": "SONER", "yon": "ODEME", "odeme_tipi": "HAS", "odenen_has": 10,
+    }))
+    soner = {main.normalize_text(row["isim"]): row for row in ok(client.get("/api/cari"))["kisiler"]}[main.normalize_text("SONER")]
+    assert soner["kalan_has"] == -10.000
+    ok(client.put(f"/api/cari/odeme/{soner_payment['id']}", json={
+        "tarih": "2026-10-04", "isim": "SONER", "yon": "ODEME", "odeme_tipi": "HAS", "odenen_has": 20,
+    }))
+    soner = {main.normalize_text(row["isim"]): row for row in ok(client.get("/api/cari"))["kisiler"]}[main.normalize_text("SONER")]
+    assert soner["kalan_has"] == 0.000
+
+
+def test_old_supplier_payments_are_migrated_as_our_payments(tmp_path, monkeypatch):
+    monkeypatch.setattr(main, "DB_PATH", tmp_path / "old-cari.db")
+    main.init_db()
+    with main.db() as conn:
+        conn.execute(
+            "INSERT INTO alis (tarih, tedarikci, cinsi, ayar, gram, milyem, has) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("2026-10-03", "ESKI TEDARIKCI", "BILEZIK", "22", 100, 1000, 100),
+        )
+        conn.execute(
+            "INSERT INTO cari_odeme (tarih, isim, odeme_tipi, odenen_has, yon) VALUES (?, ?, ?, ?, ?)",
+            ("2026-10-03", "ESKI TEDARIKCI", "HAS", 40, "TAHSILAT"),
+        )
+        conn.execute("UPDATE app_meta SET value='2' WHERE key='schema_version'")
+
+    main.init_db()
+    with main.db() as conn:
+        assert conn.execute("SELECT yon FROM cari_odeme").fetchone()[0] == "ODEME"
+        supplier = next(row for row in main.cari_data(conn)["kisiler"] if row["isim"] == "ESKI TEDARIKCI")
+        assert supplier["kalan_has"] == -60.000
