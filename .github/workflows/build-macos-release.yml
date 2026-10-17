@@ -49,10 +49,16 @@ jobs:
             exit 1
           fi
 
+      - name: Launch packaged macOS app with a disposable database
+        run: python tools/verify_macos_bundle.py "dist/Kuyumcu Takip.app"
+
       - name: Create DMG
         run: |
           mkdir dmg-root
           cp -R "dist/Kuyumcu Takip.app" dmg-root/
+          ln -s /Applications dmg-root/Applications
+          cp MAC_KURULUM.txt dmg-root/KURULUM.txt
+          printf 'Version: %s\nCommit: %s\nArchitecture: %s\n' "$GITHUB_REF_NAME" "$GITHUB_SHA" "${{ matrix.arch }}" > dmg-root/SURUM.txt
           hdiutil create \
             -volname "Kuyumcu Takip" \
             -srcfolder dmg-root \
@@ -82,4 +88,4 @@ jobs:
             artifacts/*/*.dmg \
             --repo "$GITHUB_REPOSITORY" \
             --title "Kuyumcu Takip $GITHUB_REF_NAME" \
-            --notes "Kurumsal uygulama ikonlu macOS sürümü. Apple Silicon ve Intel için ayrı paketler içerir."
+            --notes "Guncel stok, satis, cari ve has bazli gider yonetimi. Apple Silicon ve Intel paketleri ayri ayri test edilmistir. Kurulum ve surum bilgisi DMG icindedir."

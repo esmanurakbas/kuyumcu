@@ -130,7 +130,7 @@ Farklı bir yol kullanmak istersen `DB_PATH` ortam değişkeni verilebilir.
 
 ## Yedekleme ve geri yükleme
 
-Uygulama açıldığında günde bir kez otomatik SQLite yedeği alınır ve son 14 günlük yedekler saklanır. Migration öncesinde de ayrıca yedek alınır. Dashboard üzerindeki `YEDEK AL` düğmesi elle yedek oluşturur. `SON YEDEĞİ GERİ YÜKLE` düğmesi restore öncesinde mevcut database'i ayrıca yedekleyip son sağlam yedeği geri yükler.
+Uygulama açıldığında günde bir kez otomatik SQLite yedeği alınır ve son 14 günlük yedekler saklanır. Migration öncesinde de ayrıca yedek alınır. Üstteki üç nokta menüsündeki `YEDEK AL` seçeneği elle yedek oluşturur. `SON YEDEĞİ GERİ YÜKLE` düğmesi restore öncesinde mevcut database'i ayrıca yedekleyip son sağlam yedeği geri yükler.
 
 Database ve backup klasörleri:
 
@@ -191,3 +191,14 @@ purity, independently of sale purity and profit. Fully sold quantities have zero
 remaining grams, has, and inventory value. Stock screens omit zero-gram entries
 without removing purchase/sale history. Notes are limited to 200 characters by
 the API and form controls, and displayed in fixed three-line input fields.
+
+## Mac teslim paketi
+
+Apple Silicon ve Intel DMG dosyalarini ayni GitHub surumunden indirin; eski yerel
+DMG dosyalarini guncel surum yerine kullanmayin. Her DMG, KURULUM.txt ve kaynak
+commitini belirten SURUM.txt icerir. Workflow her mimaride testleri calistirir,
+paketin guncel statik dosyalari icerdigini ve uygulamanin gecici, bos bir
+veritabaninda acildigini kontrol eder. Paket musteri veritabani icermez.
+
+Bu paketler Developer ID ile imzali/noter onayli degildir. Ilk acilis ve mevcut
+kayitlari koruyarak guncelleme adimlari MAC_KURULUM.txt icindedir.
