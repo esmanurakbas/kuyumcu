@@ -3252,10 +3252,13 @@ button.secondary:hover {
 
 #content::-webkit-scrollbar { width: 0; height: 0; }
 
-.stock-table-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 20px; margin-bottom: 14px; }
+.stock-table-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 24px; margin-bottom: 16px; }
 .stock-table-heading > h2 { margin: 0; }
-.stock-heading-summary { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; margin-left: auto; }
-.stock-summary-divider { color: var(--line); }
+.stock-heading-summary { display: flex; gap: 20px; margin-left: auto; }
+.stock-heading-summary > span { display: grid; gap: 4px; min-width: 90px; }
+.stock-summary-label { font-size: 11px; font-weight: 400; color: var(--muted); }
+.stock-heading-summary strong { font-size: 16px; line-height: 1.3; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
 @media (max-width: 600px) {
- .stock-heading-summary { width: 100%; margin-left: 0; gap: 6px 10px; }
+ .stock-heading-summary { gap: 16px; }
+ .stock-heading-summary > span { min-width: 0; }
 }
