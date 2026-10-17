@@ -306,17 +306,19 @@ def run(chrome: Path) -> None:
             cdp.evaluate("document.querySelector('[data-view=dashboard]').click()")
             cdp.wait_for("document.querySelector('.dashboard-restored .dashboard-hero') !== null")
             assert cdp.evaluate("document.querySelectorAll('.dashboard-hero-metrics>.metric-card').length === 4")
-            assert cdp.evaluate("document.querySelectorAll('.dashboard-groups-top>.dashboard-panel').length === 3")
+            assert cdp.evaluate("document.querySelectorAll('.dashboard-groups-top>.dashboard-panel').length === 2")
             assert cdp.evaluate("[...document.querySelectorAll('.dashboard-groups-top .dashboard-panel-grid')].every(grid=>grid.children.length===4)")
             assert cdp.evaluate("document.querySelectorAll('.dashboard-groups-bottom>.dashboard-panel').length === 2")
-            assert cdp.evaluate("document.querySelector('.dashboard-groups-bottom .dashboard-panel-grid').children.length===4")
+            assert cdp.evaluate("document.querySelector('.dashboard-groups-bottom .dashboard-panel-grid').children.length===3")
+            assert cdp.evaluate("document.querySelectorAll('.dashboard-stock-metrics .metric-card').length===8")
+            assert cdp.evaluate("!document.querySelector('.dashboard-restored').textContent.includes('Genel ?zet')")
             assert cdp.evaluate("document.documentElement.scrollWidth <= innerWidth"), "Dashboard overflows mobile width"
             dashboard_before_layout = cdp.evaluate("fetch('/api/dashboard').then(r=>r.json()).then(r=>JSON.stringify(r.data))", await_promise=True)
             for width, height in [(1920, 1080), (1536, 864), (1366, 768), (1280, 720)]:
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": height, "deviceScaleFactor": 1, "mobile": False})
                 assert cdp.evaluate("new Set([...document.querySelectorAll('.dashboard-hero-metrics>.metric-card')].map(card=>Math.round(card.getBoundingClientRect().top))).size === 1"), (width, "KPIs must share one row")
                 assert cdp.evaluate("new Set([...document.querySelectorAll('.dashboard-groups-top>section')].map(panel=>Math.round(panel.getBoundingClientRect().top))).size === 1"), (width, "Panels must share one row")
-                assert cdp.evaluate("[...document.querySelectorAll('.dashboard-groups-top>.dashboard-panel')].every(panel=>panel.getBoundingClientRect().height<300)"), (width, "Dashboard panels must remain compact")
+                assert cdp.evaluate("[...document.querySelectorAll('.dashboard-groups-top>.dashboard-panel')].every(panel=>panel.getBoundingClientRect().height<350)"), (width, "Dashboard panels must remain compact")
                 assert cdp.evaluate("document.querySelector('#content').scrollHeight <= document.querySelector('#content').clientHeight+1"), (width, "Dashboard requires vertical scrolling")
                 assert cdp.evaluate("document.documentElement.scrollWidth <= innerWidth"), (width, "Dashboard horizontal overflow")
             if os.getenv("UI_DASHBOARD_SCREENSHOT_PATH"):

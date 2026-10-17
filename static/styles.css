@@ -3207,13 +3207,13 @@ button.secondary:hover {
 .dashboard-restored .metric-card span { font-size: 11px; line-height: 1.4; text-transform: none; font-weight: 600; }
 .dashboard-restored .metric-card strong { font-size: 22px; }
 .dashboard-restored .metric-card small { font-size: 10px; font-weight: 400; }
-.dashboard-restored .dashboard-groups-top { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: stretch; }
+.dashboard-restored .dashboard-groups-top { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 12px; align-items: stretch; }
 .dashboard-restored .dashboard-groups-bottom { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 12px; align-items: start; }
 .dashboard-restored .dashboard-panel { min-width: 0; padding: 12px; gap: 9px; align-content: start; }
 .dashboard-restored .dashboard-panel-head { padding-bottom: 7px; margin: 0; }
 .dashboard-restored .dashboard-panel-head h2 { font-size: 15px; }
 .dashboard-restored .dashboard-panel-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.dashboard-restored .dashboard-groups-bottom .dashboard-panel:first-child .dashboard-panel-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.dashboard-restored .dashboard-groups-bottom .dashboard-panel:first-child .dashboard-panel-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .dashboard-restored .dashboard-groups-bottom .dashboard-panel:last-child .dashboard-panel-grid { grid-template-columns: 1fr; }
 @media (max-width: 980px) {
  .dashboard-restored .dashboard-hero { grid-template-columns: 1fr; }
@@ -3222,4 +3222,17 @@ button.secondary:hover {
 @media (max-width: 600px) {
  .dashboard-restored .dashboard-hero-metrics,
  .dashboard-restored .dashboard-groups-bottom .dashboard-panel:first-child .dashboard-panel-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.dashboard-stock-sections { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 3fr); gap: 12px; }
+.dashboard-stock-sections > section { min-width: 0; }
+.dashboard-stock-sections h3 { margin: 0 0 6px; font-size: 12px; color: var(--muted); font-weight: 600; }
+.dashboard-stock-metrics { display: grid; gap: 8px; }
+.dashboard-stock-sections > section:last-child .dashboard-stock-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.dashboard-stock-footnote { display: flex; align-items: baseline; gap: 10px; margin: 0; padding-top: 8px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+.dashboard-stock-footnote strong { font-size: 16px; color: var(--text); }
+@media (max-width: 600px) {
+ .dashboard-stock-sections { grid-template-columns: 1fr; }
+ .dashboard-stock-metrics, .dashboard-stock-sections > section:last-child .dashboard-stock-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+ .dashboard-restored .dashboard-groups-bottom .dashboard-panel:first-child .dashboard-panel-grid { grid-template-columns: 1fr; }
 }

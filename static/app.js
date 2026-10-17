@@ -1400,41 +1400,51 @@ function renderDashboard(data) {
   topGroups.className = "dashboard-groups dashboard-groups-polished dashboard-groups-top";
   const bottomGroups = document.createElement("div");
   bottomGroups.className = "dashboard-groups dashboard-groups-polished dashboard-groups-bottom";
-  const topPanels = [
-    ["Genel \u00d6zet", "", [
-      ["Toplam Normal Al\u0131\u015f Has", data.toplam_normal_alis_has, "has", "neutral"],
-      ["Toplam Normal Sat\u0131\u015f Has", data.toplam_normal_satis_has, "has", "accent"],
-      ["Al\u0131\u015f Kayd\u0131", data.alis_adedi, "", "neutral"],
-      ["Sat\u0131\u015f Kayd\u0131", data.satis_adedi, "", "neutral"],
-    ]],
-    ["Stok \u00d6zeti", "", [
+  const stock = renderDashboardPanel("Stok \u00d6zeti", "", []);
+  stock.classList.add("dashboard-stock-summary");
+  const stockGrid = stock.querySelector(".dashboard-panel-grid");
+  stockGrid.className = "dashboard-stock-sections";
+  [
+    ["Normal stok", [
       ["Normal Stok Gram", data.normal_stok_gram, "gram", "neutral"],
       ["Normal Stok Has", data.normal_stok_has, "has", "accent"],
+    ]],
+    ["Hurda", [
       ["Hurda Stok Gram", data.hurda_kalan_gram, "gram", "neutral"],
-      ["Toplam Stok Has", data.toplam_stok_has, "has", "neutral"],
-    ]],
-    ["Cari \u00d6zeti", "", [
-      ["Kar\u015f\u0131 Taraftan Alaca\u011f\u0131m\u0131z Has", data.net_cari_alacak_has, "has", "good"],
-      ["Bizim \u00d6deyece\u011fimiz Has", data.net_cari_borc_has, "has", data.net_cari_borc_has ? "warn" : "neutral"],
-      ["Bize Bor\u00e7lu Cari", data.alacakli_cari_sayisi, "", "neutral"],
-      ["Bizim Bor\u00e7lu Oldu\u011fumuz Cari", data.borclu_cari_sayisi, "", "neutral"],
-    ]],
-  ];
-
-  const bottomPanels = [
-    ["Hurda \u00d6zeti", "", [
+      ["Hurda Kalan Has", data.hurda_kalan_has, "has", "accent"],
+      ["Hurda Milyem K\u00e2r\u0131", data.hurda_milyem_kari, "has", "good"],
       ["Hurda Al\u0131\u015f Has", data.hurda_alis_has_toplami, "has", "neutral"],
       ["Hurda Sat\u0131\u015f Has", data.hurda_satis_has_toplami, "has", "accent"],
-      ["Hurda Milyem K\u00e2r\u0131", data.hurda_milyem_kari, "has", "good"],
       ["Hurda Kayd\u0131", data.hurda_adedi, "", "neutral"],
     ]],
-    ["Uyar\u0131lar", "", [
+  ].forEach(([title, cards]) => {
+    const section = document.createElement("section");
+    const heading = document.createElement("h3"); heading.textContent = title;
+    const metrics = document.createElement("div"); metrics.className = "dashboard-stock-metrics";
+    cards.forEach(card => metrics.appendChild(renderMetricCard(...card)));
+    section.append(heading, metrics); stockGrid.appendChild(section);
+  });
+  const totalStock = document.createElement("p"); totalStock.className = "dashboard-stock-footnote";
+  const totalLabel = document.createElement("span"); totalLabel.textContent = "Toplam Stok Has";
+  const totalValue = document.createElement("strong"); totalValue.textContent = formatValue("has", data.toplam_stok_has);
+  totalStock.append(totalLabel, totalValue); stock.appendChild(totalStock);
+  const cari = renderDashboardPanel("Cari \u00d6zeti", "", [
+    ["Kar\u015f\u0131 Taraftan Alaca\u011f\u0131m\u0131z Has", data.net_cari_alacak_has, "has", "good"],
+    ["Bizim \u00d6deyece\u011fimiz Has", data.net_cari_borc_has, "has", data.net_cari_borc_has ? "warn" : "neutral"],
+    ["Bize Bor\u00e7lu Cari", data.alacakli_cari_sayisi, "", "neutral"],
+    ["Bizim Bor\u00e7lu Oldu\u011fumuz Cari", data.borclu_cari_sayisi, "", "neutral"],
+  ]);
+  topGroups.append(stock, cari);
+  bottomGroups.append(
+    renderDashboardPanel("Gider \u00d6zeti", "", [
+      ["Toplam Milyem K\u00e2r\u0131", data.genel_milyem_kari, "has", "neutral", "Normal + hurda"],
+      ["Toplam Gider", data.toplam_gider, "has", "warn"],
+      ["Kalan Net K\u00e2r", data.net_kar, "has", data.net_kar < 0 ? "warn" : "good", "Giderler d\u00fc\u015f\u00fcld\u00fckten sonra"],
+    ]),
+    renderDashboardPanel("Uyar\u0131lar", "", [
       ["Stok Yetersiz Uyar\u0131s\u0131", data.uyari_sayisi, "", data.uyari_sayisi ? "warn" : "good", data.uyari_sayisi ? "Kontrol edin" : "Sorun yok"],
-    ]],
-  ];
-
-  topPanels.forEach(([title, subtitle, cards]) => topGroups.appendChild(renderDashboardPanel(title, subtitle, cards)));
-  bottomPanels.forEach(([title, subtitle, cards]) => bottomGroups.appendChild(renderDashboardPanel(title, subtitle, cards)));
+    ])
+  );
 
   root.append(hero, topGroups, bottomGroups);
   return root;
