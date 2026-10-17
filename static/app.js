@@ -521,8 +521,11 @@ function openTransactionPaymentModal(form) {
   const preview = document.createElement("div");
   preview.className = "has-preview";
   preview.innerHTML = "<span>Hesaplanan Has</span><strong data-has>0</strong><span>Gram</span><strong data-gram>0</strong>";
-  form.appendChild(preview);
-  form.appendChild(attachPaymentButton(form));
+  const payment = attachPaymentButton(form);
+  if (type === "satis" || (type === "hurda" && hurdaMode === "SATIS")) {
+    const summaryRow = document.createElement("div"); summaryRow.className = "sale-summary-row";
+    summaryRow.append(preview, payment); form.appendChild(summaryRow);
+  } else form.append(preview, payment);
   const updatePreview = () => {
     preview.querySelector("[data-has]").textContent = formatValue("has", calcHas(form));
     preview.querySelector("[data-gram]").textContent = formatValue("gram", parseNum(form.elements.gram.value));

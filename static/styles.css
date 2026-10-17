@@ -3267,3 +3267,16 @@ button.secondary:hover {
 @media (max-width: 600px) {
  .table-heading-summary { margin-left: 0; justify-content: flex-start; }
 }
+
+.sale-summary-row { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.sale-summary-row > .has-preview, .sale-summary-row > .payment-action-box { grid-column: auto; min-width: 0; }
+.sale-summary-row > .has-preview { grid-template-columns: minmax(0, 1fr) auto; align-content: center; }
+.sale-summary-row > .payment-action-box { flex-wrap: wrap; }
+.sale-summary-row .payment-open-btn { min-width: 0; max-width: 100%; white-space: normal; }
+@media (max-width: 600px) {
+ .sale-summary-row { gap: 8px; }
+ .sale-summary-row > .has-preview, .sale-summary-row > .payment-action-box { padding: 10px; gap: 8px; }
+ .sale-summary-row > .has-preview span { font-size: 11px; }
+ .sale-summary-row > .has-preview strong { font-size: 15px; overflow-wrap: anywhere; }
+ .sale-summary-row .payment-open-btn { padding: 8px; font-size: 12px; }
+}
