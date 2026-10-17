@@ -3251,3 +3251,11 @@ button.secondary:hover {
 }
 
 #content::-webkit-scrollbar { width: 0; height: 0; }
+
+.stock-table-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 20px; margin-bottom: 14px; }
+.stock-table-heading > h2 { margin: 0; }
+.stock-heading-summary { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; margin-left: auto; }
+.stock-summary-divider { color: var(--line); }
+@media (max-width: 600px) {
+ .stock-heading-summary { width: 100%; margin-left: 0; gap: 6px 10px; }
+}

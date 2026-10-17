@@ -755,7 +755,23 @@ function columnLabel(type, col) {
 function renderTable(type, rows, title = "", applySearch = true) {
   const section = document.createElement("section");
   section.className = "table-section";
-  if (title) { const h = document.createElement("h2"); h.textContent = title; section.appendChild(h); }
+  if (title) {
+    const h = document.createElement("h2"); h.textContent = title;
+    if (["stok", "hurdaStok"].includes(type)) {
+      const header = document.createElement("div"); header.className = "stock-table-heading";
+      const summary = document.createElement("div"); summary.className = "purchase-note stock-heading-summary";
+      const name = type === "stok" ? "Normal Stok" : "Hurda";
+      [["gram", "Gram", "gr"], ["has", "Has", "has"]].forEach(([key, label, unit], index) => {
+        if (index) { const divider = document.createElement("span"); divider.className = "stock-summary-divider"; divider.textContent = "|"; divider.setAttribute("aria-hidden", "true"); summary.appendChild(divider); }
+        const metric = document.createElement("span");
+        const amount = document.createElement("strong"); amount.className = "purchase-remaining"; amount.dataset.stockTotal = key;
+        const total = (rows || []).reduce((sum, row) => sum + Number(row[`kalan_${key}`] || 0), 0);
+        amount.textContent = `${formatValue(key, total)} ${unit}`;
+        metric.append(document.createTextNode(`Toplam ${name} ${label}: `), amount); summary.appendChild(metric);
+      });
+      header.append(h, summary); section.appendChild(header);
+    } else section.appendChild(h);
+  }
   if (["stok", "hurdaStok"].includes(type)) rows = (rows || []).filter(row => Number(row.kalan_gram) !== 0);
   rows = applySearch ? filteredRows(rows || []) : (rows || []);
   section.dataset.tableType = type;

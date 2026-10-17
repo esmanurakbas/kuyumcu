@@ -268,6 +268,15 @@ def run(chrome: Path) -> None:
                     assert cdp.evaluate("['has_fiyati','iscilik','ek_masraf','ek_ucret','indirim'].every(name=>!document.querySelector(`.entry-form [name=${name}]`))"), view
                 assert cdp.evaluate("[...document.querySelectorAll('#content textarea[name=notlar]')].every(input=>input.maxLength===(input.closest('.expense-form')?1000:200) && input.rows===(input.closest('.expense-form')?2:1) && getComputedStyle(input).resize==='vertical' && parseFloat(getComputedStyle(input).maxHeight)===(input.closest('.expense-form')?110:74) && input.getBoundingClientRect().height===(input.closest('.expense-form')?56:38))"), view
                 print(f"Page checked: {view}")
+            cdp.evaluate("document.querySelector('[data-view=stok]').click()")
+            cdp.wait_for("document.querySelector('.stock-table-heading')!==null")
+            for stock_filter in ["normal", "hurda"]:
+                cdp.evaluate(f"(async()=>{{state.stokFilter={json.dumps(stock_filter)};await render();}})()", await_promise=True)
+                assert cdp.evaluate(f"fetch('/api/stok/{stock_filter}').then(r=>r.json()).then(r=>['gram','has'].every(key=>document.querySelector(`[data-stock-total=${{key}}]`).textContent===formatValue(key,r.data.reduce((sum,row)=>sum+Number(row[`kalan_${{key}}`]||0),0))+' '+(key==='gram'?'gr':'has')))", await_promise=True)
+                assert cdp.evaluate("(()=>{const h=document.querySelector('.stock-table-heading h2').getBoundingClientRect();const s=document.querySelector('.stock-heading-summary').getBoundingClientRect();return s.left>=h.right && Math.abs(h.top-s.top)<15;})()"), "Stock totals must sit beside the heading on desktop"
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 390, "height": 844, "deviceScaleFactor": 1, "mobile": True})
+            assert cdp.evaluate("document.querySelector('.stock-heading-summary').getBoundingClientRect().right<=innerWidth"), "Stock totals overflow mobile"
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1440, "height": 1000, "deviceScaleFactor": 1, "mobile": False})
             cdp.evaluate("(async()=>{const jobs=[];for(const view of ['alis','satis','giderler']){state.view=view;jobs.push(render());}await Promise.all(jobs);})()", await_promise=True)
             assert cdp.evaluate("document.querySelectorAll('#content [data-table-type=alis], #content [data-table-type=satis]').length === 0"), "Stale page responses leaked into the expenses page"
             assert cdp.evaluate("document.querySelectorAll('#content [data-table-type=giderler]').length === 1")
