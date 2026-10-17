@@ -1315,6 +1315,7 @@ def test_mac_desktop_enables_downloads_and_keeps_close_shutdown(tmp_path, monkey
     fake_webview = MagicMock()
     fake_webview.settings = {}
     window = fake_webview.create_window.return_value
+    closed_event = window.events.closed
     server = SimpleNamespace(url="http://127.0.0.1:12345")
     monkeypatch.setattr(desktop, "start_backend", lambda: server)
     stop = MagicMock()
@@ -1324,6 +1325,6 @@ def test_mac_desktop_enables_downloads_and_keeps_close_shutdown(tmp_path, monkey
     assert fake_webview.settings["ALLOW_DOWNLOADS"] is True
     assert fake_webview.create_window.call_args.args[1] == server.url
     fake_webview.start.assert_called_once_with(debug=False)
-    on_close = window.events.closed.__iadd__.call_args.args[0]
+    on_close = closed_event.__iadd__.call_args.args[0]
     on_close()
     stop.assert_called_once_with(server)
