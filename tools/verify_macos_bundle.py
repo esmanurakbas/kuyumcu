@@ -17,7 +17,7 @@ def verify(bundle: Path) -> None:
     if sys.platform != "darwin":
         raise SystemExit("Run bundle verification on macOS.")
     source = Path(__file__).resolve().parents[1]
-    for name in ("app.js", "styles.css", "index.html", "login.html", "logo.png"):
+    for name in ("app.js", "styles.css", "index.html", "login.html", "logo.png", "theme.js"):
         expected = hashlib.sha256((source / "static" / name).read_bytes()).digest()
         candidates = list(bundle.rglob(f"static/{name}"))
         assert candidates and all(hashlib.sha256(path.read_bytes()).digest() == expected for path in candidates), f"Stale or missing asset: {name}"
@@ -59,7 +59,7 @@ def verify(bundle: Path) -> None:
                 with opener.open(base + "/api/dashboard", timeout=10) as response:
                     dashboard = json.load(response)["data"]
                     assert all(dashboard[key] == 0 for key in ("normal_stok_gram", "hurda_kalan_gram", "toplam_gider", "net_kar"))
-                for name in ("app.js", "styles.css", "index.html", "login.html", "logo.png"):
+                for name in ("app.js", "styles.css", "index.html", "login.html", "logo.png", "theme.js"):
                     url = base + ("/" if name == "index.html" else "/static/" + name)
                     with opener.open(url, timeout=10) as response:
                         assert response.read() == (source / "static" / name).read_bytes(), name

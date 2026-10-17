@@ -25,3 +25,7 @@ Internet ve ayri Python kurulumu gerekmez.
 Yedek alma, son yedegi geri yukleme ve disa aktarma uc nokta menusundedir.
 Stok gram/miktar bazlidir. Giderler has olarak kaydedilir ve stoktan dusmez;
 normal + hurda milyem karinin has karsiligindan duserek net kari verir.
+
+TEMA
+Sidebar logosuna tiklamak acik/koyu temayi degistirir.
+Tum sayfalar, formlar, tablolar ve popup pencereleri ayni temayi kullanir.

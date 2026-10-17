@@ -97,6 +97,21 @@ def run(chrome: Path) -> None:
             assert cdp.evaluate("document.querySelector('input[type=password]') === null")
             cdp.wait_for("location.pathname === '/' && document.querySelector('[data-view=alis]') !== null")
             assert cdp.evaluate("document.querySelector('#logoutBtn') === null")
+            requested_theme = os.getenv("UI_THEME_MODE", "light")
+            assert cdp.evaluate("document.documentElement.dataset.theme==='light'")
+            logo_size = cdp.evaluate("(()=>{const r=document.querySelector('#themeToggle').getBoundingClientRect();return [r.width,r.height];})()")
+            light_surface = cdp.evaluate("getComputedStyle(document.body).backgroundColor")
+            cdp.evaluate("document.querySelector('#themeToggle').click()")
+            assert cdp.evaluate("document.documentElement.dataset.theme==='dark' && document.querySelector('#themeToggle').getAttribute('aria-pressed')==='true'")
+            assert cdp.evaluate("getComputedStyle(document.body).backgroundColor") != light_surface
+            assert cdp.evaluate("(()=>{const r=document.querySelector('#themeToggle').getBoundingClientRect();return [r.width,r.height];})()") == logo_size
+            cdp.call("Page.reload")
+            cdp.wait_for("document.querySelector('.dashboard-root')!==null")
+            assert cdp.evaluate("document.documentElement.dataset.theme==='dark'")
+            if requested_theme == "light":
+                cdp.evaluate("document.querySelector('#themeToggle').click()")
+                assert cdp.evaluate("getComputedStyle(document.body).backgroundColor") == light_surface
+
 
             payload = json.dumps({
                 "tarih": "2026-10-03", "tedarikci": "ARANACAK TEDARIKCI",
@@ -267,6 +282,9 @@ def run(chrome: Path) -> None:
                 if view in {"alis", "satis", "hurda_alis", "hurda_satis"}:
                     assert cdp.evaluate("['has_fiyati','iscilik','ek_masraf','ek_ucret','indirim'].every(name=>!document.querySelector(`.entry-form [name=${name}]`))"), view
                 assert cdp.evaluate("[...document.querySelectorAll('#content textarea[name=notlar]')].every(input=>input.maxLength===(input.closest('.expense-form')?1000:200) && input.rows===(input.closest('.expense-form')?2:1) && getComputedStyle(input).resize==='vertical' && parseFloat(getComputedStyle(input).maxHeight)===(input.closest('.expense-form')?110:74) && input.getBoundingClientRect().height===(input.closest('.expense-form')?56:38))"), view
+                assert cdp.evaluate("document.documentElement.dataset.theme") == requested_theme
+                if requested_theme == "dark":
+                    assert cdp.evaluate("[...document.querySelectorAll('#content *')].every(el=>{if(!el.getBoundingClientRect().height)return true;const c=getComputedStyle(el).backgroundColor.match(/[0-9.]+/g)?.map(Number);return !c || (c.length===4 && c[3]<.9) || (c[0]+c[1]+c[2])/3<195;})"), (view,"Bright surface leaked into dark theme")
                 print(f"Page checked: {view}")
             cdp.evaluate("document.querySelector('[data-view=stok]').click()")
             cdp.wait_for("document.querySelector('.stock-table-heading')!==null")
@@ -377,6 +395,12 @@ def run(chrome: Path) -> None:
             assert cdp.evaluate("(()=>{const f=document.querySelector('.entry-form');return f.elements.alis_milyem.value==='750' && f.elements.alis_milyem.readOnly && f.elements.milyem.value==='' && f.elements.cinsi.readOnly && f.elements.ayar.readOnly;})()")
             cdp.evaluate("(()=>{const f=document.querySelector('.entry-form');f.elements.kisi.value='UI SCRAP CUSTOMER';f.elements.gram.value='1';f.elements.milyem.value='800';f.elements.milyem.dispatchEvent(new Event('input'));})()")
             assert cdp.evaluate("document.querySelector('[data-has]').textContent==='0,8'")
+            form_before_theme = cdp.evaluate("JSON.stringify(Object.fromEntries(new FormData(document.querySelector('.entry-form'))))")
+            for _ in range(2):
+                cdp.evaluate("document.querySelector('#themeToggle').click()")
+                assert cdp.evaluate("JSON.stringify(Object.fromEntries(new FormData(document.querySelector('.entry-form'))))") == form_before_theme, "Theme toggle changed an unfinished sale"
+            assert cdp.evaluate("document.documentElement.dataset.theme") == requested_theme
+
             cdp.evaluate("document.querySelector('.payment-open-btn').click()")
             cdp.wait_for("document.querySelector('.transaction-payment-modal')!==null")
             cdp.evaluate("document.querySelector('.payment-type-tab[data-value=HAS]').click();document.querySelector('.transaction-paid-field input').value='0,1';document.querySelector('.transaction-paid-field input').dispatchEvent(new Event('input'))")
@@ -399,6 +423,25 @@ def run(chrome: Path) -> None:
             updated_scrap = cdp.evaluate("api('/api/hurda').then(r=>r.kayitlar.find(row=>row.kisi==='UI SCRAP CUSTOMER'))", await_promise=True)
             assert updated_scrap['gram'] == 0.5 and updated_scrap['has'] == 0.4 and updated_scrap['milyem_kari'] == 0.025
             assert updated_scrap['odenen_has'] == 0.1 and updated_scrap['hurda_alis_id'] == scrap['id']
+            if os.getenv("UI_THEME_SCREENSHOT_DIR"):
+                import base64
+                shots = Path(os.environ["UI_THEME_SCREENSHOT_DIR"])
+                shots.mkdir(exist_ok=True)
+                def capture(name):
+                    screenshot = cdp.call("Page.captureScreenshot", {"format":"png","captureBeyondViewport":True})
+                    (shots/name).write_bytes(base64.b64decode(screenshot["data"]))
+                capture("sale-"+requested_theme+".png")
+                cdp.evaluate("document.querySelector('.payment-open-btn').click()")
+                cdp.wait_for("document.querySelector('.transaction-payment-modal')!==null")
+                capture("payment-"+requested_theme+".png")
+                if requested_theme == "dark":
+                    assert cdp.evaluate("[...document.querySelectorAll('.transaction-payment-modal input')].every(el=>{const c=getComputedStyle(el).backgroundColor.match(/[0-9.]+/g).map(Number);return (c[0]+c[1]+c[2])/3<150;})"), "Dark payment inputs are light"
+                cdp.evaluate("[...document.querySelectorAll('.transaction-payment-modal button')].at(-2).click()")
+                cdp.evaluate("document.querySelector('[data-view=dashboard]').click()")
+                cdp.wait_for("document.querySelector('.dashboard-root')!==null")
+                capture("dashboard-"+requested_theme+".png")
+                cdp.evaluate("document.querySelector('[data-view=hurda_satis]').click()")
+                cdp.wait_for("document.querySelector('.sale-summary-row')!==null")
             for width, height in [(1280,720),(390,844)]:
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width":width,"height":height,"deviceScaleFactor":1,"mobile":False})
                 assert cdp.evaluate("document.documentElement.scrollWidth<=innerWidth"), "Scrap sale form overflows"

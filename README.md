@@ -202,3 +202,8 @@ veritabaninda acildigini kontrol eder. Paket musteri veritabani icermez.
 
 Bu paketler Developer ID ile imzali/noter onayli degildir. Ilk acilis ve mevcut
 kayitlari koruyarak guncelleme adimlari MAC_KURULUM.txt icindedir.
+
+## Tema
+
+Sidebar logosu acik/koyu tema dugmesidir. Tema yalnizca renkleri degistirir;
+doldurulmus formu, secilen urunu ve finansal hesaplamalari degistirmez.

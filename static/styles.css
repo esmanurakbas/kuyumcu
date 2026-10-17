@@ -43,7 +43,7 @@ textarea {
 .sidebar {
   min-height: 100vh;
   background: var(--nav);
-  color: #fff;
+  color: var(--theme-inverse, #fff);
   padding: 20px 14px;
   position: sticky;
   top: 0;
@@ -67,7 +67,7 @@ textarea {
 
 .brand small {
   display: block;
-  color: #d6ded8;
+  color: var(--theme-inverse, #d6ded8);
   margin-top: 3px;
   font-size: 12px;
 }
@@ -82,7 +82,7 @@ nav {
   border-radius: 8px;
   padding: 12px 13px;
   background: transparent;
-  color: #ecf2ee;
+  color: var(--theme-inverse, #ecf2ee);
   cursor: pointer;
   text-align: left;
 }
@@ -90,7 +90,7 @@ nav {
 .nav:hover,
 .nav.active {
   background: var(--nav-active);
-  color: #fff;
+  color: var(--theme-inverse, #fff);
 }
 
 .app {
@@ -133,7 +133,7 @@ p {
 .entry-form textarea {
   width: 100%;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--theme-surface, #fff);
   border-radius: 8px;
   padding: 10px 11px;
   color: var(--text);
@@ -158,7 +158,7 @@ p {
 .cari-slider {
   display: flex;
   gap: 0;
-  background: #fff;
+  background: var(--theme-surface, #fff);
   border: 1px solid var(--line);
   border-radius: 6px;
   overflow: hidden;
@@ -181,12 +181,12 @@ p {
 }
 
 .slider-btn:hover {
-  background: rgba(194, 149, 67, 0.1);
+  background: var(--theme-action-gold, rgba(194, 149, 67, 0.1));
 }
 
 .slider-btn.active {
-  background: var(--gold);
-  color: #fff;
+  background: var(--theme-action-gold, var(--gold));
+  color: var(--theme-inverse, #fff);
 }
 
 #search {
@@ -209,13 +209,13 @@ p {
 }
 
 .toast-info {
-  background: #4A90E2;
-  color: #fff;
+  background: var(--theme-action-blue, #4A90E2);
+  color: var(--theme-inverse, #fff);
 }
 
 .toast-error {
-  background: var(--red);
-  color: #fff;
+  background: var(--theme-action-red, var(--red));
+  color: var(--theme-inverse, #fff);
 }
 
 .toast-show {
@@ -302,8 +302,8 @@ p {
   border: 0;
   border-radius: 8px;
   padding: 12px 24px;
-  background: var(--green);
-  color: #fff;
+  background: var(--theme-action-green, var(--green));
+  color: var(--theme-inverse, #fff);
   cursor: pointer;
   font-size: 15px;
   font-weight: 700;
@@ -333,7 +333,7 @@ p {
   right: 0;
   max-height: 220px;
   overflow: auto;
-  background: #fff;
+  background: var(--theme-surface, #fff);
   border: 1px solid var(--line);
   border-radius: 8px;
   box-shadow: 0 16px 32px rgba(41, 37, 29, 0.14);
@@ -371,7 +371,7 @@ p {
 
 .has-preview {
   grid-column: span 3;
-  background: rgba(194, 149, 67, 0.12);
+  background: var(--theme-action-gold, rgba(194, 149, 67, 0.12));
   border: 2px solid var(--gold);
   border-radius: 8px;
   padding: 12px 14px;
@@ -407,8 +407,8 @@ p {
   border: 0;
   border-radius: 8px;
   padding: 11px 20px;
-  background: var(--green);
-  color: #fff;
+  background: var(--theme-action-green, var(--green));
+  color: var(--theme-inverse, #fff);
   cursor: pointer;
   font-weight: 700;
 }
@@ -426,7 +426,7 @@ p {
   align-items: center;
   gap: 6px;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--theme-surface, #fff);
   border-radius: 6px;
   padding: 8px 12px;
   color: var(--muted);
@@ -442,8 +442,8 @@ p {
 }
 
 .filter-toggle-active {
-  background: var(--gold);
-  color: #fff;
+  background: var(--theme-action-gold, var(--gold));
+  color: var(--theme-inverse, #fff);
   border-color: var(--gold);
 }
 
@@ -452,7 +452,7 @@ p {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
   align-items: end;
-  background: #fff;
+  background: var(--theme-surface, #fff);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 14px;
@@ -474,7 +474,7 @@ p {
 .filter-field input {
   width: 100%;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--theme-surface, #fff);
   border-radius: 6px;
   padding: 8px 10px;
   color: var(--text);
@@ -491,7 +491,7 @@ p {
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 8px 12px;
-  background: #fff;
+  background: var(--theme-surface, #fff);
   color: var(--muted);
   cursor: pointer;
   font-size: 13px;
@@ -513,7 +513,7 @@ table {
   width: 100%;
   border-collapse: collapse;
   min-width: 940px;
-  background: rgba(255, 255, 255, 0.6);
+  background: var(--theme-surface, rgba(255, 255, 255, 0.6));
 }
 
 th,
@@ -533,32 +533,32 @@ td.num {
 td.important-num {
   font-weight: 700;
   color: var(--gold);
-  background: rgba(194, 149, 67, 0.08);
+  background: var(--theme-action-gold, rgba(194, 149, 67, 0.08));
 }
 td.stock-priority {
-  background: linear-gradient(180deg, #fff8e4 0%, #fff0c9 100%);
+  background: linear-gradient(180deg, var(--theme-amber-soft, #fff8e4) 0%, var(--theme-amber-soft, #fff0c9) 100%);
   border-color: rgba(194, 149, 67, 0.42);
   box-shadow: inset 0 0 0 1px rgba(194, 149, 67, 0.12);
-  color: #7c5314;
+  color: var(--theme-gold, #7c5314);
   font-size: 15px;
   font-weight: 900;
 }
 
 td.stock-priority[data-col="kalan_has"] {
-  background: linear-gradient(180deg, #edf8ef 0%, #dff1e5 100%);
+  background: linear-gradient(180deg, var(--theme-green-soft, #edf8ef) 0%, var(--theme-green-soft, #dff1e5) 100%);
   border-color: rgba(63, 125, 88, 0.35);
-  color: #265f3d;
+  color: var(--theme-green, #265f3d);
 }
 
 th {
-  background: #e7e3d8;
-  color: #475048;
+  background: var(--theme-raised, #e7e3d8);
+  color: var(--theme-ink, #475048);
   font-size: 12px;
   text-transform: uppercase;
 }
 
 tbody tr:hover {
-  background: #fff9ed;
+  background: var(--theme-surface, #fff9ed);
 }
 
 tr:last-child td {
@@ -608,7 +608,7 @@ tr:last-child td {
 }
 
 .edit:hover {
-  background: rgba(63, 125, 88, 0.1);
+  background: var(--theme-action-green, rgba(63, 125, 88, 0.1));
   color: var(--green);
   transform: scale(1.1);
 }
@@ -790,7 +790,7 @@ tr:last-child td {
 }
 
 .confirm-dialog {
-  background: #fff;
+  background: var(--theme-surface, #fff);
   border-radius: 12px;
   padding: 24px;
   max-width: 400px;
@@ -828,25 +828,25 @@ tr:last-child td {
 }
 
 .confirm-cancel {
-  background: #e5e7eb;
+  background: var(--theme-raised, #e5e7eb);
   color: var(--text);
 }
 
 .confirm-cancel:hover {
-  background: #d1d5db;
+  background: var(--theme-raised, #d1d5db);
 }
 
 .confirm-ok {
-  background: #2563eb;
-  color: #fff;
+  background: var(--theme-action-blue, #2563eb);
+  color: var(--theme-inverse, #fff);
 }
 
 .confirm-ok:hover {
-  background: #1d4ed8;
+  background: var(--theme-action-blue, #1d4ed8);
 }
 
 .confirm-ok.confirm-danger {
-  background: var(--red);
+  background: var(--theme-action-red, var(--red));
 }
 
 .confirm-ok.confirm-danger:hover {
@@ -856,9 +856,9 @@ tr:last-child td {
 /* Small functional additions, keeping the existing visual language */
 .purchase-actions { grid-column: span 12; display: flex; align-items: center; gap: 10px; padding: 4px 0 8px; }
 .purchase-note { color: var(--muted); font-size: 13px; font-weight: 700; }
-.entry-form input[readonly] { background: #eeeeee; color: #475048; }
+.entry-form input[readonly] { background: var(--theme-raised, #eeeeee); color: var(--theme-ink, #475048); }
 .modal { position: fixed; inset: 0; z-index: 1500; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(0,0,0,.45); }
-.modal-box { width: min(1500px, 98vw); max-height: 88vh; overflow: auto; background: #fff; border-radius: 10px; box-shadow: 0 20px 60px rgba(0,0,0,.28); padding: 18px; }
+.modal-box { width: min(1500px, 98vw); max-height: 88vh; overflow: auto; background: var(--theme-surface, #fff); border-radius: 10px; box-shadow: 0 20px 60px rgba(0,0,0,.28); padding: 18px; }
 .modal .table-wrap { overflow-x: visible; }
 .modal table { min-width: 0; table-layout: auto; font-size: 12px; }
 .modal th, .modal td { padding: 8px 9px; }
@@ -871,7 +871,7 @@ nav { flex: 0 0 auto; }
 .entry-form input:not([readonly]),
 .entry-form select,
 .entry-form textarea {
-  background: #fff8d8;
+  background: var(--theme-amber-soft, #fff8d8);
 }
 
 .hint {
@@ -929,7 +929,7 @@ body {
 
 .page-tab {
   border: 1px solid var(--line);
-  background: #fffdf8;
+  background: var(--theme-surface, #fffdf8);
   color: var(--text);
   border-radius: 8px;
   padding: 9px 13px;
@@ -941,7 +941,7 @@ body {
 .page-tab:hover {
   background: var(--nav-active);
   border-color: var(--nav-active);
-  color: #fff;
+  color: var(--theme-inverse, #fff);
 }
 
 .hint.danger {
@@ -1029,7 +1029,7 @@ td {
   height: 30px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fffdf8;
+  background: var(--theme-surface, #fffdf8);
   color: var(--muted);
   display: inline-flex;
   align-items: center;
@@ -1055,7 +1055,7 @@ td {
 
 .icon-edit:hover {
   background: var(--blue-soft);
-  border-color: #b9cde0;
+  border-color: var(--theme-border, #b9cde0);
   color: var(--blue);
 }
 
@@ -1065,7 +1065,7 @@ td {
 
 .icon-delete:hover {
   background: var(--red-soft);
-  border-color: #efb4ad;
+  border-color: var(--theme-border, #efb4ad);
   color: var(--red);
 }
 
@@ -1074,7 +1074,7 @@ td {
   max-width: 100%;
   padding: 4px;
   gap: 4px;
-  background: #fffdf8;
+  background: var(--theme-surface, #fffdf8);
   border: 1px solid var(--line);
   border-radius: 10px;
   box-shadow: 0 8px 24px rgba(41, 37, 29, 0.05);
@@ -1100,11 +1100,11 @@ td {
 .modal .filter-toggle-active {
   background: var(--green-soft);
   color: var(--green);
-  border-color: #bfd7c8;
+  border-color: var(--theme-border, #bfd7c8);
 }
 
 .modal .filter-toggle-active:hover {
-  background: #d9eadf;
+  background: var(--theme-green-soft, #d9eadf);
   color: var(--green);
 }
 
@@ -1115,9 +1115,9 @@ td {
 }
 
 .purchase-actions .filter-toggle-active {
-  background: var(--green);
+  background: var(--theme-action-green, var(--green));
   border-color: var(--green);
-  color: #fff;
+  color: var(--theme-inverse, #fff);
 }
 
 .table-wrap table td:last-child,
@@ -1128,7 +1128,7 @@ td {
 
 /* Final production polish */
 .sidebar {
-  background: linear-gradient(180deg, #2f4038 0%, #26362f 100%);
+  background: linear-gradient(180deg, var(--theme-sidebar, #2f4038) 0%, var(--theme-sidebar, #26362f) 100%);
 }
 
 .brand {
@@ -1146,7 +1146,7 @@ td {
   width: 42px;
   height: 2px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #d9b66f, #f3dfaa);
+  background: linear-gradient(90deg, var(--theme-action-gold, #d9b66f), var(--theme-amber-soft, #f3dfaa));
   box-shadow: 0 0 14px rgba(217, 182, 111, .35);
 }
 
@@ -1159,7 +1159,7 @@ td {
   height: 54px;
   border: 1px solid rgba(232, 204, 145, .48);
   border-radius: 16px;
-  background: linear-gradient(145deg, rgba(255, 253, 248, .98), rgba(235, 222, 190, .94));
+  background: linear-gradient(145deg, var(--theme-surface, rgba(255, 253, 248, .98)), var(--theme-amber-soft, rgba(235, 222, 190, .94)));
   box-shadow: 0 12px 26px rgba(0, 0, 0, .18), inset 0 1px 0 rgba(255, 255, 255, .9);
 }
 
@@ -1188,7 +1188,7 @@ td {
 
 .brand strong {
   display: block;
-  color: #fffaf0;
+  color: var(--theme-inverse, #fffaf0);
   font-family: Georgia, "Times New Roman", serif;
   font-size: 21px;
   font-weight: 700;
@@ -1198,7 +1198,7 @@ td {
 }
 
 .brand small {
-  color: #e1c98f;
+  color: var(--theme-gold, #e1c98f);
   margin-top: 6px;
   font-size: 10px;
   font-weight: 700;
@@ -1216,7 +1216,7 @@ td {
 
 .nav:hover,
 .nav.active {
-  background: rgba(255, 253, 248, .11);
+  background: var(--theme-surface, rgba(255, 253, 248, .11));
   border-color: rgba(255, 255, 255, .11);
 }
 
@@ -1250,8 +1250,8 @@ td {
   border: 0;
   border-radius: 8px;
   padding: 11px 16px;
-  background: var(--green);
-  color: #fff;
+  background: var(--theme-action-green, var(--green));
+  color: var(--theme-inverse, #fff);
   font-weight: 800;
   cursor: pointer;
   white-space: nowrap;
@@ -1281,7 +1281,7 @@ td {
 
 
 .top-export-button {
-  border: 1px solid #bfd7c8;
+  border: 1px solid var(--theme-border, #bfd7c8);
   border-radius: 8px;
   padding: 9px 12px;
   background: var(--green-soft);
@@ -1293,8 +1293,8 @@ td {
 }
 
 .top-export-button:hover {
-  background: #d9eadf;
-  border-color: #a9cbb5;
+  background: var(--theme-green-soft, #d9eadf);
+  border-color: var(--theme-border, #a9cbb5);
 }
 
 @media (max-width: 720px) {
@@ -1319,9 +1319,9 @@ td {
   gap: 16px;
   align-items: stretch;
   padding: 18px;
-  border: 1px solid rgba(221, 214, 200, 0.95);
+  border: 1px solid var(--theme-border, rgba(221, 214, 200, 0.95));
   border-radius: 12px;
-  background: linear-gradient(180deg, #fffdf8 0%, #fbf7ee 100%);
+  background: linear-gradient(180deg, var(--theme-surface, #fffdf8) 0%, var(--theme-surface, #fbf7ee) 100%);
   box-shadow: 0 14px 34px rgba(41, 37, 29, 0.07);
 }
 
@@ -1338,7 +1338,7 @@ td {
   padding: 5px 9px;
   border: 1px solid rgba(194, 149, 67, 0.28);
   border-radius: 999px;
-  background: #fff8e7;
+  background: var(--theme-surface, #fff8e7);
   color: var(--amber);
   font-size: 11px;
   font-weight: 800;
@@ -1373,7 +1373,7 @@ td {
   padding: 13px;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: #fff;
+  background: var(--theme-surface, #fff);
   box-shadow: 0 9px 22px rgba(41, 37, 29, 0.05);
 }
 
@@ -1398,22 +1398,22 @@ td {
 }
 
 .metric-card.tone-good {
-  background: linear-gradient(180deg, #f7fcf8 0%, #eef7f1 100%);
-  border-color: #c8dccf;
+  background: linear-gradient(180deg, var(--theme-green-soft, #f7fcf8) 0%, var(--theme-green-soft, #eef7f1) 100%);
+  border-color: var(--theme-border, #c8dccf);
 }
 
 .metric-card.tone-good strong { color: var(--green); }
 
 .metric-card.tone-accent {
-  background: linear-gradient(180deg, #fffdf8 0%, #fff5dd 100%);
-  border-color: #ead4a5;
+  background: linear-gradient(180deg, var(--theme-surface, #fffdf8) 0%, var(--theme-amber-soft, #fff5dd) 100%);
+  border-color: var(--theme-border-gold, #ead4a5);
 }
 
 .metric-card.tone-accent strong { color: var(--amber); }
 
 .metric-card.tone-warn {
-  background: linear-gradient(180deg, #fffdf8 0%, #fff2d8 100%);
-  border-color: #efd59f;
+  background: linear-gradient(180deg, var(--theme-surface, #fffdf8) 0%, var(--theme-amber-soft, #fff2d8) 100%);
+  border-color: var(--theme-border-gold, #efd59f);
 }
 
 .metric-card.tone-warn strong { color: var(--amber); }
@@ -1429,7 +1429,7 @@ td {
   padding: 15px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: rgba(255, 253, 248, 0.92);
+  background: var(--theme-surface, rgba(255, 253, 248, 0.92));
   box-shadow: 0 12px 28px rgba(41, 37, 29, 0.055);
 }
 
@@ -1439,7 +1439,7 @@ td {
   justify-content: space-between;
   gap: 12px;
   padding-bottom: 10px;
-  border-bottom: 1px solid rgba(221, 214, 200, 0.78);
+  border-bottom: 1px solid var(--theme-border, rgba(221, 214, 200, 0.78));
 }
 
 .dashboard-panel-head h2 {
@@ -1758,7 +1758,7 @@ td {
     align-items: center;
     padding: 9px 11px;
     border: 0;
-    border-bottom: 1px solid rgba(221, 214, 200, 0.75);
+    border-bottom: 1px solid var(--theme-border, rgba(221, 214, 200, 0.75));
     white-space: normal;
     text-align: right;
     overflow-wrap: anywhere;
@@ -1890,9 +1890,9 @@ td {
   justify-content: space-between;
   gap: 12px;
   padding: 12px 14px;
-  border: 1px solid #d8d1c2;
+  border: 1px solid var(--theme-border, #d8d1c2);
   border-radius: 8px;
-  background: #fffdf7;
+  background: var(--theme-surface, #fffdf7);
 }
 
 .payment-action-box div {
@@ -1901,14 +1901,14 @@ td {
 }
 
 .payment-action-box span {
-  color: #6f6a5d;
+  color: var(--theme-muted, #6f6a5d);
   font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
 }
 
 .payment-action-box strong {
-  color: #1d2b2a;
+  color: var(--theme-ink, #1d2b2a);
   font-size: 15px;
 }
 
@@ -1923,7 +1923,7 @@ td {
 /* Sade form ve popup dokunuşları */
 .form-panel {
   padding: 16px;
-  background: #fffefa;
+  background: var(--theme-surface, #fffefa);
   box-shadow: 0 8px 24px rgba(41, 37, 29, 0.05);
 }
 
@@ -1933,7 +1933,7 @@ td {
 
 .field {
   gap: 5px;
-  color: #59636b;
+  color: var(--theme-muted, #59636b);
   font-size: 12px;
   font-weight: 700;
 }
@@ -1942,8 +1942,8 @@ td {
 .entry-form input,
 .entry-form select,
 .entry-form textarea {
-  border-color: #d8d2c5;
-  background: #fffdf2;
+  border-color: var(--theme-border, #d8d2c5);
+  background: var(--theme-surface, #fffdf2);
   border-radius: 7px;
   padding: 9px 10px;
   box-shadow: none;
@@ -1952,61 +1952,61 @@ td {
 .entry-form input:not([readonly]),
 .entry-form select,
 .entry-form textarea {
-  background: #fffdf2;
+  background: var(--theme-surface, #fffdf2);
 }
 
 .entry-form input[readonly] {
-  background: #f0f1ef;
-  color: #56605b;
+  background: var(--theme-surface, #f0f1ef);
+  color: var(--theme-muted, #56605b);
 }
 
 #search:focus,
 .entry-form input:focus,
 .entry-form select:focus,
 .entry-form textarea:focus {
-  border-color: #b99a62;
+  border-color: var(--theme-border-gold, #b99a62);
   box-shadow: 0 0 0 2px rgba(185, 154, 98, 0.14);
-  background: #fffef8;
+  background: var(--theme-surface, #fffef8);
 }
 
 .has-preview {
-  background: #f6f3eb;
-  border: 1px solid #d8d2c5;
+  background: var(--theme-surface, #f6f3eb);
+  border: 1px solid var(--theme-border, #d8d2c5);
   border-radius: 7px;
   padding: 10px 12px;
 }
 
 .has-preview span {
   font-size: 12px;
-  color: #69706b;
+  color: var(--theme-muted, #69706b);
 }
 
 .has-preview strong {
   font-size: 17px;
-  color: #39443f;
+  color: var(--theme-ink, #39443f);
 }
 
 .payment-action-box {
   padding: 10px 12px;
-  border-color: #d8d2c5;
-  background: #fbfaf5;
+  border-color: var(--theme-border, #d8d2c5);
+  background: var(--theme-surface, #fbfaf5);
   box-shadow: none;
 }
 
 .payment-action-box span {
-  color: #68706b;
+  color: var(--theme-muted, #68706b);
   font-size: 11px;
   letter-spacing: 0;
 }
 
 .payment-action-box strong {
-  color: #25302c;
+  color: var(--theme-ink, #25302c);
   font-size: 14px;
   font-weight: 700;
 }
 
 .form-bottom-actions {
-  border-top: 1px solid #e3ded3;
+  border-top: 1px solid var(--theme-border, #e3ded3);
   padding-top: 12px;
 }
 
@@ -2029,29 +2029,29 @@ button.secondary:hover,
 
 button.secondary,
 .payment-open-btn {
-  border: 1px solid #cfc7b8;
-  background: #ffffff;
-  color: #29342f;
+  border: 1px solid var(--theme-border, #cfc7b8);
+  background: var(--theme-surface, #ffffff);
+  color: var(--theme-ink, #29342f);
   padding: 10px 14px;
   font-weight: 700;
 }
 
 .payment-open-btn:hover,
 button.secondary:hover {
-  background: #f6f3eb;
+  background: var(--theme-surface, #f6f3eb);
 }
 
 .modal {
-  background: rgba(32, 38, 45, 0.28);
+  background: var(--theme-overlay, rgba(32, 38, 45, 0.28));
   padding: 22px;
 }
 
 .modal-box {
-  border: 1px solid #ded8cc;
+  border: 1px solid var(--theme-border, #ded8cc);
   border-radius: 10px;
   box-shadow: 0 18px 42px rgba(31, 35, 33, 0.16);
   padding: 18px;
-  background: #fffefa;
+  background: var(--theme-surface, #fffefa);
 }
 
 .payment-modal {
@@ -2060,7 +2060,7 @@ button.secondary:hover {
 
 .modal-title {
   margin: 0 0 14px;
-  color: #22302b;
+  color: var(--theme-ink, #22302b);
   font-size: 18px;
 }
 
@@ -2090,9 +2090,9 @@ button.secondary:hover {
   gap: 6px;
   margin: 2px 0 14px;
   padding: 4px;
-  border: 1px solid #ddd6c8;
+  border: 1px solid var(--theme-border, #ddd6c8);
   border-radius: 9px;
-  background: #f6f3eb;
+  background: var(--theme-surface, #f6f3eb);
 }
 
 .payment-type-tab {
@@ -2100,7 +2100,7 @@ button.secondary:hover {
   border-radius: 7px;
   padding: 9px 8px;
   background: transparent;
-  color: #59636b;
+  color: var(--theme-muted, #59636b);
   cursor: pointer;
   font-size: 12px;
   font-weight: 800;
@@ -2109,12 +2109,12 @@ button.secondary:hover {
 }
 
 .payment-type-tab:hover {
-  background: #fffefa;
+  background: var(--theme-surface, #fffefa);
 }
 
 .payment-type-tab.active {
-  background: #ffffff;
-  color: #21312c;
+  background: var(--theme-surface, #ffffff);
+  color: var(--theme-ink, #21312c);
   box-shadow: 0 1px 4px rgba(41, 37, 29, 0.08);
 }
 
@@ -2138,19 +2138,19 @@ button.secondary:hover {
 
 .payment-fill-field:not(.hidden) {
   padding: 10px;
-  border: 1px solid #e2dccf;
+  border: 1px solid var(--theme-border, #e2dccf);
   border-radius: 8px;
-  background: #fffaf0;
+  background: var(--theme-surface, #fffaf0);
 }
 
 .payment-fill-field:not(.hidden) input {
-  background: #fffef8;
+  background: var(--theme-surface, #fffef8);
 }
 
 .payment-preview:not(.hidden),
 .cari-payment-preview:not(.hidden) {
-  background: #f7f5ee;
-  border-color: #ded8cc;
+  background: var(--theme-surface, #f7f5ee);
+  border-color: var(--theme-border, #ded8cc);
 }
 
 .kebab-btn {
@@ -2171,10 +2171,10 @@ button.secondary:hover {
 
 .cari-action-btn {
   width: 100%;
-  border: 1px solid #d8d2c5;
+  border: 1px solid var(--theme-border, #d8d2c5);
   border-radius: 8px;
-  background: #fffdf8;
-  color: #25302c;
+  background: var(--theme-surface, #fffdf8);
+  color: var(--theme-ink, #25302c);
   padding: 11px 12px;
   text-align: left;
   cursor: pointer;
@@ -2182,13 +2182,13 @@ button.secondary:hover {
 }
 
 .cari-action-btn:hover {
-  background: #f6f3eb;
+  background: var(--theme-surface, #f6f3eb);
 }
 
 .cari-action-btn.danger {
   color: var(--red);
-  border-color: #efc7c2;
-  background: #fff8f7;
+  border-color: var(--theme-border, #efc7c2);
+  background: var(--theme-surface, #fff8f7);
 }
 
 .cari-person-modal .cari-payment-panel {
@@ -2211,12 +2211,12 @@ button.secondary:hover {
 .cari-actions-title h2 {
   margin: 0 0 6px;
   font-size: 18px;
-  color: #23302c;
+  color: var(--theme-ink, #23302c);
 }
 
 .cari-actions-title p {
   margin: 0;
-  color: #6b716d;
+  color: var(--theme-muted, #6b716d);
   font-size: 12px;
   line-height: 1.45;
 }
@@ -2231,13 +2231,13 @@ button.secondary:hover {
   justify-content: space-between;
   min-height: 40px;
   border-radius: 7px;
-  background: #fffefa;
+  background: var(--theme-surface, #fffefa);
   font-size: 13px;
 }
 
 .cari-action-btn::after {
   content: ">";
-  color: #9a8f7d;
+  color: var(--theme-muted, #9a8f7d);
   font-weight: 800;
 }
 
@@ -2248,16 +2248,16 @@ button.secondary:hover {
 .kebab-btn {
   width: 34px;
   height: 34px;
-  border-color: #ded7c8;
-  background: #fffefa;
-  color: #52605a;
+  border-color: var(--theme-border-gold, #ded7c8);
+  background: var(--theme-surface, #fffefa);
+  color: var(--theme-ink, #52605a);
   font-size: 18px;
   letter-spacing: 0;
 }
 
 .kebab-btn:hover {
-  background: #f5f1e8;
-  color: #27342f;
+  background: var(--theme-raised, #f5f1e8);
+  color: var(--theme-ink, #27342f);
 }
 
 .cari-person-modal {
@@ -2283,16 +2283,16 @@ button.secondary:hover {
 
 .cari-person-modal .payment-type-tabs {
   margin: 0 0 4px;
-  background: #f7f4ed;
+  background: var(--theme-surface, #f7f4ed);
 }
 
 .cari-person-modal .payment-fill-field:not(.hidden) {
-  background: #fffdf6;
-  border-color: #ded8cc;
+  background: var(--theme-surface, #fffdf6);
+  border-color: var(--theme-border, #ded8cc);
 }
 
 .cari-person-modal input::placeholder {
-  color: #9a9285;
+  color: var(--theme-muted, #9a9285);
 }
 
 
@@ -2353,30 +2353,30 @@ button.secondary:hover {
 
 .cari-rename-modal .modal-title p {
   margin: 0;
-  color: #68706b;
+  color: var(--theme-muted, #68706b);
   font-size: 13px;
 }
 
 .rename-input {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid #d8d2c5;
+  border: 1px solid var(--theme-border, #d8d2c5);
   border-radius: 7px;
-  background: #fffdf2;
+  background: var(--theme-surface, #fffdf2);
   padding: 10px 11px;
-  color: #23302c;
+  color: var(--theme-ink, #23302c);
 }
 
 .rename-input:focus {
   outline: none;
-  border-color: #b99a62;
+  border-color: var(--theme-border-gold, #b99a62);
   box-shadow: 0 0 0 2px rgba(185, 154, 98, 0.14);
 }
 
 .cari-danger-note {
   display: block;
   margin: -3px 2px 4px;
-  color: #a33a32;
+  color: var(--theme-red, #a33a32);
   font-size: 11px;
   line-height: 1.35;
 }
@@ -2443,19 +2443,19 @@ button.secondary:hover {
   width: 100%;
   box-sizing: border-box;
   padding: 10px 12px;
-  border: 1px solid #ded8cc;
+  border: 1px solid var(--theme-border, #ded8cc);
   border-radius: 8px;
-  background: #f7f5ee;
+  background: var(--theme-surface, #f7f5ee);
 }
 
 .cari-person-modal .cari-has-card span {
-  color: #6b716d;
+  color: var(--theme-muted, #6b716d);
   font-size: 12px;
   font-weight: 800;
 }
 
 .cari-person-modal .cari-has-card strong {
-  color: #25302c;
+  color: var(--theme-ink, #25302c);
   font-size: 16px;
 }
 
@@ -2474,8 +2474,8 @@ button.secondary:hover {
 .payment-action-box {
   padding: 12px 14px;
   gap: 14px;
-  background: #fffdf8;
-  border-color: #ded7c8;
+  background: var(--theme-surface, #fffdf8);
+  border-color: var(--theme-border-gold, #ded7c8);
 }
 
 .payment-action-box div {
@@ -2489,7 +2489,7 @@ button.secondary:hover {
 
 .payment-open-btn {
   padding: 10px 16px;
-  background: #fffefa;
+  background: var(--theme-surface, #fffefa);
 }
 
 @media (max-width: 640px) {
@@ -2537,8 +2537,8 @@ button.secondary:hover {
 }
 
 .transaction-payment-modal .payment-fill-field:not(.hidden) {
-  background: #fffdf6;
-  border-color: #ded8cc;
+  background: var(--theme-surface, #fffdf6);
+  border-color: var(--theme-border, #ded8cc);
 }
 
 @media (min-width: 641px) {
@@ -2562,32 +2562,32 @@ button.secondary:hover {
 /* Payment active/passive field visibility */
 :is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field {
   padding: 10px;
-  border: 1px solid #e1d7bd;
+  border: 1px solid var(--theme-border-gold, #e1d7bd);
   border-radius: 8px;
-  background: #fff4bd;
+  background: var(--theme-amber-soft, #fff4bd);
   transition: background .12s ease, border-color .12s ease, opacity .12s ease;
 }
 
 :is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field input {
-  background: #fffdf3;
+  background: var(--theme-surface, #fffdf3);
 }
 
 :is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field.payment-inactive {
-  background: #f0f1ef;
-  border-color: #d9ddd8;
-  color: #7a827d;
+  background: var(--theme-surface, #f0f1ef);
+  border-color: var(--theme-border, #d9ddd8);
+  color: var(--theme-muted, #7a827d);
   opacity: .88;
 }
 
 :is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field.payment-inactive input {
-  background: #e9ece9;
-  color: #7a827d;
+  background: var(--theme-raised, #e9ece9);
+  color: var(--theme-muted, #7a827d);
   cursor: not-allowed;
 }
 
 :is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field:not(.payment-inactive) input {
-  background: #fff8cd;
-  border-color: #d9bd61;
+  background: var(--theme-amber-soft, #fff8cd);
+  border-color: var(--theme-border-gold, #d9bd61);
 }
 
 :is(.transaction-payment-modal, .cari-person-modal) .payment-preview.payment-inactive,
@@ -2662,38 +2662,38 @@ button.secondary:hover {
 
 :is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field {
   padding: 10px 11px;
-  border-color: #b9d2e6;
-  background: #eef7ff;
+  border-color: var(--theme-border, #b9d2e6);
+  background: var(--theme-blue-soft, #eef7ff);
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.45);
 }
 
 :is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field input {
-  background: #ffffff;
-  border-color: #9fc2dc;
-  color: #21313b;
+  background: var(--theme-surface, #ffffff);
+  border-color: var(--theme-border, #9fc2dc);
+  color: var(--theme-blue, #21313b);
 }
 
 :is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field:not(.payment-inactive) {
-  border-color: #78acd0;
-  background: #e6f4ff;
+  border-color: var(--theme-border, #78acd0);
+  background: var(--theme-blue-soft, #e6f4ff);
 }
 
 :is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field:not(.payment-inactive) input {
-  background: #ffffff;
-  border-color: #6fa8ce;
+  background: var(--theme-surface, #ffffff);
+  border-color: var(--theme-border, #6fa8ce);
 }
 
 :is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field.payment-inactive {
-  background: #f1f2f1;
-  border-color: #d7dcd8;
-  color: #78817b;
+  background: var(--theme-surface, #f1f2f1);
+  border-color: var(--theme-border, #d7dcd8);
+  color: var(--theme-muted, #78817b);
   opacity: .92;
 }
 
 :is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field.payment-inactive input {
-  background: #e8ebe8;
-  border-color: #d1d7d2;
-  color: #7b827e;
+  background: var(--theme-raised, #e8ebe8);
+  border-color: var(--theme-border, #d1d7d2);
+  color: var(--theme-muted, #7b827e);
 }
 
 :is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field input:disabled {
@@ -2755,45 +2755,45 @@ button.secondary:hover {
 
 .transaction-payment-modal .payment-fill-field {
   padding: 9px 10px;
-  border: 1px solid #d9cfb8;
+  border: 1px solid var(--theme-border-gold, #d9cfb8);
   border-radius: 7px;
-  background: #fff9e8;
+  background: var(--theme-surface, #fff9e8);
   box-shadow: none;
 }
 
 .transaction-payment-modal .payment-fill-field input {
-  background: #fffdf6;
-  border-color: #d7c89e;
-  color: #26312d;
+  background: var(--theme-surface, #fffdf6);
+  border-color: var(--theme-border-gold, #d7c89e);
+  color: var(--theme-ink, #26312d);
 }
 
 .transaction-payment-modal .payment-fill-field:not(.payment-inactive) {
-  background: #fff3c4;
-  border-color: #c9a84f;
+  background: var(--theme-amber-soft, #fff3c4);
+  border-color: var(--theme-border-gold, #c9a84f);
 }
 
 .transaction-payment-modal .payment-fill-field:not(.payment-inactive) input {
-  background: #fffdf5;
-  border-color: #c6a249;
+  background: var(--theme-surface, #fffdf5);
+  border-color: var(--theme-border-gold, #c6a249);
 }
 
 .transaction-payment-modal .payment-fill-field.payment-inactive {
-  background: #f3f4f2;
-  border-color: #d9ded9;
-  color: #7b827d;
+  background: var(--theme-surface, #f3f4f2);
+  border-color: var(--theme-border, #d9ded9);
+  color: var(--theme-muted, #7b827d);
   opacity: .86;
 }
 
 .transaction-payment-modal .payment-fill-field.payment-inactive input {
-  background: #ecefec;
-  border-color: #d7ddd8;
-  color: #828984;
+  background: var(--theme-raised, #ecefec);
+  border-color: var(--theme-border, #d7ddd8);
+  color: var(--theme-muted, #828984);
 }
 
 .transaction-payment-modal .payment-preview {
   padding: 9px 11px;
-  background: #f7f4ed;
-  border-color: #ded8cc;
+  background: var(--theme-surface, #f7f4ed);
+  border-color: var(--theme-border, #ded8cc);
 }
 
 .transaction-payment-modal .form-bottom-actions {
@@ -2860,9 +2860,9 @@ button.secondary:hover {
 
 :is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field {
   padding: 10px;
-  border: 1px solid #d9cfb8;
+  border: 1px solid var(--theme-border-gold, #d9cfb8);
   border-radius: 8px;
-  background: #fffaf0;
+  background: var(--theme-surface, #fffaf0);
   box-shadow: none;
 }
 
@@ -2870,32 +2870,32 @@ button.secondary:hover {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  background: #fffdf7;
-  border-color: #d8c89d;
-  color: #25302c;
+  background: var(--theme-surface, #fffdf7);
+  border-color: var(--theme-border-gold, #d8c89d);
+  color: var(--theme-ink, #25302c);
 }
 
 :is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field:not(.payment-inactive) {
-  background: #fff2bf;
-  border-color: #c6a84e;
+  background: var(--theme-amber-soft, #fff2bf);
+  border-color: var(--theme-border-gold, #c6a84e);
 }
 
 :is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field:not(.payment-inactive) input {
-  background: #fffef8;
-  border-color: #bd9b3d;
+  background: var(--theme-surface, #fffef8);
+  border-color: var(--theme-border-gold, #bd9b3d);
 }
 
 :is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field.payment-inactive {
-  background: #f2f3f1;
-  border-color: #d9ddd9;
-  color: #777f7a;
+  background: var(--theme-surface, #f2f3f1);
+  border-color: var(--theme-border, #d9ddd9);
+  color: var(--theme-muted, #777f7a);
   opacity: .9;
 }
 
 :is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field.payment-inactive input {
-  background: #e9ece9;
-  border-color: #d2d8d3;
-  color: #7d8580;
+  background: var(--theme-raised, #e9ece9);
+  border-color: var(--theme-border, #d2d8d3);
+  color: var(--theme-muted, #7d8580);
 }
 
 .transaction-payment-modal .form-bottom-actions,
@@ -2974,31 +2974,31 @@ button.secondary:hover {
 :is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field {
   padding: 10px 11px;
   border-radius: 8px;
-  border: 1px solid #d8caa8;
-  background: #fff8df;
+  border: 1px solid var(--theme-border-gold, #d8caa8);
+  background: var(--theme-amber-soft, #fff8df);
 }
 
 :is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field:not(.payment-inactive) {
-  background: #fff0bd;
-  border-color: #c29a32;
+  background: var(--theme-amber-soft, #fff0bd);
+  border-color: var(--theme-border-gold, #c29a32);
 }
 
 :is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field:not(.payment-inactive) input {
-  background: #fffdf6;
-  border-color: #ba9231;
+  background: var(--theme-surface, #fffdf6);
+  border-color: var(--theme-border-gold, #ba9231);
 }
 
 :is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field.payment-inactive {
-  background: #f1f3f1;
-  border-color: #d9dfda;
-  color: #747d78;
+  background: var(--theme-surface, #f1f3f1);
+  border-color: var(--theme-border, #d9dfda);
+  color: var(--theme-muted, #747d78);
   opacity: .92;
 }
 
 :is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field.payment-inactive input {
-  background: #e8ece9;
-  border-color: #d0d7d2;
-  color: #768079;
+  background: var(--theme-raised, #e8ece9);
+  border-color: var(--theme-border, #d0d7d2);
+  color: var(--theme-muted, #768079);
 }
 
 .transaction-payment-modal .form-bottom-actions,
@@ -3153,7 +3153,7 @@ button.secondary:hover {
 
 
 /* Account overview: one table per filter, with a separate read-only history. */
-.cari-table:not([data-table-type="cariOdeme"]) th:nth-child(2), .cari-table .cari-net-balance { background: #fffdf4; }
+.cari-table:not([data-table-type="cariOdeme"]) th:nth-child(2), .cari-table .cari-net-balance { background: var(--theme-surface, #fffdf4); }
 .cari-table .cari-net-balance { font-size: 16px; font-weight: 800; white-space: nowrap; }
 .cari-table .balance-zero, .cari-detail-balance.balance-zero { color: var(--muted); }
 .cari-table .actions-cell { gap: 10px; min-width: 120px; white-space: nowrap; }
@@ -3286,3 +3286,34 @@ button.secondary:hover {
  .sale-summary-row { grid-template-columns: minmax(0, 1fr); }
  .sale-summary-row > .has-preview, .sale-summary-row > .payment-action-box { grid-column: 1 / -1; }
 }
+
+/* The original light colors remain the fallbacks; dark mode changes only paint. */
+:root[data-theme="dark"] {
+ color-scheme: dark;
+ --bg: #141b18; --panel: #1d2521; --panel-strong: #29352e;
+ --text: #e7eee9; --muted: #abb8b0; --line: #3b4941;
+ --nav: #18241e; --nav-active: #30453a;
+ --gold: #dfbd78; --green: #8bcea5; --green-soft: #233b2c;
+ --blue: #92c1e9; --blue-soft: #223645;
+ --amber: #e2b870; --amber-soft: #3b3121;
+ --red: #f0a096; --red-soft: #432b29;
+ --shadow: 0 12px 32px rgba(0, 0, 0, .18);
+ --theme-surface: #1d2521; --theme-raised: #29332d;
+ --theme-overlay: rgba(5, 12, 8, .72);
+ --theme-sidebar: #18241e; --theme-ink: #e7eee9; --theme-muted: #abb8b0;
+ --theme-inverse: #f1f5f2; --theme-border: #3b4941; --theme-border-gold: #78633d;
+ --theme-green-soft: #233b2c; --theme-blue-soft: #223645;
+ --theme-amber-soft: #3b3121; --theme-red-soft: #432b29;
+ --theme-green: #8bcea5; --theme-blue: #92c1e9;
+ --theme-gold: #dfbd78; --theme-red: #f0a096;
+ --theme-action-green: #365f46; --theme-action-blue: #345f85;
+ --theme-action-gold: #88652e; --theme-action-red: #a54138;
+}
+:root[data-theme="light"] { color-scheme: light; }
+.brand-mark { padding: 0; cursor: pointer; }
+.brand-mark .brand-logo { width: 100%; height: 100%; padding: 2px; object-fit: contain; }
+.brand-mark:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+:root[data-theme="dark"] .brand-mark { background: #202c25; box-shadow: 0 8px 20px rgba(0, 0, 0, .2); }
+:root[data-theme="dark"] .brand-mark::before { border-color: rgba(223, 189, 120, .22); }
+
+:root[data-theme="dark"] .modal-box input { border-style: solid; border-color: var(--line); border-radius: 5px; }
