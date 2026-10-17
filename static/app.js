@@ -995,7 +995,7 @@ async function downloadAllData() {
     document.body.appendChild(link);
     link.click();
     link.remove();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
     showMessage("T\u00fcm veriler JSON olarak indirildi.");
   } catch (error) {
     showMessage(error.message || "D\u0131\u015fa aktarma yap\u0131lamad\u0131.", true);

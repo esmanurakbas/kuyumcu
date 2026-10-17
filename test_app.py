@@ -1301,3 +1301,29 @@ def test_note_fields_enforce_their_character_limits(tmp_path, monkeypatch):
         assert client.post(path, json={**payload, "notlar": "x" * (limit + 1)}).status_code == 422, path
         response = client.post(path, json={**payload, "notlar": "x" * limit})
         assert response.status_code == 200, (path, response.json())
+
+
+def test_mac_desktop_enables_downloads_and_keeps_close_shutdown(tmp_path, monkeypatch):
+    import importlib
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+
+    for name in ("APPDATA", "USERPROFILE", "HOME", "XDG_DATA_HOME"):
+        monkeypatch.setenv(name, str(tmp_path))
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "desktop-test.db"))
+    desktop = importlib.import_module("desktop")
+    fake_webview = MagicMock()
+    fake_webview.settings = {}
+    window = fake_webview.create_window.return_value
+    server = SimpleNamespace(url="http://127.0.0.1:12345")
+    monkeypatch.setattr(desktop, "start_backend", lambda: server)
+    stop = MagicMock()
+    monkeypatch.setattr(desktop, "stop_backend", stop)
+    monkeypatch.setattr(desktop.importlib, "import_module", lambda name: fake_webview)
+    desktop.run_pywebview()
+    assert fake_webview.settings["ALLOW_DOWNLOADS"] is True
+    assert fake_webview.create_window.call_args.args[1] == server.url
+    fake_webview.start.assert_called_once_with(debug=False)
+    on_close = window.events.closed.__iadd__.call_args.args[0]
+    on_close()
+    stop.assert_called_once_with(server)

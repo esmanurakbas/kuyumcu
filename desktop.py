@@ -157,6 +157,7 @@ def run_windows() -> None:
 
 def run_pywebview() -> None:
     webview = importlib.import_module("webview")
+    webview.settings["ALLOW_DOWNLOADS"] = True
     desktop_server = start_backend()
     window = webview.create_window(
         APP_NAME,
