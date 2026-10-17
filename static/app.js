@@ -776,7 +776,7 @@ function renderTable(type, rows, title = "", applySearch = true) {
         const amount = document.createElement("strong"); amount.dataset.stockTotal = key;
         const total = (rows || []).reduce((sum, row) => sum + Number(row[`kalan_${key}`] || 0), 0);
         amount.textContent = `${formatValue(key, total)} ${unit}`;
-        const caption = document.createElement("span"); caption.className = "stock-summary-label"; caption.textContent = label;
+        const caption = document.createElement("span"); caption.className = "stock-summary-label"; caption.textContent = `${label}:`;
         metric.append(caption, amount); summary.appendChild(metric);
       });
       header.append(h, summary); section.appendChild(header);
