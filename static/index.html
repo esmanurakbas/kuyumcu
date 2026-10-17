@@ -37,9 +37,16 @@
           <p id="pageSubtitle">Güncel genel durum</p>
         </div>
         <div class="topbar-controls">
-          <button id="backupBtn" class="top-export-button" type="button" title="Veritabanının güvenli bir kopyasını oluşturur.">YEDEK AL</button>
-          <button id="restoreBtn" class="top-export-button" type="button" title="En son sağlam veritabanı yedeğini geri yükler.">SON YEDEĞİ GERİ YÜKLE</button>
-          <button id="exportBtn" class="top-export-button" type="button" title="Yedek almak için tüm verileri JSON olarak indirir.">TÜM VERİLERİ DIŞA AKTAR</button>
+          <details class="toolbar-menu" id="dataMenu">
+            <summary aria-label="Yedekleme ve veri işlemleri" title="Yedekleme ve veri işlemleri">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+            </summary>
+            <div class="toolbar-menu-panel">
+              <button id="backupBtn" class="top-export-button" type="button" title="Veritabanının güvenli bir kopyasını oluşturur.">YEDEK AL</button>
+              <button id="restoreBtn" class="top-export-button" type="button" title="En son sağlam veritabanı yedeğini geri yükler.">SON YEDEĞİ GERİ YÜKLE</button>
+              <button id="exportBtn" class="top-export-button" type="button" title="Yedek almak için tüm verileri JSON olarak indirir.">TÜM VERİLERİ DIŞA AKTAR</button>
+            </div>
+          </details>
           <input id="search" type="search" placeholder="Ara..." autocomplete="off" />
         </div>
       </header>

@@ -1434,6 +1434,7 @@ function renderDashboard(data) {
     ["Bize Bor\u00e7lu Cari", data.alacakli_cari_sayisi, "", "neutral"],
     ["Bizim Bor\u00e7lu Oldu\u011fumuz Cari", data.borclu_cari_sayisi, "", "neutral"],
   ]);
+  cari.classList.add("dashboard-cari-summary");
   topGroups.append(stock, cari);
   bottomGroups.append(
     renderDashboardPanel("Gider \u00d6zeti", "", [
@@ -1535,5 +1536,15 @@ search.addEventListener("input", () => { state.search = search.value; render(); 
 document.querySelector("#exportBtn").addEventListener("click", downloadAllData);
 document.querySelector("#backupBtn").addEventListener("click", createDatabaseBackup);
 document.querySelector("#restoreBtn").addEventListener("click", restoreLatestDatabaseBackup);
+
+const dataMenu = document.querySelector("#dataMenu");
+document.addEventListener("click", event => {
+  if (!dataMenu.contains(event.target) || event.target.closest(".toolbar-menu-panel button")) dataMenu.open = false;
+});
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && dataMenu.open) {
+    dataMenu.open = false; dataMenu.querySelector("summary").focus();
+  }
+});
 
 api("/api/session").then((session) => { if (!session?.authenticated) window.location.href = "/login"; else refreshSuggestions().then(render); }).catch((error) => showMessage(error.message, true));

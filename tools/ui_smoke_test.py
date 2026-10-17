@@ -311,8 +311,16 @@ def run(chrome: Path) -> None:
             assert cdp.evaluate("document.querySelectorAll('.dashboard-groups-bottom>.dashboard-panel').length === 2")
             assert cdp.evaluate("document.querySelector('.dashboard-groups-bottom .dashboard-panel-grid').children.length===3")
             assert cdp.evaluate("document.querySelectorAll('.dashboard-stock-metrics .metric-card').length===8")
-            assert cdp.evaluate("!document.querySelector('.dashboard-restored').textContent.includes('Genel ?zet')")
+            assert cdp.evaluate("!document.querySelector('.dashboard-restored').textContent.includes('Genel \u00d6zet')")
             assert cdp.evaluate("document.documentElement.scrollWidth <= innerWidth"), "Dashboard overflows mobile width"
+            assert cdp.evaluate("!document.querySelector('#dataMenu').open && !document.querySelector('#backupBtn').checkVisibility()")
+            cdp.evaluate("document.querySelector('#dataMenu summary').click()")
+            assert cdp.evaluate("document.querySelector('#dataMenu').open && [...document.querySelectorAll('.toolbar-menu-panel button')].every(button=>button.getBoundingClientRect().width>0)")
+            assert cdp.evaluate("document.querySelector('.toolbar-menu-panel').getBoundingClientRect().right<=innerWidth")
+            cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Escape", "code": "Escape", "windowsVirtualKeyCode": 27})
+            assert cdp.evaluate("!document.querySelector('#dataMenu').open && document.activeElement===document.querySelector('#dataMenu summary')")
+            cdp.evaluate("document.querySelector('#dataMenu summary').click();document.querySelector('#pageTitle').click()")
+            assert cdp.evaluate("!document.querySelector('#dataMenu').open")
             dashboard_before_layout = cdp.evaluate("fetch('/api/dashboard').then(r=>r.json()).then(r=>JSON.stringify(r.data))", await_promise=True)
             for width, height in [(1920, 1080), (1536, 864), (1366, 768), (1280, 720)]:
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": height, "deviceScaleFactor": 1, "mobile": False})
