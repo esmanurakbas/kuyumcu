@@ -3118,43 +3118,37 @@ button.secondary:hover {
 }
 
 
-/* Expenses: keep the form and profit summary visible together. */
-.expenses-layout { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 20px; align-items: start; max-width: 1000px; }
+/* Form summaries share the existing panel and metric-card system. */
+.form-summary-layout { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 20px; align-items: stretch; max-width: 1000px; margin-bottom: 24px; }
+.form-summary-layout > .form-panel, .expenses-main > .form-panel { margin-bottom: 0; }
 .expenses-main { min-width: 0; }
-.expenses-layout > .table-section { grid-column: 1 / -1; min-width: 0; margin-top: 0; }
-.expense-form-panel { padding: 22px; border-top: 3px solid #bd9c58; border-radius: 10px; }
+.expenses-layout { row-gap: 28px; }
+.expenses-layout > .table-section { grid-column: 1 / -1; min-width: 0; margin-top: 0; padding-top: 20px; border-top: 1px solid var(--line); }
+.expense-form-panel { padding: 22px; }
 .expense-form-panel h2, .expense-profit-summary h2 { margin: 0 0 8px; font-size: 17px; }
-.expense-form-panel > .hint { margin: 0 0 20px; line-height: 1.6; font-size: 12px; }
-.expense-form.entry-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.expense-form .field { grid-column: auto; min-width: 0; }
+.expense-form-panel > .hint { margin: 0 0 22px; line-height: 1.6; font-size: 12px; }
+.expense-form.entry-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 18px; row-gap: 20px; }
+.expense-form .field { grid-column: auto; min-width: 0; gap: 8px; }
 .expense-form [data-field="notlar"], .expense-form .form-bottom-actions { grid-column: 1 / -1; }
 .expense-form textarea { resize: vertical; min-height: 80px; }
-.expense-form .form-bottom-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
-.expense-profit-summary { padding: 18px; background: #fffefa; border: 1px solid #ded6c5; border-radius: 10px; box-shadow: 0 8px 24px #29251d09; }
-.expenses-layout > .expense-profit-summary { position: sticky; top: 0; }
-.expense-profit-summary > p { font-size: 11px; color: #68716b; margin: 0 0 14px; line-height: 1.5; }
-.expense-summary-card.metric-card { margin-top: 9px; min-height: 68px; padding: 12px 14px; border-radius: 8px; }
+.expense-form .form-bottom-actions { display: flex; flex-wrap: wrap; gap: 14px; justify-content: flex-end; padding-top: 18px; margin-top: 4px; }
+.expense-form .form-bottom-actions .secondary { background: var(--panel); color: var(--text); border: 1px solid var(--line); }
+.expenses-layout .actions-cell { column-gap: 14px; padding: 12px 16px; }
+.expenses-layout .icon-btn + .icon-btn { margin-left: 12px; }
+.expenses-layout .table-wrap th, .expenses-layout .table-wrap td { padding-top: 12px; padding-bottom: 12px; }
+.expense-profit-summary { display: flex; flex-direction: column; padding: 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); }
+.expense-profit-summary > p { font-size: 11px; color: var(--muted); margin: 0 0 14px; line-height: 1.5; }
+.expense-summary-card.metric-card { flex: 1; margin-top: 10px; min-height: 68px; padding: 12px 14px; border-radius: 8px; }
 .expense-summary-card.metric-card > span { font-size: 10px; line-height: 1.5; }
 .expense-summary-card.metric-card > strong { font-size: 23px; line-height: 1.2; }
-.expense-summary-card:last-of-type { border-top: 2px solid #bd9c58; }
-.expense-profit-summary > small { display: block; margin-top: 14px; font-size: 11px; line-height: 1.6; color: #68716b; }
-.dashboard-root > .expense-profit-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 14px; }
-.dashboard-root > .expense-profit-summary > h2,
-.dashboard-root > .expense-profit-summary > p,
-.dashboard-root > .expense-profit-summary > small { grid-column: 1 / -1; }
-.suggest-box button[aria-selected="true"] { background: #f4ecd7; color: #332a19; }
-@media (max-width: 900px) {
-  .expenses-layout { grid-template-columns: 1fr; }
-  .expenses-layout > .expense-profit-summary { position: static; grid-row: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 10px; }
-  .expenses-layout > .expense-profit-summary > h2,
-  .expenses-layout > .expense-profit-summary > p,
-  .expenses-layout > .expense-profit-summary > small { grid-column: 1 / -1; }
+.expense-profit-summary > small { display: block; margin-top: 16px; font-size: 11px; line-height: 1.6; color: var(--muted); }
+.suggest-box button[aria-selected="true"] { background: var(--amber-soft); color: var(--text); }
+@media (max-width: 700px) {
+  .form-summary-layout { grid-template-columns: 1fr; }
+  .expense-summary-card.metric-card { flex: auto; }
 }
 @media (max-width: 600px) {
   .expense-form.entry-form { grid-template-columns: 1fr; }
   .expense-form-panel, .expense-profit-summary { padding: 16px; }
-  .expense-summary-card.metric-card { padding: 10px 8px; min-height: 76px; }
-  .expense-summary-card.metric-card > strong { font-size: 19px; }
-  .expense-summary-card.metric-card > span { font-size: 9px; }
-  .dashboard-root > .expense-profit-summary { gap: 0 8px; }
+  .expense-form .form-bottom-actions { gap: 12px; }
 }

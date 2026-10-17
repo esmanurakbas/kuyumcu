@@ -1207,3 +1207,45 @@ def test_combined_milyem_expenses_with_three_decimal_precision(tmp_path, monkeyp
     ok(client.post("/api/giderler", json={**expense, "tutar": "0.001"}))
     assert ok(client.get("/api/dashboard"))["net_kar"] == 0.574
     assert client.post("/api/giderler", json={**expense, "tutar": "0.0001"}).status_code == 422
+
+
+def test_stock_and_has_expense_are_independent(tmp_path, monkeypatch):
+    client = make_client(tmp_path, monkeypatch)
+    login(client)
+    purchase = ok(client.post("/api/alis", json={
+        "tedarikci": "S", "cinsi": "BILEZIK", "ayar": "22", "gram": 50,
+        "milyem": 900, "has_fiyati": "88.8888888888889",
+    }))
+    sale_payload = {"musteri": "C", "alis_id": purchase["id"], "cinsi": "BILEZIK", "ayar": "22",
+                    "gram": 51, "satis_milyem": 920, "has_fiyati": "108.695652173913"}
+    assert client.post("/api/satis", json=sale_payload).status_code == 400
+    sale_payload["gram"] = 50
+    sale = ok(client.post("/api/satis", json=sale_payload))
+    assert sale["toplam_tutar"] == 5000
+    assert sale["alis_maliyeti"] == 4000
+    assert sale["brut_kar"] == 1000  # Stored financial amounts remain separate from has profit.
+    stock = ok(client.get("/api/stok"))[0]
+    assert stock["kalan_gram"] == 0
+    assert stock["uyari"] == ""
+    endpoints = ["/api/stok", "/api/alis", "/api/satis", "/api/hurda"]
+    snapshot = {path: ok(client.get(path)) for path in endpoints}
+    assert ok(client.get("/api/dashboard"))["net_kar"] == 1.000
+    expense = {"tutar": "0.200", "kategori": "Yemek", "tarih": "2026-10-17"}
+    saved = ok(client.post("/api/giderler", json=expense))
+    report = ok(client.get("/api/dashboard"))
+    assert report["genel_milyem_kari"] == 1.000
+    assert report["net_kar"] == 0.800
+    assert {path: ok(client.get(path)) for path in endpoints} == snapshot
+    ok(client.put(f"/api/giderler/{saved['id']}", json={**expense, "tutar": "0.300"}))
+    assert ok(client.get("/api/dashboard"))["net_kar"] == 0.700
+    assert {path: ok(client.get(path)) for path in endpoints} == snapshot
+    ok(client.delete(f"/api/giderler/{saved['id']}"))
+    assert ok(client.get("/api/dashboard"))["net_kar"] == 1.000
+    assert {path: ok(client.get(path)) for path in endpoints} == snapshot
+
+
+def test_dashboard_does_not_render_form_summary():
+    source = Path("static/app.js").read_text(encoding="utf-8")
+    dashboard = source.split("function renderDashboard(data)", 1)[1].split("async function render()", 1)[0]
+    assert "renderProfitSummary" not in dashboard
+    assert "root.append(hero, topGroups, bottomGroups)" in dashboard

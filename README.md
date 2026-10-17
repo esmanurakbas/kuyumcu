@@ -172,6 +172,8 @@ Expenses are entered in has, to three decimal places, in the same unit as the
 existing milyem profit calculation (grams * purity difference / 1000).
 Total milyem profit combines normal and scrap sales. Net profit is total milyem
 profit minus all recorded expenses; no price or currency conversion is used.
-The expenses page shows the form and history beside a total-profit summary;
-the dashboard shows the same summary. Expenses support edit/delete and are
+Purchase/sale and expense forms show three compact summary cards on the right
+on desktop; only small screens stack the cards below the form. The expense
+history stays below the form and summary. The existing dashboard layout is
+preserved, without an added expense summary. Expenses support edit/delete and are
 included in SQLite backups and JSON exports.

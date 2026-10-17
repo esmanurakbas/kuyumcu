@@ -1263,7 +1263,7 @@ function renderProfitSummary(data) {
 function renderExpenseForm() {
   const panel = document.createElement("section"); panel.className = "panel form-panel expense-form-panel";
   const heading = document.createElement("h2"); heading.textContent = editing?.type === "giderler" ? "Gideri d\u00fczenle" : "Yeni gider";
-  const note = document.createElement("p"); note.className = "hint"; note.textContent = "Gider miktar\u0131n\u0131 milyem k\u00e2r\u0131yla ayn\u0131 birimde, has olarak girin.";
+  const note = document.createElement("p"); note.className = "hint"; note.textContent = "Giderleri has olarak girin. Stok de\u011fi\u015fmez; giderler toplam milyem k\u00e2r\u0131ndan d\u00fc\u015f\u00fcl\u00fcr.";
   panel.append(heading, note);
   const form = document.createElement("form"); form.className = "entry-form expense-form";
   forms.giderler.forEach(([name, label, type]) => {
@@ -1359,7 +1359,7 @@ function renderDashboard(data) {
   topPanels.forEach(([title, subtitle, cards]) => topGroups.appendChild(renderDashboardPanel(title, subtitle, cards)));
   bottomPanels.forEach(([title, subtitle, cards]) => bottomGroups.appendChild(renderDashboardPanel(title, subtitle, cards)));
 
-  root.append(renderProfitSummary(data), hero, topGroups, bottomGroups);
+  root.append(hero, topGroups, bottomGroups);
   return root;
 }
 async function render() {
@@ -1375,7 +1375,7 @@ async function render() {
     }
     if (state.view === "giderler") {
       const [rows, summary] = await Promise.all([api("/api/giderler"), api("/api/dashboard")]);
-      const layout = document.createElement("div"); layout.className = "expenses-layout";
+      const layout = document.createElement("div"); layout.className = "expenses-layout form-summary-layout";
       const main = document.createElement("div"); main.className = "expenses-main";
       main.appendChild(renderExpenseForm());
       layout.append(main, renderProfitSummary(summary), renderTable("giderler", rows, "Gider Kay\u0131tlar\u0131")); content.appendChild(layout);
@@ -1399,8 +1399,10 @@ async function render() {
       return;
     }
     if (["alis", "satis"].includes(state.view)) {
-      content.appendChild(renderForm(state.view));
-      content.appendChild(renderTable(state.view, await api(`/api/${state.view}`)));
+      const [rows, summary] = await Promise.all([api(`/api/${state.view}`), api("/api/dashboard")]);
+      const layout = document.createElement("div"); layout.className = "form-summary-layout";
+      layout.append(renderForm(state.view), renderProfitSummary(summary));
+      content.append(layout, renderTable(state.view, rows));
       return;
     }
     if (["hurda_alis", "hurda_satis"].includes(state.view)) {

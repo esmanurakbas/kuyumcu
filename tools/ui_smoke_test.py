@@ -163,6 +163,10 @@ def run(chrome: Path) -> None:
             dashboard = cdp.evaluate("fetch('/api/dashboard').then(r=>r.json()).then(r=>r.data)", await_promise=True)
             assert dashboard["toplam_gider"] == 0.350
             assert dashboard["net_kar"] == -0.350
+            assert cdp.evaluate("document.querySelectorAll('.dashboard-root .expense-profit-summary').length === 0")
+            assert cdp.evaluate("document.querySelector('.dashboard-root').children.length === 3")
+            cdp.evaluate("document.querySelector('[data-view=giderler]').click()")
+            cdp.wait_for("document.querySelector('.expenses-layout') !== null")
             cards = cdp.evaluate("[...document.querySelectorAll('.expense-profit-summary')].find(p=>p.textContent.includes('Toplam Gider'))?.textContent")
             assert cards and "0,35" in cards, cards
             assert "Toplam Milyem K\u00e2r\u0131" in cards, cards
@@ -192,7 +196,11 @@ def run(chrome: Path) -> None:
             assert cdp.evaluate("Math.abs(document.querySelector('.expenses-main').getBoundingClientRect().top-document.querySelector('.expenses-layout>.expense-profit-summary').getBoundingClientRect().top)<2")
             assert cdp.evaluate("document.querySelector('.expenses-main').getBoundingClientRect().width < 740"), "Expense form must leave space for compact summary"
             cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1024, "height": 900, "deviceScaleFactor": 1, "mobile": False})
-            cdp.wait_for("document.querySelector('.expenses-layout>.expense-profit-summary').getBoundingClientRect().left >= document.querySelector('.expenses-main').getBoundingClientRect().right")
+            for form_view in ["alis", "satis", "giderler"]:
+                cdp.evaluate(f"document.querySelector('[data-view={form_view}]').click()")
+                cdp.wait_for("document.querySelector('.form-summary-layout') !== null")
+                assert cdp.evaluate("(()=>{const layout=document.querySelector('.form-summary-layout');const form=layout.firstElementChild.getBoundingClientRect();const summary=layout.querySelector('.expense-profit-summary').getBoundingClientRect();return summary.left>=form.right && Math.abs(summary.top-form.top)<2 && Math.abs(summary.height-form.height)<3;})()"), form_view
+                assert cdp.evaluate("document.querySelectorAll('.form-summary-layout>.expense-profit-summary .expense-summary-card').length === 3"), form_view
             cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1440, "height": 1000, "deviceScaleFactor": 1, "mobile": False})
             cdp.evaluate("document.querySelectorAll('.toast').forEach(toast => toast.remove())")
             if os.getenv("UI_SCREENSHOT_PATH"):
@@ -200,10 +208,11 @@ def run(chrome: Path) -> None:
                 screenshot = cdp.call("Page.captureScreenshot", {"format": "png", "captureBeyondViewport": True})
                 Path(os.environ["UI_SCREENSHOT_PATH"]).write_bytes(base64.b64decode(screenshot["data"]))
             cdp.call("Emulation.setDeviceMetricsOverride", {"width": 390, "height": 844, "deviceScaleFactor": 1, "mobile": False})
-            cdp.wait_for("document.querySelector('.expenses-layout>.expense-profit-summary').getBoundingClientRect().bottom <= document.querySelector('.expenses-main').getBoundingClientRect().top")
+            cdp.wait_for("document.querySelector('.expenses-layout>.expense-profit-summary').getBoundingClientRect().top >= document.querySelector('.expenses-main').getBoundingClientRect().bottom")
             assert cdp.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), "Expense page overflows mobile width"
             cdp.evaluate("document.querySelector('[data-view=dashboard]').click()")
-            cdp.wait_for("document.querySelector('.dashboard-root')?.firstElementChild.classList.contains('expense-profit-summary')")
+            cdp.wait_for("document.querySelector('.dashboard-root')?.firstElementChild.classList.contains('dashboard-hero')")
+            assert cdp.evaluate("document.querySelectorAll('.dashboard-root .expense-profit-summary').length === 0")
             print("UI smoke test passed: passwordless entry, all pages, original forms and columns, no added currency labels, expense create/edit, dashboard totals")
         finally:
             browser.terminate()
