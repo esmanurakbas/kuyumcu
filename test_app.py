@@ -1284,7 +1284,7 @@ def test_remaining_stock_has_uses_purchase_purity_and_zeroes_when_sold_out(tmp_p
     assert report["genel_milyem_kari"] == 3.000
 
 
-def test_all_note_fields_accept_200_characters_and_reject_201(tmp_path, monkeypatch):
+def test_note_fields_enforce_their_character_limits(tmp_path, monkeypatch):
     client = make_client(tmp_path, monkeypatch)
     login(client)
     purchase_payload = {"tedarikci": "S", "cinsi": "BILEZIK", "ayar": "22", "gram": 10, "milyem": 900}
@@ -1297,6 +1297,7 @@ def test_all_note_fields_accept_200_characters_and_reject_201(tmp_path, monkeypa
         ("/api/cari/odeme", {"isim": "S", "odeme_tipi": "HAS", "yon": "ODEME", "odenen_has": "0.100"}),
     ]
     for path, payload in cases:
-        assert client.post(path, json={**payload, "notlar": "x" * 201}).status_code == 422, path
-        response = client.post(path, json={**payload, "notlar": "x" * 200})
+        limit = 1000 if path == "/api/giderler" else 200
+        assert client.post(path, json={**payload, "notlar": "x" * (limit + 1)}).status_code == 422, path
+        response = client.post(path, json={**payload, "notlar": "x" * limit})
         assert response.status_code == 200, (path, response.json())

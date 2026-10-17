@@ -3213,9 +3213,11 @@ button.secondary:hover {
 .dashboard-total-row dt { font-size: 11px; color: var(--muted); }
 .dashboard-total-row dd { margin: 0; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
 
-/* Notes are three visible lines and cannot expand the page. */
-.entry-form textarea[name="notlar"] { resize: none; box-sizing: border-box; line-height: 18px; height: 74px; min-height: 74px; max-height: 74px; }
+/* Notes resize vertically within their visible line limits. */
+.entry-form textarea[name="notlar"] { resize: vertical; box-sizing: border-box; padding: 9px 10px; line-height: 18px; height: 38px; min-height: 38px; max-height: 74px; }
 .expense-form input { min-width: 0; width: 100%; }
 
 .expenses-layout .table-wrap table { width: 100%; min-width: 0; table-layout: fixed; }
 .expenses-layout .table-wrap td { overflow-wrap: anywhere; }
+
+.expense-form.entry-form textarea[name="notlar"] { height: 56px; min-height: 56px; max-height: 110px; }

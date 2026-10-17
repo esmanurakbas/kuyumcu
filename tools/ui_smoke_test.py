@@ -266,7 +266,7 @@ def run(chrome: Path) -> None:
                 assert "Parasal rapor" not in body, view
                 if view in {"alis", "satis", "hurda_alis", "hurda_satis"}:
                     assert cdp.evaluate("['has_fiyati','iscilik','ek_masraf','ek_ucret','indirim'].every(name=>!document.querySelector(`.entry-form [name=${name}]`))"), view
-                assert cdp.evaluate("[...document.querySelectorAll('#content textarea[name=notlar]')].every(input=>input.maxLength===200 && input.rows<=3 && getComputedStyle(input).resize==='none')"), view
+                assert cdp.evaluate("[...document.querySelectorAll('#content textarea[name=notlar]')].every(input=>input.maxLength===(input.closest('.expense-form')?1000:200) && input.rows===(input.closest('.expense-form')?2:1) && getComputedStyle(input).resize==='vertical' && parseFloat(getComputedStyle(input).maxHeight)===(input.closest('.expense-form')?110:74) && input.getBoundingClientRect().height===(input.closest('.expense-form')?56:38))"), view
                 print(f"Page checked: {view}")
             cdp.evaluate("(async()=>{const jobs=[];for(const view of ['alis','satis','giderler']){state.view=view;jobs.push(render());}await Promise.all(jobs);})()", await_promise=True)
             assert cdp.evaluate("document.querySelectorAll('#content [data-table-type=alis], #content [data-table-type=satis]').length === 0"), "Stale page responses leaked into the expenses page"

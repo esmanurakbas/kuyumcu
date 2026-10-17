@@ -1711,7 +1711,7 @@ class GiderIn(BaseModel):
     tarih: date = Field(default_factory=date.today)
     tutar: Decimal = Field(gt=0, max_digits=14, decimal_places=3, allow_inf_nan=False)
     kategori: str = Field(min_length=1, max_length=100)
-    notlar: str = Field(default="", max_length=200)
+    notlar: str = Field(default="", max_length=1000)
 
 
 @app.get("/api/giderler")

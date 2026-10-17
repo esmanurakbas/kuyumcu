@@ -253,7 +253,7 @@ function attachAutocomplete(input, source) {
 }
 function fieldElement(name, type, source, readonly) {
   if (type === "hidden") { const input = document.createElement("input"); input.type = "hidden"; return input; }
-  if (type === "textarea") { const input = document.createElement("textarea"); input.rows = 3; input.maxLength = 200; return input; }
+  if (type === "textarea") { const input = document.createElement("textarea"); input.rows = 1; input.maxLength = 200; return input; }
   if (type === "select") {
     const input = document.createElement("select");
     const values = Array.isArray(source) ? source : (state.suggestions[source] || []); values.forEach((value) => { const opt = document.createElement("option"); opt.value = value; opt.textContent = value; input.appendChild(opt); });
@@ -1047,7 +1047,7 @@ function renderCariPaymentForm(data) {
 
   const noteInput = document.createElement("textarea");
   noteInput.name = "notlar";
-  noteInput.rows = 3;
+  noteInput.rows = 1;
   noteInput.maxLength = 200;
 
   const paidField = makeField("\u00d6denen Has", paidInput);
@@ -1348,7 +1348,7 @@ function renderExpenseForm() {
     wrap.dataset.field = name;
     const input = fieldElement(name, type); input.name = name; input.required = name !== "notlar";
     if (name === "tutar") input.placeholder = "0,000";
-    if (name === "notlar") { input.rows = 3; input.placeholder = "Giderle ilgili k\u0131sa bir not..."; }
+    if (name === "notlar") { input.rows = 2; input.maxLength = 1000; input.placeholder = "Giderle ilgili k\u0131sa bir not..."; }
     if (name === "tarih") input.value = today();
     if (name === "kategori") {
       input.setAttribute("list", "expenseCategories");
