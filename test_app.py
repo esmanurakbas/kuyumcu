@@ -296,10 +296,11 @@ def test_turkish_encoding_login_and_frontend_flow_guards():
     assert "renameCariPerson" in app_js
     assert "openCariActions" in app_js
     assert "showConfirm" in app_js
-    assert 'renderTabs([["all", "T\\u00dcM\\u00dc"]' in app_js
+    assert 'const filters = [["all", "T\\u00dcM\\u00dc"]' in app_js
     assert 'renderTabs([["normal", "NORMAL STOK"]' in app_js
     assert 'api("/api/session")' in app_js
-    assert 'api("/api/logout", { method: "POST" })' in app_js
+    assert "logoutBtn" not in app_js
+    assert "logoutBtn" not in Path("static/index.html").read_text(encoding="utf-8")
 
 def test_desktop_packaging_files_are_configured_for_macos_and_windows():
     desktop = Path("desktop.py").read_text(encoding="utf-8")
@@ -420,7 +421,7 @@ def test_frontend_layout_tabs_columns_and_confirmations():
     assert "T\\u00dcM\\u00dc" in app_js
     assert "M\\u00dc\\u015eTER\\u0130LER" in app_js
     assert "TEDAR\\u0130K\\u00c7\\u0130LER" in app_js
-    assert "K\\u0130\\u015e\\u0130 / F\\u0130RMA" in app_js
+    assert '["kisi",' not in app_js.split('const filters =', 1)[1].split(';', 1)[0]
     assert 'data-view="hurda_alis"' in index_html
     assert 'data-view="hurda_satis"' in index_html
     assert "hurda_alis" in app_js

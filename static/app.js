@@ -55,13 +55,15 @@ const columns = {
   hurdaSatis: ["tarih", "kisi", "cinsi", "ayar", "gram", "alis_milyem", "satis_milyem", "milyem_farki", "milyem_kari", "kalan_gram", "not"],
   stok: ["cinsi", "ayar", "alis_gram", "alis_has", "satis_gram", "satis_has", "kalan_gram", "kalan_has"],
   hurdaStok: ["cinsi", "ayar", "hurda_alis_gram", "hurda_alis_has", "hurda_satis_gram", "hurda_satis_has", "kalan_gram", "kalan_has"],
-  musteriCari: ["musteri_adi", "toplam_satis_has", "tahsil_edilen_has", "toplam_alis_has", "odedigimiz_has", "net_bakiye_has", "son_islem_tarihi"],
-  tedarikciCari: ["tedarikci_adi", "toplam_alis_has", "odedigimiz_has", "odeyecegimiz_has", "net_bakiye_has", "son_islem_tarihi"],
-  kisiCari: ["isim", "toplam_satis_has", "toplam_alis_has", "tahsil_edilen_has", "odedigimiz_has", "net_bakiye_has", "son_islem_tarihi"],
+  musteriCari: ["musteri_adi", "net_bakiye_has", "toplam_satis_has", "tahsil_edilen_has", "son_islem_tarihi"],
+  tedarikciCari: ["tedarikci_adi", "net_bakiye_has", "toplam_alis_has", "odedigimiz_has", "odeyecegimiz_has", "son_islem_tarihi"],
+  kisiCari: ["isim", "net_bakiye_has", "toplam_satis_has", "toplam_alis_has", "tahsil_edilen_has", "odedigimiz_has", "son_islem_tarihi"],
+  cariHistory: ["tarih", "hareket", "kaynak", "gram", "has", "not"],
   cariOdeme: ["tarih", "isim", "yon", "odeme_tipi", "odenen_has", "not"],
 };
 
 const labels = {
+  hareket: "\u0130\u015flem", kaynak: "Kaynak",
   tutar: "Gider (has)", kategori: "Kategori", notlar: "A\u00e7\u0131klama / not",
   tarih: "Tarih", tedarikci: "Tedarik\u00e7i", musteri: "M\u00fc\u015fteri", kisi: "Ki\u015fi / Firma", cinsi: "Cinsi", ayar: "Ayar",
   gram: "Gram", milyem: "Milyem", has: "Has", has_fiyati: "Has Fiyat\u0131", toplam_tutar: "Toplam",
@@ -740,18 +742,20 @@ function columnLabel(type, col) {
   return labels[col] || col;
 }
 
-function renderTable(type, rows, title = "") {
+function renderTable(type, rows, title = "", applySearch = true) {
   const section = document.createElement("section");
   section.className = "table-section";
   if (title) { const h = document.createElement("h2"); h.textContent = title; section.appendChild(h); }
-  rows = filteredRows(rows || []);
+  rows = applySearch ? filteredRows(rows || []) : (rows || []);
+  section.dataset.tableType = type;
+  if (["kisiCari", "musteriCari", "tedarikciCari", "cariOdeme"].includes(type)) section.classList.add("cari-table");
   const wrap = document.createElement("div");
   wrap.className = "table-wrap";
   if (!rows.length) { wrap.innerHTML = '<div class="empty">Kay\u0131t yok.</div>'; section.appendChild(wrap); return section; }
   const cols = columns[type];
   const actionType = type === "hurdaAlis" || type === "hurdaSatis" ? "hurda" : type;
   const table = document.createElement("table");
-  table.innerHTML = `<thead><tr>${cols.map((col) => `<th>${columnLabel(type, col)}</th>`).join("")}${["giderler", "alis", "satis", "hurda", "hurdaAlis", "hurdaSatis", "kisiCari", "cariOdeme"].includes(type) ? "<th>\u0130\u015flemler</th>" : ""}</tr></thead>`;
+  table.innerHTML = `<thead><tr>${cols.map((col) => `<th>${columnLabel(type, col)}</th>`).join("")}${["giderler", "alis", "satis", "hurda", "hurdaAlis", "hurdaSatis", "kisiCari", "musteriCari", "tedarikciCari", "cariOdeme"].includes(type) ? "<th>\u0130\u015flemler</th>" : ""}</tr></thead>`;
   const tbody = document.createElement("tbody");
   rows.forEach((row) => {
     const tr = document.createElement("tr");
@@ -762,10 +766,12 @@ function renderTable(type, rows, title = "") {
       td.textContent = formatValue(col, row[col]);
       if (moneyFields.has(col) || numberFields.has(col)) td.className = "num";
       if (["stok", "hurdaStok"].includes(type) && ["kalan_gram", "kalan_has"].includes(col)) td.classList.add("stock-priority");
-      if (["milyem_farki", "has_kari", "milyem_kari", "net_bakiye_has"].includes(col)) td.classList.add(Number(row[col]) >= 0 ? "pos" : "neg");
+      if (col === "net_bakiye_has") {
+        td.classList.add("cari-net-balance", Number(row[col]) > 0 ? "pos" : Number(row[col]) < 0 ? "neg" : "balance-zero");
+      } else if (["milyem_farki", "has_kari", "milyem_kari"].includes(col)) td.classList.add(Number(row[col]) >= 0 ? "pos" : "neg");
       tr.appendChild(td);
     });
-    if (type === "kisiCari") {
+    if (["kisiCari", "musteriCari", "tedarikciCari"].includes(type)) {
       const td = document.createElement("td");
       td.className = "actions-cell";
       td.dataset.label = "\u0130\u015flemler";
@@ -776,7 +782,10 @@ function renderTable(type, rows, title = "") {
       menu.setAttribute("aria-label", "Cari i\u015flemleri");
       menu.textContent = "\u22ee";
       menu.onclick = () => openCariActions(row, state.cariData || { kisiler: [] });
-      td.appendChild(menu);
+      const detail = document.createElement("button"); detail.type = "button";
+      detail.className = "secondary cari-detail-btn"; detail.textContent = "Detay";
+      detail.onclick = () => openCariDetail(row.isim || row.musteri_adi || row.tedarikci_adi);
+      td.append(detail, menu);
       tr.appendChild(td);
     }
     if (type === "cariOdeme") {
@@ -795,7 +804,10 @@ function renderTable(type, rows, title = "") {
       del.title = "\u00d6demeyi sil";
       del.innerHTML = iconSvg("delete");
       del.onclick = async () => { if (await showConfirm("Bu cari \u00f6deme kayd\u0131 silinsin mi", "Sil", "\u0130ptal")) { try { await api(`/api/cari/odeme/${row.id}`, { method: "DELETE" }); render(); } catch (error) { showMessage(error.message, true); } } };
-      td.append(edit, del);
+      const detail = document.createElement("button"); detail.type = "button";
+      detail.className = "secondary cari-detail-btn"; detail.textContent = "Detay";
+      detail.onclick = () => openCariDetail(row.isim);
+      td.append(detail, edit, del);
       tr.appendChild(td);
     }
     if (["giderler", "alis", "satis", "hurda", "hurdaAlis", "hurdaSatis"].includes(type)) {
@@ -1207,6 +1219,53 @@ async function deleteCariPerson(name) {
   } catch (error) { showMessage(error.message, true); }
 }
 
+async function openCariDetail(name) {
+  if (document.querySelector(".cari-detail-modal")) return;
+  const opener = document.activeElement;
+  const overlay = document.createElement("div"); overlay.className = "modal cari-detail-modal";
+  const box = document.createElement("div"); box.className = "modal-box cari-detail-box";
+  box.setAttribute("role", "dialog"); box.setAttribute("aria-modal", "true");
+  box.setAttribute("aria-label", `${name} cari detay\u0131`); box.tabIndex = -1;
+  const head = document.createElement("div"); head.className = "modal-title";
+  const title = document.createElement("h2"); title.textContent = name;
+  const close = document.createElement("button"); close.type = "button"; close.className = "secondary"; close.textContent = "Kapat";
+  const dismiss = () => { overlay.remove(); if (opener?.isConnected) opener.focus(); };
+  close.onclick = dismiss; head.append(title, close);
+  const body = document.createElement("div"); body.className = "cari-detail-body"; body.textContent = "\u0130\u015flemler y\u00fckleniyor...";
+  box.append(head, body); overlay.appendChild(box); document.body.appendChild(overlay); close.focus();
+  overlay.addEventListener("click", event => { if (event.target === overlay) dismiss(); });
+  overlay.addEventListener("keydown", event => {
+    if (event.key === "Escape") { event.preventDefault(); dismiss(); }
+    if (event.key === "Tab") {
+      const focusable = [...box.querySelectorAll("button, [href], input, select, textarea, [tabindex='0']")];
+      const first = focusable[0], last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    }
+  });
+  try {
+    const [purchases, sales, scrap, accounts] = await Promise.all([api("/api/alis"), api("/api/satis"), api("/api/hurda"), api("/api/cari")]);
+    if (!overlay.isConnected) return;
+    const person = (accounts.kisiler || []).find(row => normalize(row.isim) === normalize(name));
+    if (!person) throw new Error("Cari bulunamad\u0131.");
+    const history = [];
+    const addTransactions = (rows, nameKey, isSale, source) => rows.filter(row => normalize(row[nameKey]) === normalize(name)).forEach(row => {
+      history.push({ tarih: row.tarih, hareket: isSale ? "Sat\u0131\u015f" : "Al\u0131\u015f", kaynak: source, gram: row.gram, has: row.has, not: row.not ?? row.notlar ?? "", id: row.id });
+      if (Number(row.odenen_has) > 0) history.push({ tarih: row.tarih, hareket: isSale ? "Tahsilat" : "\u00d6deme", kaynak: `${source} #${row.id}`, gram: null, has: row.odenen_has, not: "\u0130\u015flem s\u0131ras\u0131nda", id: row.id });
+    });
+    addTransactions(purchases || [], "tedarikci", false, "Normal");
+    addTransactions(sales || [], "musteri", true, "Normal");
+    addTransactions((scrap.kayitlar || []).filter(row => normalize(row.islem_turu) === "alis"), "kisi", false, "Hurda");
+    addTransactions((scrap.kayitlar || []).filter(row => normalize(row.islem_turu) === "satis"), "kisi", true, "Hurda");
+    (accounts.odemeler || []).filter(row => normalize(row.isim) === normalize(name)).forEach(row => history.push({ tarih: row.tarih, hareket: row.yon === "ODEME" ? "\u00d6deme" : "Tahsilat", kaynak: "Cari", gram: null, has: row.odenen_has, not: row.not ?? row.notlar ?? "", id: row.id }));
+    history.sort((a, b) => String(b.tarih).localeCompare(String(a.tarih)) || Number(b.id) - Number(a.id));
+    const balance = document.createElement("p"); balance.className = `cari-detail-balance ${person.net_bakiye_has > 0 ? "pos" : person.net_bakiye_has < 0 ? "neg" : "balance-zero"}`;
+    balance.textContent = `Net Has Bakiyesi: ${formatValue("net_bakiye_has", person.net_bakiye_has)} has`;
+    const totals = renderCards([["Sat\u0131\u015f Has", person.toplam_satis_has, "has"], ["Al\u0131\u015f Has", person.toplam_alis_has, "has"], ["Tahsilat Has", person.tahsil_edilen_has, "has"], ["\u00d6deme Has", person.odedigimiz_has, "has"]]);
+    body.replaceChildren(balance, totals, renderTable("cariHistory", history, "\u0130\u015flem Ge\u00e7mi\u015fi", false));
+  } catch (error) { if (overlay.isConnected) body.textContent = error.message; }
+}
+
 function openCariActions(row, data) {
   const overlay = document.createElement("div");
   overlay.className = "modal";
@@ -1362,60 +1421,73 @@ function renderDashboard(data) {
   root.append(hero, topGroups, bottomGroups);
   return root;
 }
+let renderVersion = 0;
 async function render() {
-  const meta = views[state.view];
+  const version = ++renderVersion;
+  const view = state.view;
+  const rendered = document.createDocumentFragment();
+  const meta = views[view];
   document.querySelector("#pageTitle").textContent = meta.title;
   document.querySelector("#pageSubtitle").textContent = meta.subtitle;
-  content.innerHTML = "";
+  content.replaceChildren();
   try {
-    if (state.view === "dashboard") {
+    if (view === "dashboard") {
       const dashboard = await api("/api/dashboard");
-      content.appendChild(renderDashboard(dashboard));
+      rendered.appendChild(renderDashboard(dashboard));
       return;
     }
-    if (state.view === "giderler") {
+    if (view === "giderler") {
       const [rows, summary] = await Promise.all([api("/api/giderler"), api("/api/dashboard")]);
       const layout = document.createElement("div"); layout.className = "expenses-layout form-summary-layout";
       const main = document.createElement("div"); main.className = "expenses-main";
       main.appendChild(renderExpenseForm());
-      layout.append(main, renderProfitSummary(summary), renderTable("giderler", rows, "Gider Kay\u0131tlar\u0131")); content.appendChild(layout);
+      layout.append(main, renderProfitSummary(summary), renderTable("giderler", rows, "Gider Kay\u0131tlar\u0131")); rendered.appendChild(layout);
       return;
     }
-    if (state.view === "cari") {
+    if (view === "cari") {
       const data = await api("/api/cari");
       state.cariData = data;
-      content.appendChild(renderTabs([["all", "T\u00dcM\u00dc"], ["kisi", "K\u0130\u015e\u0130 / F\u0130RMA"], ["musteri", "M\u00dc\u015eTER\u0130LER"], ["tedarikci", "TEDAR\u0130K\u00c7\u0130LER"], ["odeme", "\u00d6DEMELER"]], state.cariFilter, (value) => { state.cariFilter = value; render(); }));
-      const note = document.createElement("p"); note.className = "hint danger"; note.textContent = "Ayn\u0131 isim farkl\u0131 yaz\u0131l\u0131rsa farkl\u0131 cari say\u0131l\u0131r."; content.appendChild(note);
-      if (["all", "kisi"].includes(state.cariFilter)) content.appendChild(renderTable("kisiCari", data.kisiler || [], "Ki\u015fi / Firma Cari"));
-      if (["all", "musteri"].includes(state.cariFilter)) content.appendChild(renderTable("musteriCari", data.musteriler || [], "M\u00fc\u015fteriler"));
-      if (["all", "tedarikci"].includes(state.cariFilter)) content.appendChild(renderTable("tedarikciCari", data.tedarikciler || [], "Tedarik\u00e7iler"));
-      if (["all", "odeme"].includes(state.cariFilter)) content.appendChild(renderTable("cariOdeme", data.odemeler || [], "Cari \u00d6demeleri"));
+      const filters = [["all", "T\u00dcM\u00dc"], ["musteri", "M\u00dc\u015eTER\u0130LER"], ["tedarikci", "TEDAR\u0130K\u00c7\u0130LER"], ["odeme", "\u00d6DEMELER"]];
+      if (!filters.some(([key]) => key === state.cariFilter)) state.cariFilter = "all";
+      const tabs = renderTabs(filters, state.cariFilter, value => { state.cariFilter = value; render(); });
+      tabs.setAttribute("role", "tablist"); tabs.setAttribute("aria-label", "Cari filtreleri");
+      [...tabs.children].forEach((button, index) => {
+        button.dataset.filter = filters[index][0]; button.setAttribute("role", "tab");
+        button.setAttribute("aria-selected", String(filters[index][0] === state.cariFilter));
+      });
+      rendered.appendChild(tabs);
+      const selected = {
+        all: ["kisiCari", data.kisiler, "Genel Cari \u00d6zeti"],
+        musteri: ["musteriCari", data.musteriler, "M\u00fc\u015fteriler"],
+        tedarikci: ["tedarikciCari", data.tedarikciler, "Tedarik\u00e7iler"],
+        odeme: ["cariOdeme", data.odemeler, "Cari \u00d6demeleri"],
+      }[state.cariFilter];
+      rendered.appendChild(renderTable(selected[0], selected[1] || [], selected[2]));
       return;
     }
-    if (state.view === "stok") {
+    if (view === "stok") {
       const [normal, hurda] = await Promise.all([api("/api/stok/normal"), api("/api/stok/hurda")]);
-      content.appendChild(renderTabs([["normal", "NORMAL STOK"], ["hurda", "HURDA STOK"]], state.stokFilter, (value) => { state.stokFilter = value; render(); }));
-      content.appendChild(state.stokFilter === "hurda" ? renderTable("hurdaStok", hurda || [], "Hurda Stok") : renderTable("stok", normal || [], "Normal Stok"));
+      rendered.appendChild(renderTabs([["normal", "NORMAL STOK"], ["hurda", "HURDA STOK"]], state.stokFilter, (value) => { state.stokFilter = value; render(); }));
+      rendered.appendChild(state.stokFilter === "hurda" ? renderTable("hurdaStok", hurda || [], "Hurda Stok") : renderTable("stok", normal || [], "Normal Stok"));
       return;
     }
-    if (["alis", "satis"].includes(state.view)) {
-      const [rows, summary] = await Promise.all([api(`/api/${state.view}`), api("/api/dashboard")]);
-      const layout = document.createElement("div"); layout.className = "form-summary-layout";
-      layout.append(renderForm(state.view), renderProfitSummary(summary));
-      content.append(layout, renderTable(state.view, rows));
+    if (["alis", "satis"].includes(view)) {
+      rendered.appendChild(renderForm(view));
+      rendered.appendChild(renderTable(view, await api(`/api/${view}`)));
       return;
     }
-    if (["hurda_alis", "hurda_satis"].includes(state.view)) {
-      const isSale = state.view === "hurda_satis";
-      content.appendChild(renderForm("hurda", isSale ? "SATIS" : "ALIS"));
+    if (["hurda_alis", "hurda_satis"].includes(view)) {
+      const isSale = view === "hurda_satis";
+      rendered.appendChild(renderForm("hurda", isSale ? "SATIS" : "ALIS"));
       const data = await api("/api/hurda");
       const allHurdaRows = enrichHurdaRows(data.kayitlar || []);
       const hurdaRows = allHurdaRows.filter((row) => normalize(row.islem_turu).startsWith(isSale ? "satis" : "alis"));
-      content.appendChild(renderTable(isSale ? "hurdaSatis" : "hurdaAlis", hurdaRows, isSale ? "Hurda Sat\u0131\u015f Kay\u0131tlar\u0131" : "Hurda Al\u0131\u015f Kay\u0131tlar\u0131"));
+      rendered.appendChild(renderTable(isSale ? "hurdaSatis" : "hurdaAlis", hurdaRows, isSale ? "Hurda Sat\u0131\u015f Kay\u0131tlar\u0131" : "Hurda Al\u0131\u015f Kay\u0131tlar\u0131"));
       return;
     }
-    content.appendChild(renderTable(state.view, await api(`/api/${state.view}`)));
-  } catch (error) { showMessage(error.message, true); }
+    rendered.appendChild(renderTable(view, await api(`/api/${view}`)));
+  } catch (error) { if (version === renderVersion) showMessage(error.message, true); }
+  finally { if (version === renderVersion) content.replaceChildren(rendered); }
 }
 
 document.querySelectorAll(".nav").forEach((button) => button.addEventListener("click", () => {
@@ -1434,11 +1506,5 @@ search.addEventListener("input", () => { state.search = search.value; render(); 
 document.querySelector("#exportBtn").addEventListener("click", downloadAllData);
 document.querySelector("#backupBtn").addEventListener("click", createDatabaseBackup);
 document.querySelector("#restoreBtn").addEventListener("click", restoreLatestDatabaseBackup);
-
-document.querySelector("#logoutBtn").addEventListener("click", async () => {
-  if (!(await showConfirm("\u00c7\u0131k\u0131\u015f yapmak istedi\u011finize emin misiniz", "\u00c7\u0131k\u0131\u015f", "\u0130ptal"))) return;
-  await api("/api/logout", { method: "POST" });
-  window.location.href = "/login";
-});
 
 api("/api/session").then((session) => { if (!session?.authenticated) window.location.href = "/login"; else refreshSuggestions().then(render); }).catch((error) => showMessage(error.message, true));

@@ -868,8 +868,6 @@ tr:last-child td {
 @media (max-width: 860px) { .purchase-actions { grid-column: span 1; flex-direction: column; align-items: stretch; } }
 .sidebar { display: flex; flex-direction: column; }
 nav { flex: 0 0 auto; }
-#logoutBtn { margin-top: auto; background: var(--red); color: #fff; border-color: rgba(255,255,255,.18); }
-#logoutBtn:hover { background: #8f1d14; color: #fff; }
 .entry-form input:not([readonly]),
 .entry-form select,
 .entry-form textarea {
@@ -883,22 +881,6 @@ nav { flex: 0 0 auto; }
   font-weight: 700;
 }
 
-#logoutBtn.logout {
-  justify-content: center;
-  font-weight: 800;
-}
-.logout {
-  width: 100%;
-  border: 1px solid rgba(255,255,255,.18);
-  border-radius: 8px;
-  padding: 12px 14px;
-  background: var(--red);
-  color: #fff;
-  cursor: pointer;
-  margin-top: auto;
-  text-align: center;
-}
-.logout:hover { background: #8f1d14; }
 
 /* Page stability and tab/table refinements */
 html,
@@ -1572,10 +1554,6 @@ td {
     white-space: nowrap;
   }
 
-  .logout {
-    margin-top: 10px;
-    padding: 10px 12px;
-  }
 
   .app {
     height: auto;
@@ -3118,37 +3096,73 @@ button.secondary:hover {
 }
 
 
-/* Form summaries share the existing panel and metric-card system. */
-.form-summary-layout { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 20px; align-items: stretch; max-width: 1000px; margin-bottom: 24px; }
-.form-summary-layout > .form-panel, .expenses-main > .form-panel { margin-bottom: 0; }
+/* Expense summary uses the existing panel and metric-card system. */
+.expenses-layout { width: 100%; max-width: none; margin-bottom: 24px; }
+.expenses-main > .form-panel { margin-bottom: 0; }
 .expenses-main { min-width: 0; }
-.expenses-layout { row-gap: 28px; }
+.expenses-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 250px;
+  grid-template-areas: "entry summary" "history history";
+  column-gap: 24px;
+  row-gap: 28px;
+  align-items: stretch;
+}
+.expenses-layout > .expenses-main { grid-area: entry; }
+.expenses-layout > .expense-profit-summary { grid-area: summary; min-width: 0; align-self: stretch; }
+.expenses-layout > .table-section { grid-area: history; }
+.expenses-layout .expense-form [data-field="kategori"] { grid-column: 1 / -1; }
+.expenses-layout .expense-form .form-bottom-actions { gap: 16px; }
+.expenses-layout .expense-form .form-bottom-actions button { min-width: 120px; }
+.expenses-layout .expense-form-panel { height: 100%; }
+.expenses-layout .table-wrap td.actions-cell { display: table-cell; white-space: nowrap; }
+.expenses-layout .actions-cell .icon-btn { margin: 0; }
+.expenses-layout .actions-cell .icon-btn + .icon-btn { margin-left: 12px; }
 .expenses-layout > .table-section { grid-column: 1 / -1; min-width: 0; margin-top: 0; padding-top: 20px; border-top: 1px solid var(--line); }
-.expense-form-panel { padding: 22px; }
+.expense-form-panel { padding: 18px; }
 .expense-form-panel h2, .expense-profit-summary h2 { margin: 0 0 8px; font-size: 17px; }
-.expense-form-panel > .hint { margin: 0 0 22px; line-height: 1.6; font-size: 12px; }
-.expense-form.entry-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 18px; row-gap: 20px; }
-.expense-form .field { grid-column: auto; min-width: 0; gap: 8px; }
+.expense-form-panel > .hint { margin: 0 0 16px; line-height: 1.6; font-size: 12px; }
+.expense-form.entry-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 18px; row-gap: 14px; }
+.expense-form .field { grid-column: auto; min-width: 0; gap: 6px; }
 .expense-form [data-field="notlar"], .expense-form .form-bottom-actions { grid-column: 1 / -1; }
-.expense-form textarea { resize: vertical; min-height: 80px; }
-.expense-form .form-bottom-actions { display: flex; flex-wrap: wrap; gap: 14px; justify-content: flex-end; padding-top: 18px; margin-top: 4px; }
+.expense-form textarea { resize: vertical; min-height: 64px; height: 64px; }
+.expense-form .form-bottom-actions { display: flex; flex-wrap: wrap; gap: 14px; justify-content: flex-end; padding-top: 12px; margin-top: 4px; }
 .expense-form .form-bottom-actions .secondary { background: var(--panel); color: var(--text); border: 1px solid var(--line); }
 .expenses-layout .actions-cell { column-gap: 14px; padding: 12px 16px; }
 .expenses-layout .icon-btn + .icon-btn { margin-left: 12px; }
 .expenses-layout .table-wrap th, .expenses-layout .table-wrap td { padding-top: 12px; padding-bottom: 12px; }
 .expense-profit-summary { display: flex; flex-direction: column; padding: 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); }
 .expense-profit-summary > p { font-size: 11px; color: var(--muted); margin: 0 0 14px; line-height: 1.5; }
-.expense-summary-card.metric-card { flex: 1; margin-top: 10px; min-height: 68px; padding: 12px 14px; border-radius: 8px; }
+.expense-summary-card.metric-card { flex: 1; justify-content: flex-start; gap: 4px; margin-top: 8px; min-height: 64px; padding: 10px 12px; border-radius: 8px; }
 .expense-summary-card.metric-card > span { font-size: 10px; line-height: 1.5; }
 .expense-summary-card.metric-card > strong { font-size: 23px; line-height: 1.2; }
 .expense-profit-summary > small { display: block; margin-top: 16px; font-size: 11px; line-height: 1.6; color: var(--muted); }
 .suggest-box button[aria-selected="true"] { background: var(--amber-soft); color: var(--text); }
 @media (max-width: 700px) {
-  .form-summary-layout { grid-template-columns: 1fr; }
+  .expenses-layout { grid-template-columns: 1fr; grid-template-areas: "entry" "summary" "history"; gap: 24px; }
+  .expenses-layout .expense-form .form-bottom-actions { gap: 12px; }
+  .expenses-layout .expense-form .form-bottom-actions button { flex: 1; min-width: 0; }
   .expense-summary-card.metric-card { flex: auto; }
 }
 @media (max-width: 600px) {
   .expense-form.entry-form { grid-template-columns: 1fr; }
   .expense-form-panel, .expense-profit-summary { padding: 16px; }
   .expense-form .form-bottom-actions { gap: 12px; }
+}
+
+
+/* Account overview: one table per filter, with a separate read-only history. */
+.cari-table:not([data-table-type="cariOdeme"]) th:nth-child(2), .cari-table .cari-net-balance { background: var(--amber-soft); }
+.cari-table .cari-net-balance { font-size: 16px; font-weight: 800; white-space: nowrap; }
+.cari-table .balance-zero, .cari-detail-balance.balance-zero { color: var(--muted); }
+.cari-table .actions-cell { gap: 10px; min-width: 120px; white-space: nowrap; }
+.cari-detail-btn { padding: 7px 12px; font-size: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 7px; }
+.cari-detail-box { width: min(1050px, 96vw); }
+.cari-detail-box .modal-title { gap: 20px; align-items: center; }
+.cari-detail-box .modal-title h2 { margin: 0; overflow-wrap: anywhere; }
+.cari-detail-balance { margin: 8px 0 20px; font-size: 20px; font-weight: 800; }
+.cari-detail-body .cards { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 24px; }
+@media (max-width: 700px) {
+  .cari-detail-body .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cari-table .cari-net-balance { font-size: 17px; }
 }

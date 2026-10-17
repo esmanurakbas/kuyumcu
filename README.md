@@ -172,8 +172,15 @@ Expenses are entered in has, to three decimal places, in the same unit as the
 existing milyem profit calculation (grams * purity difference / 1000).
 Total milyem profit combines normal and scrap sales. Net profit is total milyem
 profit minus all recorded expenses; no price or currency conversion is used.
-Purchase/sale and expense forms show three compact summary cards on the right
+Only the expense form shows three compact summary cards on the right
 on desktop; only small screens stack the cards below the form. The expense
 history stays below the form and summary. The existing dashboard layout is
 preserved, without an added expense summary. Expenses support edit/delete and are
 included in SQLite backups and JSON exports.
+
+
+The Cari page renders one table for the active All/Customers/Suppliers/Payments
+filter. Net has balance is highlighted with positive, negative, and zero states.
+Each account provides a read-only detail dialog with existing sales, purchases,
+transaction payments, and standalone account payments, including scrap activity.
+The detail view reads existing APIs without recalculating or changing balances.

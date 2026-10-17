@@ -96,6 +96,7 @@ def run(chrome: Path) -> None:
             cdp.wait_for("document.querySelector('.logo') !== null")
             assert cdp.evaluate("document.querySelector('input[type=password]') === null")
             cdp.wait_for("location.pathname === '/' && document.querySelector('[data-view=alis]') !== null")
+            assert cdp.evaluate("document.querySelector('#logoutBtn') === null")
 
             payload = json.dumps({
                 "tarih": "2026-10-03", "tedarikci": "ARANACAK TEDARIKCI",
@@ -120,10 +121,56 @@ def run(chrome: Path) -> None:
             cdp.evaluate("[...document.querySelectorAll('.page-tab')].find(b=>b.innerText==='HURDA STOK').click()")
             cdp.wait_for("[...document.querySelectorAll('.page-tab.active')].some(b=>b.innerText==='HURDA STOK')")
 
+            account_name = "ARANACAK TEDARIKCI"
+            for customer, paid in [(account_name, "HAS"), ("CARI POZITIF", "ODEME_YOK"), ("CARI SIFIR", "TAM_KAPAT")]:
+                sale = {"tarih": "2026-10-03", "musteri": customer, "alis_id": result["data"]["id"], "cinsi": "BILEZIK", "ayar": "22", "gram": 1, "satis_milyem": 940, "odeme_tipi": paid, "odenen_has": "0.100"}
+                response = cdp.evaluate(f"fetch('/api/satis',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:{json.dumps(json.dumps(sale))}}}).then(r=>r.json())", await_promise=True)
+                assert response["status"] == "ok", response
+            for direction in ["ODEME", "TAHSILAT"]:
+                payment = {"tarih": "2026-10-03", "isim": account_name, "odeme_tipi": "HAS", "odenen_has": "0.500", "yon": direction}
+                response = cdp.evaluate(f"fetch('/api/cari/odeme',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:{json.dumps(json.dumps(payment))}}}).then(r=>r.json())", await_promise=True)
+                assert response["status"] == "ok", response
+            accounts_before = cdp.evaluate("fetch('/api/cari').then(r=>r.json()).then(r=>JSON.stringify(r.data))", await_promise=True)
             cdp.evaluate("document.querySelector('[data-view=cari]').click()")
-            cdp.wait_for("[...document.querySelectorAll('.page-tab')].some(b=>b.innerText==='MÜŞTERİLER')")
-            cdp.evaluate("[...document.querySelectorAll('.page-tab')].find(b=>b.innerText==='MÜŞTERİLER').click()")
-            cdp.wait_for("[...document.querySelectorAll('.page-tab.active')].some(b=>b.innerText==='MÜŞTERİLER')")
+            cdp.wait_for("document.querySelector('[data-table-type=kisiCari] tbody') !== null")
+            assert cdp.evaluate("document.querySelectorAll('#content>.table-section').length === 1")
+            assert cdp.evaluate("document.querySelectorAll('#content [role=tab]').length === 4")
+            assert cdp.evaluate("document.querySelectorAll('#content .cari-net-balance.pos').length === 1")
+            assert cdp.evaluate("document.querySelectorAll('#content .cari-net-balance.neg').length === 1")
+            assert cdp.evaluate("document.querySelectorAll('#content .cari-net-balance.balance-zero').length === 1")
+            assert cdp.evaluate("document.querySelector('#content .balance-zero').classList.contains('pos') === false")
+            cdp.evaluate("document.querySelector('#content .cari-detail-btn').click()")
+            cdp.wait_for("document.querySelector('[data-table-type=cariHistory] tbody') !== null")
+            assert cdp.evaluate("document.querySelector('.cari-detail-modal h2').textContent === 'ARANACAK TEDARIKCI'")
+            assert cdp.evaluate("document.querySelectorAll('[data-table-type=cariHistory] tbody tr').length === 5")
+            assert cdp.evaluate("new Set([...document.querySelectorAll('[data-table-type=cariHistory] [data-col=hareket]')].map(td=>td.textContent)).size === 4")
+            cdp.evaluate("document.querySelector('.cari-detail-modal button').click()")
+            assert cdp.evaluate("document.querySelector('.cari-detail-modal') === null")
+            for filter_name, table_type in [("musteri", "musteriCari"), ("tedarikci", "tedarikciCari"), ("odeme", "cariOdeme"), ("all", "kisiCari")]:
+                cdp.evaluate(f"document.querySelector('[data-filter={filter_name}]').click()")
+                cdp.wait_for(f"document.querySelector('[data-table-type={table_type}] tbody') !== null")
+                assert cdp.evaluate("document.querySelectorAll('#content>.table-section').length === 1"), filter_name
+                assert cdp.evaluate("[...document.querySelectorAll('#content tbody tr')].every(row=>row.querySelector('.cari-detail-btn'))"), filter_name
+                if filter_name == "musteri":
+                    assert cdp.evaluate("columns.musteriCari.includes('toplam_alis_has') === false")
+                if filter_name == "tedarikci":
+                    assert cdp.evaluate("document.querySelectorAll('#content tbody tr').length === 1")
+            accounts_after = cdp.evaluate("fetch('/api/cari').then(r=>r.json()).then(r=>JSON.stringify(r.data))", await_promise=True)
+            assert accounts_before == accounts_after, "Read-only account UI changed balances"
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1440, "height": 1000, "deviceScaleFactor": 1, "mobile": False})
+            if os.getenv("UI_CARI_SCREENSHOT_PATH"):
+                import base64
+                screenshot = cdp.call("Page.captureScreenshot", {"format": "png", "captureBeyondViewport": True})
+                Path(os.environ["UI_CARI_SCREENSHOT_PATH"]).write_bytes(base64.b64decode(screenshot["data"]))
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 390, "height": 844, "deviceScaleFactor": 1, "mobile": False})
+            assert cdp.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), "Account overview overflows mobile width"
+            cdp.evaluate("document.querySelector('#content .cari-detail-btn').click()")
+            cdp.wait_for("document.querySelector('[data-table-type=cariHistory] tbody') !== null")
+            assert cdp.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), "Account detail overflows mobile width"
+            cdp.evaluate("document.querySelector('.cari-detail-modal button').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))")
+            assert cdp.evaluate("document.querySelector('.cari-detail-modal') === null")
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 800, "height": 600, "deviceScaleFactor": 1, "mobile": False})
+
 
             cdp.evaluate("document.querySelector('[data-view=giderler]').click()")
             cdp.wait_for("document.querySelector('input[name=tutar]') !== null")
@@ -162,7 +209,7 @@ def run(chrome: Path) -> None:
             cdp.wait_for("document.querySelector('.dashboard-root') !== null")
             dashboard = cdp.evaluate("fetch('/api/dashboard').then(r=>r.json()).then(r=>r.data)", await_promise=True)
             assert dashboard["toplam_gider"] == 0.350
-            assert dashboard["net_kar"] == -0.350
+            assert round(dashboard["genel_milyem_kari"] - dashboard["toplam_gider"], 3) == dashboard["net_kar"]
             assert cdp.evaluate("document.querySelectorAll('.dashboard-root .expense-profit-summary').length === 0")
             assert cdp.evaluate("document.querySelector('.dashboard-root').children.length === 3")
             cdp.evaluate("document.querySelector('[data-view=giderler]').click()")
@@ -178,6 +225,9 @@ def run(chrome: Path) -> None:
             for name, fields in baseline["forms"].items():
                 assert actual_forms[name] == fields, (name, actual_forms[name])
             for name, fields in baseline["columns"].items():
+                if name in {"kisiCari", "musteriCari", "tedarikciCari"}:
+                    assert actual_columns[name][1] == "net_bakiye_has", name
+                    continue
                 assert actual_columns[name] == fields, (name, actual_columns[name])
             expected_nav = list(baseline["views"]) + ["giderler"]
             for view in expected_nav:
@@ -190,15 +240,24 @@ def run(chrome: Path) -> None:
                 if view in {"alis", "satis", "hurda_alis", "hurda_satis"}:
                     assert cdp.evaluate("['has_fiyati','iscilik','ek_masraf','ek_ucret','indirim'].every(name=>!document.querySelector(`.entry-form [name=${name}]`))"), view
                 print(f"Page checked: {view}")
+            cdp.evaluate("(async()=>{const jobs=[];for(const view of ['alis','satis','giderler']){state.view=view;jobs.push(render());}await Promise.all(jobs);})()", await_promise=True)
+            assert cdp.evaluate("document.querySelectorAll('#content [data-table-type=alis], #content [data-table-type=satis]').length === 0"), "Stale page responses leaked into the expenses page"
+            assert cdp.evaluate("document.querySelectorAll('#content [data-table-type=giderler]').length === 1")
             cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1440, "height": 1000, "deviceScaleFactor": 1, "mobile": False})
             cdp.wait_for("document.querySelector('.expenses-layout').getBoundingClientRect().width > 900")
             assert cdp.evaluate("(()=>{const a=document.querySelector('.expenses-main').getBoundingClientRect();const b=document.querySelector('.expenses-layout>.expense-profit-summary').getBoundingClientRect();return b.left>=a.right;})()")
+            assert cdp.evaluate("[...document.querySelectorAll('.expense-summary-card')].every(card=>card.querySelector('strong').getBoundingClientRect().top-card.querySelector('span').getBoundingClientRect().bottom<=6)"), "Summary label/value gap is too large"
+            assert cdp.evaluate("document.querySelector('.expense-form-panel').getBoundingClientRect().height < 420"), "Expense form is unnecessarily tall"
             assert cdp.evaluate("Math.abs(document.querySelector('.expenses-main').getBoundingClientRect().top-document.querySelector('.expenses-layout>.expense-profit-summary').getBoundingClientRect().top)<2")
-            assert cdp.evaluate("document.querySelector('.expenses-main').getBoundingClientRect().width < 740"), "Expense form must leave space for compact summary"
+            assert cdp.evaluate("Math.abs(document.querySelector('.expenses-layout').getBoundingClientRect().width-document.querySelector('#content').clientWidth)<10"), "Expense layout must fill available content width"
             cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1024, "height": 900, "deviceScaleFactor": 1, "mobile": False})
             for form_view in ["alis", "satis", "giderler"]:
                 cdp.evaluate(f"document.querySelector('[data-view={form_view}]').click()")
-                cdp.wait_for("document.querySelector('.form-summary-layout') !== null")
+                if form_view != "giderler":
+                    cdp.wait_for("document.querySelector('.entry-form') !== null")
+                    assert cdp.evaluate("document.querySelector('.expense-profit-summary') === null"), form_view
+                    continue
+                cdp.wait_for("document.querySelector('.expenses-layout') !== null")
                 assert cdp.evaluate("(()=>{const layout=document.querySelector('.form-summary-layout');const form=layout.firstElementChild.getBoundingClientRect();const summary=layout.querySelector('.expense-profit-summary').getBoundingClientRect();return summary.left>=form.right && Math.abs(summary.top-form.top)<2 && Math.abs(summary.height-form.height)<3;})()"), form_view
                 assert cdp.evaluate("document.querySelectorAll('.form-summary-layout>.expense-profit-summary .expense-summary-card').length === 3"), form_view
             cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1440, "height": 1000, "deviceScaleFactor": 1, "mobile": False})
