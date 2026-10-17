@@ -1383,9 +1383,6 @@ function renderDashboard(data) {
 
   const hero = document.createElement("section");
   hero.className = "dashboard-hero";
-  const heroText = document.createElement("div");
-  heroText.className = "dashboard-hero-text";
-  heroText.innerHTML = `<span>Genel Durum</span><h2>\u0130\u015fletme \u00d6zeti</h2><p>Stok, k\u00e2r ve cari durumunuz tek bak\u0131\u015fta.</p>`;
   const heroMetrics = document.createElement("div");
   heroMetrics.className = "dashboard-hero-metrics";
   [
@@ -1394,7 +1391,7 @@ function renderDashboard(data) {
     ["Normal Stok Has", data.normal_stok_has, "has", "neutral", "\u00dcr\u00fcn sto\u011fu"],
     ["Hurda Kalan Has", data.hurda_kalan_has, "has", "accent", "Hurda sto\u011fu"],
   ].forEach((card) => heroMetrics.appendChild(renderMetricCard(...card)));
-  hero.append(heroText, heroMetrics);
+  hero.appendChild(heroMetrics);
 
   const topGroups = document.createElement("div");
   topGroups.className = "dashboard-groups dashboard-groups-polished dashboard-groups-top";

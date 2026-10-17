@@ -306,6 +306,8 @@ def run(chrome: Path) -> None:
             cdp.evaluate("document.querySelector('[data-view=dashboard]').click()")
             cdp.wait_for("document.querySelector('.dashboard-restored .dashboard-hero') !== null")
             assert cdp.evaluate("document.querySelectorAll('.dashboard-hero-metrics>.metric-card').length === 4")
+            assert cdp.evaluate("document.querySelector('.dashboard-hero-text')===null")
+            assert cdp.evaluate("getComputedStyle(document.querySelector('#content')).scrollbarWidth==='none'")
             assert cdp.evaluate("document.querySelectorAll('.dashboard-groups-top>.dashboard-panel').length === 2")
             assert cdp.evaluate("[...document.querySelectorAll('.dashboard-groups-top .dashboard-panel-grid')].every(grid=>grid.children.length===4)")
             assert cdp.evaluate("document.querySelectorAll('.dashboard-groups-bottom>.dashboard-panel').length === 2")

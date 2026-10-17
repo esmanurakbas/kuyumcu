@@ -916,7 +916,8 @@ body {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding-right: 4px;
+  padding-right: 0;
+  scrollbar-width: none;
 }
 
 .page-tabs {
@@ -3197,11 +3198,7 @@ button.secondary:hover {
 
 /* Original dashboard structure with content-sized, compact cards. */
 .dashboard-restored { gap: 16px; align-content: start; }
-.dashboard-restored .dashboard-hero { grid-template-columns: minmax(180px, .85fr) minmax(0, 3fr); padding: 14px; gap: 14px; }
-.dashboard-restored .dashboard-hero-text { gap: 6px; }
-.dashboard-restored .dashboard-hero-text h2 { font-size: 21px; }
-.dashboard-restored .dashboard-hero-text p { font-size: 12px; }
-.dashboard-restored .dashboard-hero-text > span { padding: 3px 7px; font-size: 10px; }
+.dashboard-restored .dashboard-hero { grid-template-columns: minmax(0, 1fr); padding: 0; border: 0; background: none; box-shadow: none; }
 .dashboard-restored .dashboard-hero-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .dashboard-restored .metric-card { min-width: 0; min-height: 0; padding: 10px; gap: 5px; justify-content: flex-start; }
 .dashboard-restored .metric-card span { font-size: 11px; line-height: 1.4; text-transform: none; font-weight: 600; }
@@ -3252,3 +3249,5 @@ button.secondary:hover {
 @media (max-width: 760px) {
  .toolbar-menu-panel { right: auto; left: 0; }
 }
+
+#content::-webkit-scrollbar { width: 0; height: 0; }
