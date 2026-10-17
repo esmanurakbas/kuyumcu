@@ -16,9 +16,9 @@ const views = {
   giderler: { title: "Giderler", subtitle: "Ki\u015fisel ve i\u015fletme giderleri" },
   dashboard: { title: "Dashboard", subtitle: "G\u00fcncel stok, cari ve sat\u0131\u015f \u00f6zeti" },
   alis: { title: "Al\u0131\u015f", subtitle: "Normal \u00fcr\u00fcn al\u0131\u015f kay\u0131tlar\u0131" },
-  satis: { title: "Sat\u0131\u015f", subtitle: "Al\u0131\u015ftan se\u00e7erek sat\u0131\u015f" },
+  satis: { title: "Sat\u0131\u015f", subtitle: "Toplam stoktan sat\u0131\u015f" },
   hurda_alis: { title: "Hurda Al\u0131\u015f", subtitle: "Sadece hurda al\u0131\u015f kay\u0131tlar\u0131" },
-  hurda_satis: { title: "Hurda Sat\u0131\u015f", subtitle: "Hurda al\u0131\u015ftan se\u00e7erek sat\u0131\u015f" },
+  hurda_satis: { title: "Hurda Sat\u0131\u015f", subtitle: "Toplam hurda stoktan sat\u0131\u015f" },
   stok: { title: "Stok", subtitle: "Normal stok ve hurda stok ayr\u0131" },
   cari: { title: "Cari", subtitle: "M\u00fc\u015fteri ve tedarik\u00e7i bakiyeleri" },
 };
@@ -466,8 +466,12 @@ function openTransactionPaymentModal(form) {
   form.className = "entry-form";
   ensureTransactionPaymentFields(form);
 
-  if (type === "satis") form.appendChild(renderSelectAction("ALI\u015eTAN \u00dcR\u00dcN SE\u00c7", "Sat\u0131\u015f i\u00e7in \u00f6nce al\u0131\u015ftan \u00fcr\u00fcn se\u00e7in.", (label) => openPurchaseModal(form, label)));
-  if (type === "hurda" && hurdaMode === "SATIS") form.appendChild(renderSelectAction("HURDA ALI\u015eTAN SE\u00c7", "Hurda sat\u0131\u015f i\u00e7in al\u0131\u015ftan se\u00e7im yap\u0131n.", (label) => openHurdaPurchaseModal(form, label)));
+  if (type === "satis") form.appendChild(renderSelectAction("STOKTAN \u00dcR\u00dcN SE\u00c7", "Sat\u0131\u015f i\u00e7in stoktan \u00fcr\u00fcn se\u00e7in.", (label) => openPurchaseModal(form, label)));
+  if (type === "hurda" && hurdaMode === "SATIS") form.appendChild(renderSelectAction("HURDA STOKTAN SE\u00c7", "Hurda sat\u0131\u015f i\u00e7in stoktan se\u00e7im yap\u0131n.", (label) => openHurdaPurchaseModal(form, label)));
+
+  if (type === "satis" || (type === "hurda" && hurdaMode === "SATIS")) {
+    const stockMode = document.createElement("input"); stockMode.type = "hidden"; stockMode.name = "stoktan"; stockMode.value = "true"; form.appendChild(stockMode);
+  }
 
   // Both sale screens share the same visible fields; keep the scrap API names.
   const formFields = type === "hurda" && hurdaMode === "SATIS" ? [
@@ -527,10 +531,12 @@ function openTransactionPaymentModal(form) {
     summaryRow.append(preview, payment); form.appendChild(summaryRow);
   } else form.append(preview, payment);
   const updatePreview = () => {
+    updateStockMilyem(form);
     preview.querySelector("[data-has]").textContent = formatValue("has", calcHas(form));
     preview.querySelector("[data-gram]").textContent = formatValue("gram", parseNum(form.elements.gram.value));
   };
   ["gram", "milyem", "satis_milyem"].map((name) => form.elements[name]).filter(Boolean).forEach((input) => input.addEventListener("input", updatePreview));
+  form._updatePreview = updatePreview;
   updatePreview();
 
   const actions = document.createElement("div");
@@ -547,10 +553,15 @@ function openTransactionPaymentModal(form) {
     const data = Object.fromEntries(new FormData(form).entries());
     if (type === "alis") { data.has_fiyati = 0; data.iscilik = 0; data.ek_masraf = 0; data.odenen = 0; }
     if (type === "satis") {
-      const selectedId = state.selectedPurchase?.id || data.purchase_id || data.alis_id;
-      if (!selectedId) { showMessage("Sat\u0131\u015f i\u00e7in al\u0131\u015ftan \u00fcr\u00fcn se\u00e7in.", true); return; }
-      data.purchase_id = selectedId;
-      data.alis_id = selectedId;
+      data.stoktan = ["true", "1"].includes(String(data.stoktan));
+      if (data.stoktan) {
+        if (!state.selectedPurchase?.stoktan && !isEditing) { showMessage("Stoktan \u00fcr\u00fcn se\u00e7in.", true); return; }
+        delete data.purchase_id; delete data.alis_id;
+      } else {
+        const selectedId = state.selectedPurchase?.id || data.purchase_id || data.alis_id;
+        if (!selectedId) { showMessage("Sat\u0131\u015f i\u00e7in stoktan \u00fcr\u00fcn se\u00e7in.", true); return; }
+        data.purchase_id = selectedId; data.alis_id = selectedId;
+      }
       data.milyem = data.satis_milyem;
       data.has_fiyati = 0;
       data.iscilik = 0;
@@ -565,9 +576,15 @@ function openTransactionPaymentModal(form) {
       data.iscilik = 0;
       data.odenen_veya_alinan = 0;
       if (normalize(data.islem_turu).startsWith("satis")) {
-        const selectedId = state.selectedHurdaPurchase?.id || data.hurda_alis_id;
-        if (!selectedId) { showMessage("Hurda sat\u0131\u015f i\u00e7in hurda al\u0131\u015ftan \u00fcr\u00fcn se\u00e7in.", true); return; }
-        data.hurda_alis_id = selectedId;
+        data.stoktan = ["true", "1"].includes(String(data.stoktan));
+        if (data.stoktan) {
+          if (!state.selectedHurdaPurchase?.stoktan && !isEditing) { showMessage("Hurda stoktan \u00fcr\u00fcn se\u00e7in.", true); return; }
+          delete data.hurda_alis_id;
+        } else {
+          const selectedId = state.selectedHurdaPurchase?.id || data.hurda_alis_id;
+          if (!selectedId) { showMessage("Hurda stoktan \u00fcr\u00fcn se\u00e7in.", true); return; }
+          data.hurda_alis_id = selectedId;
+        }
       } else {
         delete data.hurda_alis_id;
       }
@@ -622,42 +639,46 @@ function showSelectedPurchase(label, row, includeMilyem = false) {
   label.replaceChildren(document.createTextNode(`${prefix}Kalan `), remaining, document.createTextNode(` / ${row.kalan_has} has`));
 }
 
-async function openPurchaseModal(form, chosenLabel) {
+function updateStockMilyem(form) {
+  if (!["true", "1"].includes(String(form.elements.stoktan?.value))) return;
+  const stock = form.elements.hurda_alis_id ? state.selectedHurdaPurchase : state.selectedPurchase;
+  if (!stock?.kaynaklar || !form.elements.alis_milyem) return;
+  const previous = form._stockEditSnapshot;
+  if (previous && parseNum(form.elements.gram.value) === Number(previous.gram) && normalize(previous.cinsi) === normalize(form.elements.cinsi.value) && normalize(previous.ayar) === normalize(form.elements.ayar.value)) {
+    form.elements.alis_milyem.value = previous.alis_milyem; return;
+  }
+  let needed = parseNum(form.elements.gram.value);
+  if (needed <= 0) { form.elements.alis_milyem.value = stock.alis_milyem; return; }
+  let total = 0, used = 0;
+  for (const lot of stock.kaynaklar) {
+    const take = Math.min(needed, Number(lot.gram)); total += take * Number(lot.milyem); used += take; needed -= take;
+    if (needed <= 0) break;
+  }
+  form.elements.alis_milyem.value = used ? String(Math.round(total / used * 1000) / 1000) : "";
+}
+
+async function openStockModal(form, chosenLabel, scrap = false) {
   try {
-    const rows = await api("/api/satis/urun-secenekleri");
-    if (!rows.length) { showMessage("Se\u00e7ilebilir al\u0131\u015f kayd\u0131 yok.", true); return; }
-    openSelectableModal("Al\u0131\u015ftan \u00dcr\u00fcn Se\u00e7", ["tarih", "tedarikci", "cinsi", "ayar", "kalan_gram", "alis_milyem"], rows, (row) => {
-      state.selectedPurchase = row;
-      form.elements.purchase_id.value = row.id;
-      form.elements.alis_id.value = row.id;
-      form.elements.cinsi.value = row.cinsi;
-      form.elements.ayar.value = row.ayar;
-      form.elements.alis_milyem.value = row.alis_milyem;
-      if (form.elements.alis_has_maliyeti) form.elements.alis_has_maliyeti.value = row.alis_has_maliyeti || "";
-      form.elements.satis_milyem.value = "";
-      form.elements.satis_milyem.placeholder = "Sat\u0131\u015f milyem girin";
-      showSelectedPurchase(chosenLabel, row);
+    const excluded = editing?.type === (scrap ? "hurda" : "satis") ? `?exclude_sale_id=${editing.id}` : "";
+    const rows = await api(`/api/stok/${scrap ? "hurda" : "normal"}/secenekler${excluded}`);
+    if (!form.isConnected) return;
+    if (!rows.length) { showMessage("Se\u00e7ilebilir stok yok.", true); return; }
+    openSelectableModal(scrap ? "Hurda Stoktan Se\u00e7" : "Stoktan \u00dcr\u00fcn Se\u00e7", ["cinsi", "ayar", "kalan_gram", "kalan_has"], rows, row => {
+      if (scrap) state.selectedHurdaPurchase = row; else state.selectedPurchase = row;
+      form.elements.stoktan.value = "true";
+      if (form.elements.purchase_id) form.elements.purchase_id.value = "";
+      if (form.elements.alis_id) form.elements.alis_id.value = "";
+      if (form.elements.hurda_alis_id) form.elements.hurda_alis_id.value = "";
+      form.elements.cinsi.value = row.cinsi; form.elements.ayar.value = row.ayar;
+      const saleMilyem = form.elements.satis_milyem || form.elements.milyem;
+      saleMilyem.value = "";
+      showSelectedPurchase(chosenLabel, row); form._updatePreview?.();
     });
   } catch (error) { showMessage(error.message, true); }
 }
 
-async function openHurdaPurchaseModal(form, chosenLabel) {
-  try {
-    if (form.elements.islem_turu) { form.elements.islem_turu.value = "SATIS"; form.elements.islem_turu.dispatchEvent(new Event("change")); }
-    const rows = await api("/api/hurda/urun-secenekleri");
-    if (!rows.length) { showMessage("Se\u00e7ilebilir hurda al\u0131\u015f kayd\u0131 yok.", true); return; }
-    openSelectableModal("Hurda Al\u0131\u015ftan Se\u00e7", ["tarih", "kisi", "cinsi", "ayar", "kalan_gram", "milyem", "has", "kalan_has"], rows, (row) => {
-      state.selectedHurdaPurchase = row;
-      form.elements.hurda_alis_id.value = row.id;
-      form.elements.cinsi.value = row.cinsi;
-      form.elements.ayar.value = row.ayar;
-      if (form.elements.alis_milyem) form.elements.alis_milyem.value = row.milyem;
-      form.elements.milyem.value = "";
-      form.elements.milyem.placeholder = "Sat\u0131\u015f milyem girin";
-      showSelectedPurchase(chosenLabel, row);
-    });
-  } catch (error) { showMessage(error.message, true); }
-}
+async function openPurchaseModal(form, chosenLabel) { return openStockModal(form, chosenLabel); }
+async function openHurdaPurchaseModal(form, chosenLabel) { return openStockModal(form, chosenLabel, true); }
 
 function openSelectableModal(titleText, cols, rows, onSelect) {
   const overlay = document.createElement("div");
@@ -732,7 +753,7 @@ function enrichHurdaRows(rows) {
     if (!normalize(row.islem_turu).startsWith("satis")) return row;
     const purchase = purchases.get(Number(row.hurda_alis_id));
     const totals = saleTotalsByPurchase.get(Number(row.hurda_alis_id)) || { gram: 0, has: 0 };
-    const alisMilyem = Number(valueOrFallback(row.alis_milyem, purchase.milyem || 0));
+    const alisMilyem = Number(valueOrFallback(row.alis_milyem, purchase?.milyem || 0));
     const satisMilyem = Number(valueOrFallback(row.satis_milyem, row.milyem || 0));
     const milyemFarki = Number(valueOrFallback(row.milyem_farki, satisMilyem - alisMilyem));
     const milyemKari = Number(valueOrFallback(row.milyem_kari, parseNum(row.gram) * milyemFarki / 1000));
@@ -913,7 +934,7 @@ async function startEdit(type, row) {
   state.selectedPurchase = null;
   state.selectedHurdaPurchase = null;
   await render();
-  setTimeout(() => {
+  setTimeout(async () => {
     const form = document.querySelector(".entry-form");
     if (!form) return;
     Object.entries(row).forEach(([key, value]) => { if (form.elements[key]) form.elements[key].value = value ?? ""; });
@@ -932,6 +953,19 @@ async function startEdit(type, row) {
       state.selectedHurdaPurchase = selectedHurdaId ? { id: selectedHurdaId } : null;
       if (form.elements.hurda_alis_id) form.elements.hurda_alis_id.value = selectedHurdaId;
     }
+    if (row.stoktan) form._stockEditSnapshot = row;
+    if (row.stoktan && (type === "satis" || (type === "hurda" && row.islem_turu === "SATIS"))) {
+      try {
+        const options = await api(`/api/stok/${type === "hurda" ? "hurda" : "normal"}/secenekler?exclude_sale_id=${row.id}`);
+        if (document.querySelector(".entry-form") !== form || editing?.id !== row.id) return;
+        const stock = options.find(option => normalize(option.cinsi) === normalize(row.cinsi) && normalize(option.ayar) === normalize(row.ayar));
+        if (stock) {
+          if (type === "hurda") state.selectedHurdaPurchase = stock; else state.selectedPurchase = stock;
+          showSelectedPurchase(form.querySelector(".purchase-note"), stock);
+        }
+      } catch (error) { showMessage(error.message, true); }
+    }
+    form._updatePreview?.();
     form._refreshPaymentSummary?.();
     form.scrollIntoView({ behavior: "smooth", block: "start" });
   }, 0);

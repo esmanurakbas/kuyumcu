@@ -410,7 +410,8 @@ def run(chrome: Path) -> None:
             cdp.evaluate("document.querySelector('.confirm-ok').click()")
             cdp.wait_for("document.querySelector('[data-table-type=hurdaSatis] tbody tr')!==null")
             saved_scrap = cdp.evaluate("api('/api/hurda').then(r=>r.kayitlar.find(row=>row.kisi==='UI SCRAP CUSTOMER'))", await_promise=True)
-            assert saved_scrap['hurda_alis_id'] == scrap['id']
+            assert saved_scrap['hurda_alis_id'] is None and saved_scrap['stoktan'] == 1
+            assert saved_scrap['stok_dagilimi'][0]['purchase_id'] == scrap['id']
             assert saved_scrap['alis_milyem'] == 750 and saved_scrap['satis_milyem'] == 800
             assert saved_scrap['has'] == 0.8 and saved_scrap['milyem_kari'] == 0.05 and saved_scrap['odenen_has'] == 0.1
             cdp.evaluate("[...document.querySelectorAll('[data-table-type=hurdaSatis] tbody tr')].find(row=>row.textContent.includes('UI SCRAP CUSTOMER')).querySelector('.icon-edit').click()")
@@ -422,7 +423,8 @@ def run(chrome: Path) -> None:
             cdp.wait_for("document.querySelector('[name=kisi]')?.value===''")
             updated_scrap = cdp.evaluate("api('/api/hurda').then(r=>r.kayitlar.find(row=>row.kisi==='UI SCRAP CUSTOMER'))", await_promise=True)
             assert updated_scrap['gram'] == 0.5 and updated_scrap['has'] == 0.4 and updated_scrap['milyem_kari'] == 0.025
-            assert updated_scrap['odenen_has'] == 0.1 and updated_scrap['hurda_alis_id'] == scrap['id']
+            assert updated_scrap['odenen_has'] == 0.1 and updated_scrap['hurda_alis_id'] is None
+            assert updated_scrap['stok_dagilimi'][0]['purchase_id'] == scrap['id']
             if os.getenv("UI_THEME_SCREENSHOT_DIR"):
                 import base64
                 shots = Path(os.environ["UI_THEME_SCREENSHOT_DIR"])
@@ -449,6 +451,35 @@ def run(chrome: Path) -> None:
                 import base64
                 screenshot = cdp.call("Page.captureScreenshot", {"format":"png","captureBeyondViewport":True})
                 Path(os.environ["UI_SCRAP_SALE_SCREENSHOT_PATH"]).write_bytes(base64.b64decode(screenshot["data"]))
+            # Sell a combined pool larger than either supplier's individual receipt.
+            for kind,view in [('normal','satis'),('hurda','hurda_satis')]:
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width":1280,"height":820,"deviceScaleFactor":1,"mobile":False})
+                product = 'UI NORMAL POOL' if kind=='normal' else 'UI SCRAP POOL'
+                for index,gram,milyem in [(1,.4,900),(2,.6,920)]:
+                    receipt = {'cinsi':product,'ayar':'22','gram':gram,'milyem':milyem,'tarih':f'2026-10-0{index}'}
+                    receipt.update({'tedarikci':f'POOL SUPPLIER {index}'} if kind=='normal' else {'kisi':f'POOL SUPPLIER {index}','islem_turu':'ALIS'})
+                    endpoint = '/api/alis' if kind=='normal' else '/api/hurda'
+                    cdp.evaluate(f"api({json.dumps(endpoint)},{{method:'POST',body:{json.dumps(json.dumps(receipt))}}})", await_promise=True)
+                cdp.evaluate(f"document.querySelector('[data-view={view}]').click()")
+                cdp.wait_for("document.querySelector('.purchase-actions button')!==null")
+                cdp.evaluate("document.querySelector('.purchase-actions button').click()")
+                cdp.wait_for("document.querySelector('.modal-box-wide tbody button')!==null")
+                assert cdp.evaluate(f"[...document.querySelectorAll('.modal-box-wide tbody tr')].filter(row=>row.textContent.includes({json.dumps(product)})).length===1"), 'Stock picker repeated suppliers instead of combining stock'
+                cdp.evaluate(f"[...document.querySelectorAll('.modal-box-wide tbody tr')].find(row=>row.textContent.includes({json.dumps(product)})).querySelector('button').click()")
+                assert cdp.evaluate("document.querySelector('.purchase-remaining').textContent==='1 gr'")
+                person = 'musteri' if kind=='normal' else 'kisi'
+                purity = 'satis_milyem' if kind=='normal' else 'milyem'
+                cdp.evaluate(f"(()=>{{const f=document.querySelector('.entry-form');f.elements[{json.dumps(person)}].value='POOL CUSTOMER';f.elements.gram.value='1';f.elements[{json.dumps(purity)}].value='950';f.elements.gram.dispatchEvent(new Event('input'));}})()")
+                assert cdp.evaluate("document.querySelector('[name=alis_milyem]').value==='912'")
+                cdp.evaluate("document.querySelector('.entry-form').requestSubmit()")
+                cdp.wait_for("document.querySelector('.confirm-ok')!==null")
+                cdp.evaluate("document.querySelector('.confirm-ok').click()")
+                cdp.wait_for("document.querySelector('[name=gram]')?.value===''")
+                endpoint = '/api/satis' if kind=='normal' else '/api/hurda'
+                pool_rows = cdp.evaluate(f"api({json.dumps(endpoint)})", await_promise=True)
+                if kind=='hurda': pool_rows = pool_rows['kayitlar']
+                pool_sale = next(row for row in pool_rows if row['cinsi']==product and row.get('stoktan'))
+                assert pool_sale['gram']==1 and pool_sale['milyem_kari']==.038 and len(pool_sale['stok_dagilimi'])==2
             print("UI smoke test passed: passwordless entry, all pages, original forms and columns, no added currency labels, expense create/edit, dashboard totals")
         finally:
             browser.terminate()

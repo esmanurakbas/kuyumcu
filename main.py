@@ -35,7 +35,7 @@ LEGACY_DB_PATH = BASE_DIR / "kuyumcu.db"
 DB_PATH = Path(os.getenv("DB_PATH", str(DEFAULT_DB_PATH)))
 STATIC_DIR = resource_path("static")
 BACKUP_KEEP_DAYS = 14
-SCHEMA_VERSION = "4"
+SCHEMA_VERSION = "5"
 
 ZERO = Decimal("0")
 MONEY_Q = Decimal("0.01")
@@ -236,7 +236,7 @@ def scrap_total(row: sqlite3.Row | dict[str, Any]) -> Decimal:
 
 
 @contextmanager
-def db() -> sqlite3.Connection:
+def db(write: bool = False) -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
@@ -245,7 +245,7 @@ def db() -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode = WAL")
     conn.execute("PRAGMA synchronous = NORMAL")
     try:
-        conn.execute("BEGIN")
+        conn.execute("BEGIN IMMEDIATE" if write else "BEGIN")
         yield conn
         conn.commit()
     except Exception:
@@ -513,7 +513,24 @@ def init_db() -> None:
         )
         migrate_hurda_if_needed(conn)
         migrate_satis_if_needed(conn)
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS sale_allocations (
+                kind TEXT NOT NULL CHECK(kind IN ('normal','hurda')),
+                sale_id INTEGER NOT NULL, purchase_id INTEGER NOT NULL,
+                gram TEXT NOT NULL, has TEXT NOT NULL, cost TEXT NOT NULL, milyem TEXT NOT NULL,
+                PRIMARY KEY(kind, sale_id, purchase_id)
+            );
+            CREATE INDEX IF NOT EXISTS allocation_purchase ON sale_allocations(kind,purchase_id);
+            CREATE TRIGGER IF NOT EXISTS normal_allocation_delete AFTER DELETE ON satis BEGIN
+                DELETE FROM sale_allocations WHERE kind='normal' AND sale_id=OLD.id;
+            END;
+            CREATE TRIGGER IF NOT EXISTS scrap_allocation_delete AFTER DELETE ON hurda BEGIN
+                DELETE FROM sale_allocations WHERE kind='hurda' AND sale_id=OLD.id;
+            END;
+        """)
         add_column(conn, "hurda", "hurda_alis_id INTEGER")
+        add_column(conn, "satis", "stoktan INTEGER NOT NULL DEFAULT 0")
+        add_column(conn, "hurda", "stoktan INTEGER NOT NULL DEFAULT 0")
         for table in ("alis", "satis", "hurda"):
             add_column(conn, table, "odeme_tipi TEXT NOT NULL DEFAULT 'ODEME_YOK'")
             add_column(conn, table, "odenen_has REAL NOT NULL DEFAULT 0")
@@ -522,7 +539,7 @@ def init_db() -> None:
             add_column(conn, table, "odenen_milyem REAL NOT NULL DEFAULT 0")
         add_column(conn, "cari_odeme", "yon TEXT NOT NULL DEFAULT 'TAHSILAT'")
         migrate_quantity_to_total_gram(conn)
-        if database_existed and previous_schema_version not in {"3", "4"}:
+        if database_existed and previous_schema_version not in {"3", "4", "5"}:
             migrate_cari_payment_directions(conn)
         conn.execute(
             "INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', ?)",
@@ -545,6 +562,7 @@ class BaseTransaction(BaseModel):
     has_fiyati: Any = ZERO
     iscilik: Any = ZERO
     notlar: str = Field(default="", max_length=200)
+    stoktan: bool = False
     odeme_tipi: str = "ODEME_YOK"
     odenen_has: Any = ZERO
     odenen_adet: Any = ""
@@ -622,7 +640,7 @@ class SatisIn(BaseTransaction):
         for field_name in ["ek_ucret", "indirim", "alinan"]:
             setattr(self, field_name, non_negative(getattr(self, field_name), field_name))
         self.alis_id = self.alis_id or self.purchase_id
-        if not self.alis_id:
+        if not self.alis_id and not self.stoktan:
             raise ValueError("Satis iin alistan rn seilmeli.")
         return self
 
@@ -778,6 +796,94 @@ def sale_purchase_id(row: sqlite3.Row | dict[str, Any]) -> int | None:
     return None
 
 
+def allocation_rows(conn: sqlite3.Connection, kind: str, sale_id: int) -> list[sqlite3.Row]:
+    return conn.execute("SELECT * FROM sale_allocations WHERE kind=? AND sale_id=? ORDER BY purchase_id", (kind, sale_id)).fetchall()
+
+
+def allocation_used_gram(conn: sqlite3.Connection, kind: str, purchase_id: int, exclude_id: int | None = None) -> Decimal:
+    rows = conn.execute("SELECT gram FROM sale_allocations WHERE kind=? AND purchase_id=? AND sale_id!=?", (kind, purchase_id, exclude_id or -1)).fetchall()
+    return sum((d(row["gram"]) for row in rows), ZERO)
+
+
+def allocated_value(conn: sqlite3.Connection, kind: str, row: sqlite3.Row, key: str) -> Decimal:
+    return sum((d(part[key]) for part in allocation_rows(conn, kind, row["id"])), ZERO)
+
+
+def allocated_stock_has(conn: sqlite3.Connection, kind: str, row: sqlite3.Row) -> Decimal:
+    total = ZERO
+    for part in allocation_rows(conn, kind, row["id"]):
+        purchase = conn.execute(f"SELECT gram,has FROM {'alis' if kind == 'normal' else 'hurda'} WHERE id=?", (part["purchase_id"],)).fetchone()
+        total += d(part["gram"]) * d(purchase["has"]) / d(purchase["gram"]) if purchase and d(purchase["gram"]) else d(part["has"])
+    return total
+
+
+def allocated_milyem(conn: sqlite3.Connection, kind: str, row: sqlite3.Row) -> Decimal:
+    return sum((d(part["gram"]) * d(part["milyem"]) for part in allocation_rows(conn, kind, row["id"])), ZERO) / d(row["gram"]) if d(row["gram"]) else ZERO
+
+
+def stock_lots(conn: sqlite3.Connection, kind: str, cinsi: str, ayar: str, exclude_id: int | None = None) -> list[tuple[sqlite3.Row, Decimal]]:
+    table = "alis" if kind == "normal" else "hurda"
+    same = lambda row: normalize_text(row["cinsi"]) == normalize_text(cinsi) and normalize_text(row["ayar"]) == normalize_text(ayar)
+    purchases = sorted((row for row in fetch_all(conn, table) if same(row) and ((kind == "normal" and not is_hurda_product(row["cinsi"])) or (kind == "hurda" and row["islem_turu"] == "ALIS"))), key=lambda row: (row["tarih"], row["id"]))
+    sales = [row for row in fetch_all(conn, "satis" if kind == "normal" else "hurda") if same(row) and row["id"] != exclude_id and (kind == "normal" or row["islem_turu"] == "SATIS")]
+    ids = {row["id"] for row in purchases}
+    unlinked = sum((d(row["gram"]) for row in sales if not row["stoktan"] and (sale_purchase_id(row) if kind == "normal" else row["hurda_alis_id"]) not in ids), ZERO)
+    available = max(sum((d(row["gram"]) for row in purchases), ZERO) - sum((d(row["gram"]) for row in sales), ZERO), ZERO)
+    result = []
+    for purchase in purchases:
+        remaining = purchase_remaining(conn, purchase, exclude_id) if kind == "normal" else hurda_purchase_remaining(conn, purchase, exclude_id)
+        free = max(remaining["kalan_gram"], ZERO)
+        consume = min(free, unlinked)
+        unlinked -= consume
+        free = min(free - consume, available)
+        if free > 0:
+            result.append((purchase, free))
+            available -= free
+    return result
+
+
+def plan_stock_sale(conn: sqlite3.Connection, kind: str, payload: BaseTransaction, exclude_id: int | None = None) -> list[dict[str, Any]]:
+    if exclude_id:
+        old = conn.execute(f"SELECT * FROM {'satis' if kind == 'normal' else 'hurda'} WHERE id=?", (exclude_id,)).fetchone()
+        if old and old["stoktan"] and d(old["gram"]) == d(payload.gram) and normalize_text(old["cinsi"]) == normalize_text(payload.cinsi) and normalize_text(old["ayar"]) == normalize_text(payload.ayar):
+            saved = allocation_rows(conn, kind, exclude_id)
+            if saved and sum((d(part["gram"]) for part in saved), ZERO) == d(payload.gram):
+                return [{"purchase_id": part["purchase_id"], **{key: d(part[key]) for key in ("gram", "has", "cost", "milyem")}} for part in saved]
+    needed = d(payload.gram)
+    if needed <= 0:
+        raise HTTPException(status_code=400, detail="Satis grami sifirdan buyuk olmali.")
+    plan = []
+    for purchase, free in stock_lots(conn, kind, payload.cinsi, payload.ayar, exclude_id):
+        take = min(needed, free)
+        total = purchase_total(purchase) if kind == "normal" else scrap_total(purchase)
+        plan.append({"purchase_id": purchase["id"], "gram": take, "has": take * d(purchase["has"]) / d(purchase["gram"]), "cost": take * total / d(purchase["gram"]), "milyem": d(purchase["milyem"])})
+        needed -= take
+        if needed == 0:
+            return plan
+    raise HTTPException(status_code=400, detail="STOK YETERSIZ")
+
+
+def save_stock_plan(conn: sqlite3.Connection, kind: str, sale_id: int, plan: list[dict[str, Any]]) -> None:
+    conn.execute("DELETE FROM sale_allocations WHERE kind=? AND sale_id=?", (kind, sale_id))
+    conn.executemany("INSERT INTO sale_allocations(kind,sale_id,purchase_id,gram,has,cost,milyem) VALUES(?,?,?,?,?,?,?)", [(kind,sale_id,part["purchase_id"],str(part["gram"]),str(part["has"]),str(part["cost"]),str(part["milyem"])) for part in plan])
+    conn.execute(f"UPDATE {'satis' if kind == 'normal' else 'hurda'} SET stoktan=? WHERE id=?", (int(bool(plan)), sale_id))
+
+
+def stock_options(conn: sqlite3.Connection, kind: str, exclude_id: int | None = None) -> list[dict[str, Any]]:
+    purchases = fetch_all(conn, "alis" if kind == "normal" else "hurda")
+    groups = {(normalize_text(row["cinsi"]), normalize_text(row["ayar"])): (normalize_product(row["cinsi"]), clean_text(row["ayar"])) for row in purchases if (kind == "normal" and not is_hurda_product(row["cinsi"])) or (kind == "hurda" and row["islem_turu"] == "ALIS")}
+    result = []
+    for cinsi, ayar in sorted(groups.values()):
+        lots = stock_lots(conn, kind, cinsi, ayar, exclude_id)
+        grams = sum((free for _, free in lots), ZERO)
+        if grams <= 0:
+            continue
+        has = sum((free * d(row["has"]) / d(row["gram"]) for row, free in lots), ZERO)
+        milyem = sum((free * d(row["milyem"]) for row, free in lots), ZERO) / grams
+        result.append({"cinsi": cinsi, "ayar": ayar, "stoktan": True, "kalan_gram": as_float(grams, NUM_Q), "kalan_has": as_float(has, HAS_Q), "alis_milyem": as_float(milyem, NUM_Q), "kaynaklar": [{"gram": as_float(free, NUM_Q), "milyem": as_float(row["milyem"], NUM_Q)} for row, free in lots]})
+    return result
+
+
 def purchase_remaining(conn: sqlite3.Connection, alis: sqlite3.Row, exclude_sale_id: int | None = None) -> dict[str, Decimal]:
     params: list[Any] = [alis["id"]]
     extra = ""
@@ -785,10 +891,11 @@ def purchase_remaining(conn: sqlite3.Connection, alis: sqlite3.Row, exclude_sale
         extra = " AND id != ?"
         params.append(exclude_sale_id)
     sold = conn.execute(
-        f"SELECT COALESCE(SUM(gram),0) gram, COALESCE(SUM(has),0) has FROM satis WHERE COALESCE(purchase_id, alis_id) = ?{extra}",
+        f"SELECT COALESCE(SUM(gram),0) gram, COALESCE(SUM(has),0) has FROM satis WHERE stoktan = 0 AND COALESCE(purchase_id, alis_id) = ?{extra}",
         params,
     ).fetchone()
-    kalan_gram = q(row_total_gram(alis) - d(sold["gram"]), NUM_Q)
+    allocated = allocation_used_gram(conn, "normal", alis["id"], exclude_sale_id)
+    kalan_gram = q(row_total_gram(alis) - d(sold["gram"]) - allocated, NUM_Q)
     return {
         "kalan_gram": kalan_gram,
         "kalan_has": q(kalan_gram * d(alis["has"]) / row_total_gram(alis), HAS_Q) if row_total_gram(alis) > 0 else ZERO,
@@ -826,7 +933,7 @@ def stock_items(conn: sqlite3.Connection) -> list[dict[str, Any]]:
         item["satis_has"] += d(row["has"])
         purchase = purchases_by_id.get(sale_purchase_id(row))
         original_ratio = d(purchase["has"]) / row_total_gram(purchase) if purchase and row_total_gram(purchase) > 0 else (item["alis_has"] / item["alis_gram"] if item["alis_gram"] > 0 else ZERO)
-        item["satis_stok_has"] += row_total_gram(row) * original_ratio
+        item["satis_stok_has"] += allocated_stock_has(conn, "normal", row) if row["stoktan"] else row_total_gram(row) * original_ratio
         item["satilan_maliyet"] += sale_purchase_cost(conn, row)
 
     result = []
@@ -849,10 +956,11 @@ def hurda_purchase_remaining(conn: sqlite3.Connection, hurda_alis: sqlite3.Row, 
         extra = " AND id != ?"
         params.append(exclude_id)
     sold = conn.execute(
-        f"SELECT COALESCE(SUM(gram),0) gram, COALESCE(SUM(has),0) has FROM hurda WHERE islem_turu = 'SATIS' AND hurda_alis_id = ?{extra}",
+        f"SELECT COALESCE(SUM(gram),0) gram, COALESCE(SUM(has),0) has FROM hurda WHERE islem_turu = 'SATIS' AND stoktan = 0 AND hurda_alis_id = ?{extra}",
         params,
     ).fetchone()
-    kalan_gram = q(row_total_gram(hurda_alis) - d(sold["gram"]), NUM_Q)
+    allocated = allocation_used_gram(conn, "hurda", hurda_alis["id"], exclude_id)
+    kalan_gram = q(row_total_gram(hurda_alis) - d(sold["gram"]) - allocated, NUM_Q)
     return {
         "kalan_gram": kalan_gram,
         "kalan_has": q(kalan_gram * d(hurda_alis["has"]) / row_total_gram(hurda_alis), HAS_Q) if row_total_gram(hurda_alis) > 0 else ZERO,
@@ -880,7 +988,9 @@ def hurda_stock_items(conn: sqlite3.Connection) -> list[dict[str, Any]]:
             item["hurda_satis_gram"] += row_total_gram(row)
             item["hurda_satis_has"] += d(row["has"])
             purchase = purchases_by_id.get(row["hurda_alis_id"])
-            if purchase and row_total_gram(purchase) > 0:
+            if row["stoktan"]:
+                item["satis_stok_has"] += allocated_stock_has(conn, "hurda", row)
+            elif purchase and row_total_gram(purchase) > 0:
                 item["satis_stok_has"] += row_total_gram(row) * d(purchase["has"]) / row_total_gram(purchase)
             else:
                 item["unlinked_satis_gram"] += row_total_gram(row)
@@ -1143,6 +1253,8 @@ def cari_data(conn: sqlite3.Connection) -> dict[str, Any]:
     }
 
 def sale_purchase_cost(conn: sqlite3.Connection, row: sqlite3.Row) -> Decimal:
+    if row["stoktan"]:
+        return q(allocated_value(conn, "normal", row, "cost"), MONEY_Q)
     alis = conn.execute("SELECT * FROM alis WHERE id = ?", (sale_purchase_id(row),)).fetchone()
     if alis and row_total_gram(alis) > 0:
         return q(purchase_total(alis) * row_total_gram(row) / row_total_gram(alis), MONEY_Q)
@@ -1152,6 +1264,8 @@ def sale_purchase_cost(conn: sqlite3.Connection, row: sqlite3.Row) -> Decimal:
 
 
 def sale_profit(conn: sqlite3.Connection, row: sqlite3.Row) -> Decimal:
+    if row["stoktan"]:
+        return q(d(row["gram"]) * (d(row["milyem"]) - allocated_milyem(conn, "normal", row)) / Decimal("1000"), HAS_Q)
     purchase_id = sale_purchase_id(row)
     if not purchase_id:
         return ZERO
@@ -1165,12 +1279,12 @@ def sale_profit(conn: sqlite3.Connection, row: sqlite3.Row) -> Decimal:
 def sale_metrics(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, Any]:
     purchase_id = sale_purchase_id(row)
     alis = conn.execute("SELECT * FROM alis WHERE id = ?", (purchase_id,)).fetchone() if purchase_id else None
-    if not alis:
+    if not alis and not row["stoktan"]:
         return {
             "alis_milyem": 0.0, "satis_milyem": as_float(row["milyem"], NUM_Q), "milyem_farki": 0.0,
             "satis_has": as_float(row["has"], HAS_Q), "has_kari": 0.0, "milyem_kari": 0.0, "tahmini_kar": 0.0,
         }
-    alis_milyem = d(alis["milyem"])
+    alis_milyem = allocated_milyem(conn, "normal", row) if row["stoktan"] else d(alis["milyem"])
     satis_milyem = d(row["milyem"])
     fark = satis_milyem - alis_milyem
     has_kari = q(row_total_gram(row) * fark / Decimal("1000"), HAS_Q)
@@ -1199,9 +1313,13 @@ def sale_out(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, Any]:
     item["alis_maliyeti"] = as_float(sale_purchase_cost(conn, row))
     item["brut_kar"] = as_float(sale_total(row) - sale_purchase_cost(conn, row))
     item["uyari"] = ""
+    if row["stoktan"]:
+        item["stok_dagilimi"] = [dict(part) for part in allocation_rows(conn, "normal", row["id"])]
     return item
 
 def hurda_profit(conn: sqlite3.Connection, row: sqlite3.Row) -> Decimal:
+    if row["stoktan"] and row["islem_turu"] == "SATIS":
+        return q(scrap_total(row) - allocated_value(conn, "hurda", row, "cost"), MONEY_Q)
     if row["islem_turu"] != "SATIS":
         return ZERO
     alis = conn.execute("SELECT * FROM hurda WHERE id = ? AND islem_turu = 'ALIS'", (row["hurda_alis_id"],)).fetchone() if "hurda_alis_id" in row.keys() and row["hurda_alis_id"] else None
@@ -1228,6 +1346,11 @@ def hurda_out(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, Any]:
     item["kalan_has"] = as_float(rem["kalan_has"], HAS_Q)
 
     alis_milyem = d(linked["milyem"]) if linked else (d(row["milyem"]) if row["islem_turu"] == "ALIS" else ZERO)
+    if row["stoktan"] and row["islem_turu"] == "SATIS":
+        alis_milyem = allocated_milyem(conn, "hurda", row)
+        stock = hurda_stock_lookup(conn).get((normalize_text(row["cinsi"]), normalize_text(row["ayar"])), {})
+        item["kalan_gram"] = stock.get("kalan_gram", 0)
+        item["kalan_has"] = stock.get("kalan_has", 0)
     satis_milyem = d(row["milyem"]) if row["islem_turu"] == "SATIS" else ZERO
     milyem_farki = satis_milyem - alis_milyem if row["islem_turu"] == "SATIS" else ZERO
     milyem_kari = q(row_total_gram(row) * milyem_farki / Decimal("1000"), HAS_Q) if row["islem_turu"] == "SATIS" else ZERO
@@ -1236,6 +1359,8 @@ def hurda_out(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, Any]:
     item["milyem_farki"] = as_float(milyem_farki, NUM_Q)
     item["milyem_kari"] = as_float(milyem_kari, HAS_Q)
     item["has_kari"] = item["milyem_kari"]
+    if row["stoktan"]:
+        item["stok_dagilimi"] = [dict(part) for part in allocation_rows(conn, "hurda", row["id"])]
     return item
 
 
@@ -1415,8 +1540,11 @@ def list_satis(_: None = Depends(require_auth)) -> dict[str, Any]:
 def create_satis(payload: SatisIn, _: None = Depends(require_auth)) -> dict[str, Any]:
     has = calc_has(payload.adet, payload.gram, payload.milyem)
     paid_has = calc_transaction_payment(payload.odeme_tipi, payload.odenen_has, payload.odenen_adet, payload.odenen_gram, payload.odenen_milyem, has)
-    with db() as conn:
-        alis = ensure_sale_stock(conn, payload, has)
+    with db(write=True) as conn:
+        plan = plan_stock_sale(conn, "normal", payload) if payload.stoktan else []
+        if payload.stoktan:
+            payload.alis_id = None
+        alis = conn.execute("SELECT * FROM alis WHERE id=?", (plan[0]["purchase_id"],)).fetchone() if plan else ensure_sale_stock(conn, payload, has)
         if d(payload.has_fiyati) == 0:
             payload.has_fiyati = d(alis["has_fiyati"])
         cur = conn.execute(
@@ -1433,6 +1561,7 @@ def create_satis(payload: SatisIn, _: None = Depends(require_auth)) -> dict[str,
                 payload.alis_id, payload.alis_id, payload.odeme_tipi, float(paid_has), float(payload.odenen_adet), float(payload.odenen_gram), float(payload.odenen_milyem),
             ),
         )
+        save_stock_plan(conn, "normal", cur.lastrowid, plan)
         row = conn.execute("SELECT * FROM satis WHERE id = ?", (cur.lastrowid,)).fetchone()
         return ok(sale_out(conn, row), "Satis kaydedildi.")
 
@@ -1481,8 +1610,12 @@ def create_hurda(payload: HurdaIn, _: None = Depends(require_auth)) -> dict[str,
     has = calc_has(payload.adet, payload.gram, payload.milyem)
     paid_has = calc_transaction_payment(payload.odeme_tipi, payload.odenen_has, payload.odenen_adet, payload.odenen_gram, payload.odenen_milyem, has)
     total = q(has * payload.has_fiyati + payload.iscilik, MONEY_Q)
-    with db() as conn:
-        ensure_hurda_stock(conn, payload, has)
+    with db(write=True) as conn:
+        plan = plan_stock_sale(conn, "hurda", payload) if payload.stoktan and payload.islem_turu == "SATIS" else []
+        if plan:
+            payload.hurda_alis_id = None
+        else:
+            ensure_hurda_stock(conn, payload, has)
         cur = conn.execute(
             """
             INSERT INTO hurda (hurda_alis_id, tarih, islem_turu, kisi, cinsi, ayar, adet, gram, milyem,
@@ -1498,8 +1631,21 @@ def create_hurda(payload: HurdaIn, _: None = Depends(require_auth)) -> dict[str,
                 payload.odeme_tipi, float(paid_has), float(payload.odenen_adet), float(payload.odenen_gram), float(payload.odenen_milyem),
             ),
         )
+        save_stock_plan(conn, "hurda", cur.lastrowid, plan)
         row = conn.execute("SELECT * FROM hurda WHERE id = ?", (cur.lastrowid,)).fetchone()
         return ok(hurda_out(conn, row), "Hurda kaydedildi.")
+@app.get("/api/stok/normal/secenekler")
+def normal_stock_options(exclude_sale_id: int | None = None, _: None = Depends(require_auth)) -> dict[str, Any]:
+    with db() as conn:
+        return ok(stock_options(conn, "normal", exclude_sale_id))
+
+
+@app.get("/api/stok/hurda/secenekler")
+def scrap_stock_options(exclude_sale_id: int | None = None, _: None = Depends(require_auth)) -> dict[str, Any]:
+    with db() as conn:
+        return ok(stock_options(conn, "hurda", exclude_sale_id))
+
+
 @app.get("/api/stok")
 def list_stock(_: None = Depends(require_auth)) -> dict[str, Any]:
     with db() as conn:
@@ -1615,7 +1761,13 @@ def rename_cari_person(payload: CariRenameIn, _: None = Depends(require_auth)) -
 @app.post("/api/cari/kisi/sil")
 def delete_cari_person(payload: CariDeleteIn, _: None = Depends(require_auth)) -> dict[str, Any]:
     key = normalize_text(payload.isim)
-    with db() as conn:
+    with db(write=True) as conn:
+        for allocation in conn.execute("SELECT * FROM sale_allocations").fetchall():
+            table, source_name, sale_name = ("alis", "tedarikci", "musteri") if allocation["kind"] == "normal" else ("hurda", "kisi", "kisi")
+            purchase = conn.execute(f"SELECT * FROM {table} WHERE id=?", (allocation["purchase_id"],)).fetchone()
+            sale = conn.execute(f"SELECT * FROM {'satis' if allocation['kind'] == 'normal' else 'hurda'} WHERE id=?", (allocation["sale_id"],)).fetchone()
+            if purchase and sale and normalize_text(purchase[source_name]) == key and normalize_text(sale[sale_name]) != key:
+                raise HTTPException(status_code=400, detail="Bu carinin stoktan satislarda kullanilan alislari var; once ilgili satislari kontrol edin.")
         deleted = 0
         for table, col in (("alis", "tedarikci"), ("satis", "musteri"), ("hurda", "kisi"), ("cari_odeme", "isim")):
             rows = conn.execute(f"SELECT id, {col} FROM {table}").fetchall()
@@ -1820,11 +1972,11 @@ def restore_latest_backup(_: None = Depends(require_auth)) -> dict[str, Any]:
 def update_alis(item_id: int, payload: AlisIn, _: None = Depends(require_auth)) -> dict[str, Any]:
     has = calc_has(payload.adet, payload.gram, payload.milyem)
     paid_has = calc_transaction_payment(payload.odeme_tipi, payload.odenen_has, payload.odenen_adet, payload.odenen_gram, payload.odenen_milyem, has)
-    with db() as conn:
+    with db(write=True) as conn:
         existing = conn.execute("SELECT * FROM alis WHERE id = ?", (item_id,)).fetchone()
         if not existing:
             raise HTTPException(status_code=404, detail="Kayit bulunamadi.")
-        sold_gram = d(conn.execute("SELECT COALESCE(SUM(gram),0) FROM satis WHERE COALESCE(purchase_id, alis_id) = ?", (item_id,)).fetchone()[0])
+        sold_gram = d(existing["gram"]) - purchase_remaining(conn, existing)["kalan_gram"]
         has_linked_sale = sold_gram > 0
         if has_linked_sale and (normalize_text(existing["cinsi"]) != normalize_text(payload.cinsi) or normalize_text(existing["ayar"]) != normalize_text(payload.ayar)):
             raise HTTPException(status_code=400, detail="Bu alis kaydina bagli satis var; cinsi veya ayar degistirilemez.")
@@ -1860,11 +2012,14 @@ def update_alis(item_id: int, payload: AlisIn, _: None = Depends(require_auth)) 
 def update_satis(item_id: int, payload: SatisIn, _: None = Depends(require_auth)) -> dict[str, Any]:
     has = calc_has(payload.adet, payload.gram, payload.milyem)
     paid_has = calc_transaction_payment(payload.odeme_tipi, payload.odenen_has, payload.odenen_adet, payload.odenen_gram, payload.odenen_milyem, has)
-    with db() as conn:
+    with db(write=True) as conn:
         existing = conn.execute("SELECT * FROM satis WHERE id = ?", (item_id,)).fetchone()
         if not existing:
             raise HTTPException(status_code=404, detail="Kayit bulunamadi.")
-        alis = ensure_sale_stock(conn, payload, has, item_id)
+        plan = plan_stock_sale(conn, "normal", payload, item_id) if payload.stoktan else []
+        if payload.stoktan:
+            payload.alis_id = None
+        alis = conn.execute("SELECT * FROM alis WHERE id=?", (plan[0]["purchase_id"],)).fetchone() if plan else ensure_sale_stock(conn, payload, has, item_id)
         if d(payload.has_fiyati) == 0 and d(payload.iscilik) == 0 and d(payload.ek_ucret) == 0 and d(payload.indirim) == 0 and d(payload.alinan) == 0:
             payload.has_fiyati = d(existing["has_fiyati"])
             payload.iscilik = d(existing["iscilik"])
@@ -1889,22 +2044,33 @@ def update_satis(item_id: int, payload: SatisIn, _: None = Depends(require_auth)
         )
         if cur.rowcount == 0:
             raise HTTPException(status_code=404, detail="Kayit bulunamadi.")
+        save_stock_plan(conn, "normal", item_id, plan)
         row = conn.execute("SELECT * FROM satis WHERE id = ?", (item_id,)).fetchone()
         return ok(sale_out(conn, row), "Satis gncellendi.")
 @app.put("/api/hurda/{item_id}")
 def update_hurda(item_id: int, payload: HurdaIn, _: None = Depends(require_auth)) -> dict[str, Any]:
     has = calc_has(payload.adet, payload.gram, payload.milyem)
     paid_has = calc_transaction_payment(payload.odeme_tipi, payload.odenen_has, payload.odenen_adet, payload.odenen_gram, payload.odenen_milyem, has)
-    with db() as conn:
+    with db(write=True) as conn:
         existing = conn.execute("SELECT * FROM hurda WHERE id = ?", (item_id,)).fetchone()
         if not existing:
             raise HTTPException(status_code=404, detail="Kayit bulunamadi.")
+        if payload.islem_turu != existing["islem_turu"]:
+            raise HTTPException(status_code=400, detail="Kayit duzenlerken alis/satis turu degistirilemez.")
+        if existing["islem_turu"] == "ALIS":
+            used = d(existing["gram"]) - hurda_purchase_remaining(conn, existing)["kalan_gram"]
+            if used > 0 and (payload.islem_turu != "ALIS" or normalize_text(existing["cinsi"]) != normalize_text(payload.cinsi) or normalize_text(existing["ayar"]) != normalize_text(payload.ayar) or d(payload.gram) < used):
+                raise HTTPException(status_code=400, detail="Bu hurda alisina bagli satis var; urun veya satilan gram korunmali.")
         if d(payload.has_fiyati) == 0 and d(payload.iscilik) == 0 and d(payload.odenen_veya_alinan) == 0:
             payload.has_fiyati = d(existing["has_fiyati"])
             payload.iscilik = d(existing["iscilik"])
             payload.odenen_veya_alinan = d(existing["odenen_veya_alinan"])
         total = q(has * payload.has_fiyati + payload.iscilik, MONEY_Q)
-        ensure_hurda_stock(conn, payload, has, item_id)
+        plan = plan_stock_sale(conn, "hurda", payload, item_id) if payload.stoktan and payload.islem_turu == "SATIS" else []
+        if plan:
+            payload.hurda_alis_id = None
+        else:
+            ensure_hurda_stock(conn, payload, has, item_id)
         cur = conn.execute(
             """
             UPDATE hurda
@@ -1921,6 +2087,7 @@ def update_hurda(item_id: int, payload: HurdaIn, _: None = Depends(require_auth)
         )
         if cur.rowcount == 0:
             raise HTTPException(status_code=404, detail="Kayit bulunamadi.")
+        save_stock_plan(conn, "hurda", item_id, plan)
         row = conn.execute("SELECT * FROM hurda WHERE id = ?", (item_id,)).fetchone()
         return ok(hurda_out(conn, row), "Hurda gncellendi.")
 @app.delete("/api/alis/{item_id}")
@@ -1941,15 +2108,17 @@ def delete_hurda_item(item_id: int, _: None = Depends(require_auth)) -> dict[str
 def delete_item(table: str, item_id: int, _: None = Depends(require_auth)) -> dict[str, Any]:
     if table not in {"alis", "satis", "hurda"}:
         raise HTTPException(status_code=404, detail="Tablo bulunamad\u0131.")
-    with db() as conn:
+    with db(write=True) as conn:
         if table == "alis":
             linked = conn.execute("SELECT COUNT(*) count FROM satis WHERE COALESCE(purchase_id, alis_id) = ?", (item_id,)).fetchone()["count"]
+            linked += conn.execute("SELECT COUNT(*) FROM sale_allocations WHERE kind='normal' AND purchase_id=?", (item_id,)).fetchone()[0]
             if linked:
                 raise HTTPException(status_code=400, detail="Bu al\u0131\u015f kayd\u0131na ba\u011fl\u0131 sat\u0131\u015f var. \u00d6nce ilgili sat\u0131\u015f\u0131 silin.")
         if table == "hurda":
             row = conn.execute("SELECT islem_turu FROM hurda WHERE id = ?", (item_id,)).fetchone()
             if row and row["islem_turu"] == "ALIS":
                 linked = conn.execute("SELECT COUNT(*) count FROM hurda WHERE islem_turu = 'SATIS' AND hurda_alis_id = ?", (item_id,)).fetchone()["count"]
+                linked += conn.execute("SELECT COUNT(*) FROM sale_allocations WHERE kind='hurda' AND purchase_id=?", (item_id,)).fetchone()[0]
                 if linked:
                     raise HTTPException(status_code=400, detail="Bu hurda al\u0131\u015f kayd\u0131na ba\u011fl\u0131 hurda sat\u0131\u015f var. \u00d6nce ilgili hurda sat\u0131\u015f\u0131 silin.")
         cur = conn.execute(f"DELETE FROM {table} WHERE id = ?", (item_id,))

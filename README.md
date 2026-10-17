@@ -207,3 +207,15 @@ kayitlari koruyarak guncelleme adimlari MAC_KURULUM.txt icindedir.
 
 Sidebar logosu acik/koyu tema dugmesidir. Tema yalnizca renkleri degistirir;
 doldurulmus formu, secilen urunu ve finansal hesaplamalari degistirmez.
+
+## Toplam stoktan satis ve mevcut veriler
+
+Normal ve hurda satis ayni cins/ayarin toplam gram stokundan secilir.
+Yeni satislar FIFO ile birden fazla alisa dagitilabilir; tek satis kaydi,
+dogru gram cikisi ve agirlikli milyem kari korunur. Dagilim miktari ve maliyet
+bilgisi SQLite icinde satisla birlikte tek transaction'da saklanir.
+
+Schema 5, mevcut tablolara stoktan satis isareti ve ayri dagilim tablosu ekler.
+Schema 4 kayitlari yeniden yazilmaz veya otomatik olarak FIFO'ya cevrilmez.
+Guncelleme oncesi veritabani yedeklenir. Kurulum ve guvenli guncelleme icin
+GUNCELLEME.txt dosyasini izleyin; Application Support klasorunu silmeyin.

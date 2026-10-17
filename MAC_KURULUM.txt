@@ -29,3 +29,9 @@ normal + hurda milyem karinin has karsiligindan duserek net kari verir.
 TEMA
 Sidebar logosuna tiklamak acik/koyu temayi degistirir.
 Tum sayfalar, formlar, tablolar ve popup pencereleri ayni temayi kullanir.
+
+STOKTAN SATIS GUNCELLEMESI
+Normal ve hurda satis, ayni cins/ayarin toplam stokundan secilir.
+Bir satis farkli tedarikcilerin birden fazla alisindan karsilanabilir.
+Maliyet ve milyem kari icin en eski alistan baslayan FIFO dagilimi kullanilir.
+Mevcut kayitli musteride GUNCELLEME.txt adimlarini izleyin; veri silinmez.

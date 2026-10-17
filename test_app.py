@@ -449,7 +449,7 @@ def test_frontend_layout_tabs_columns_and_confirmations():
         assert removed not in alis_form
     for removed in ["has_fiyati", "iscilik", "ek_ucret", "indirim", "alinan"]:
         assert removed not in satis_form
-    assert 'form.elements.satis_milyem.value = ""' in app_js
+    assert 'saleMilyem.value = ""' in app_js
     assert "form.elements.satis_milyem.value = row.alis_milyem" not in app_js
     assert "form.elements.milyem.value = row.milyem" not in app_js
     assert "Sat\\u0131\\u015f Milyem" in app_js

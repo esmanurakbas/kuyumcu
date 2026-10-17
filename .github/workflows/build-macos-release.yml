@@ -58,6 +58,7 @@ jobs:
           cp -R "dist/Kuyumcu Takip.app" dmg-root/
           ln -s /Applications dmg-root/Applications
           cp MAC_KURULUM.txt dmg-root/KURULUM.txt
+          cp GUNCELLEME.txt dmg-root/GUNCELLEME.txt
           printf 'Version: %s\nCommit: %s\nArchitecture: %s\n' "$GITHUB_REF_NAME" "$GITHUB_SHA" "${{ matrix.arch }}" > dmg-root/SURUM.txt
           hdiutil create \
             -volname "Kuyumcu Takip" \
