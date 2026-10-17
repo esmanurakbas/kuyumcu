@@ -139,13 +139,20 @@ def run(chrome: Path) -> None:
             assert cdp.evaluate("document.querySelectorAll('#content .cari-net-balance.neg').length === 1")
             assert cdp.evaluate("document.querySelectorAll('#content .cari-net-balance.balance-zero').length === 1")
             assert cdp.evaluate("document.querySelector('#content .balance-zero').classList.contains('pos') === false")
+            assert cdp.evaluate("[...document.querySelectorAll('#content .cari-detail-btn')].every(button=>button.querySelector('svg') && button.getAttribute('aria-label') && !button.textContent.trim())")
             cdp.evaluate("document.querySelector('#content .cari-detail-btn').click()")
             cdp.wait_for("document.querySelector('[data-table-type=cariHistory] tbody') !== null")
+            assert cdp.evaluate("document.querySelector('.cari-detail-close svg') !== null && document.querySelector('.cari-detail-close').getAttribute('aria-label') !== null")
+            assert cdp.evaluate("getComputedStyle(document.querySelector('.cari-detail-close')).position === 'absolute'")
             assert cdp.evaluate("document.querySelector('.cari-detail-modal h2').textContent === 'ARANACAK TEDARIKCI'")
             assert cdp.evaluate("document.querySelectorAll('[data-table-type=cariHistory] tbody tr').length === 5")
             assert cdp.evaluate("new Set([...document.querySelectorAll('[data-table-type=cariHistory] [data-col=hareket]')].map(td=>td.textContent)).size === 4")
             cdp.evaluate("document.querySelector('.cari-detail-modal button').click()")
             assert cdp.evaluate("document.querySelector('.cari-detail-modal') === null")
+            cdp.evaluate("document.querySelector('#content .kebab-btn').click()")
+            assert cdp.evaluate("document.querySelector('.cari-actions-modal .cari-dialog-close svg') !== null")
+            cdp.evaluate("document.querySelector('.cari-actions-modal .cari-dialog-close').click()")
+            assert cdp.evaluate("document.querySelector('.cari-actions-modal') === null")
             for filter_name, table_type in [("musteri", "musteriCari"), ("tedarikci", "tedarikciCari"), ("odeme", "cariOdeme"), ("all", "kisiCari")]:
                 cdp.evaluate(f"document.querySelector('[data-filter={filter_name}]').click()")
                 cdp.wait_for(f"document.querySelector('[data-table-type={table_type}] tbody') !== null")
@@ -153,6 +160,11 @@ def run(chrome: Path) -> None:
                 assert cdp.evaluate("[...document.querySelectorAll('#content tbody tr')].every(row=>row.querySelector('.cari-detail-btn'))"), filter_name
                 if filter_name == "musteri":
                     assert cdp.evaluate("columns.musteriCari.includes('toplam_alis_has') === false")
+                if filter_name == "odeme":
+                    cdp.evaluate("document.querySelector('#content .icon-edit').click()")
+                    assert cdp.evaluate("document.querySelector('.cari-person-modal .cari-dialog-close svg') !== null")
+                    cdp.evaluate("document.querySelector('.cari-person-modal .cari-dialog-close').click()")
+                    assert cdp.evaluate("document.querySelector('.cari-person-modal') === null")
                 if filter_name == "tedarikci":
                     assert cdp.evaluate("document.querySelectorAll('#content tbody tr').length === 1")
             accounts_after = cdp.evaluate("fetch('/api/cari').then(r=>r.json()).then(r=>JSON.stringify(r.data))", await_promise=True)
@@ -270,8 +282,25 @@ def run(chrome: Path) -> None:
             cdp.wait_for("document.querySelector('.expenses-layout>.expense-profit-summary').getBoundingClientRect().top >= document.querySelector('.expenses-main').getBoundingClientRect().bottom")
             assert cdp.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), "Expense page overflows mobile width"
             cdp.evaluate("document.querySelector('[data-view=dashboard]').click()")
-            cdp.wait_for("document.querySelector('.dashboard-root')?.firstElementChild.classList.contains('dashboard-hero')")
+            cdp.wait_for("document.querySelector('.dashboard-root')?.firstElementChild.classList.contains('dashboard-kpis')")
             assert cdp.evaluate("document.querySelectorAll('.dashboard-root .expense-profit-summary').length === 0")
+            assert cdp.evaluate("document.querySelector('.dashboard-hero') === null")
+            assert cdp.evaluate("document.querySelectorAll('.dashboard-kpis>.metric-card').length === 4")
+            assert cdp.evaluate("getComputedStyle(document.querySelector('.dashboard-columns')).gridTemplateColumns.split(' ').length === 1")
+            assert cdp.evaluate("document.documentElement.scrollWidth <= innerWidth"), "Dashboard overflows mobile width"
+            dashboard_before_layout = cdp.evaluate("fetch('/api/dashboard').then(r=>r.json()).then(r=>JSON.stringify(r.data))", await_promise=True)
+            for width, height in [(1366, 768), (1280, 720)]:
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": height, "deviceScaleFactor": 1, "mobile": False})
+                assert cdp.evaluate("new Set([...document.querySelectorAll('.dashboard-kpis>.metric-card')].map(card=>Math.round(card.getBoundingClientRect().top))).size === 1"), (width, "KPIs must share one row")
+                assert cdp.evaluate("new Set([...document.querySelectorAll('.dashboard-columns>section')].map(panel=>Math.round(panel.getBoundingClientRect().top))).size === 1"), (width, "Panels must share one row")
+                assert cdp.evaluate("document.querySelector('#content').scrollHeight <= document.querySelector('#content').clientHeight+1"), (width, "Dashboard requires vertical scrolling")
+                assert cdp.evaluate("document.documentElement.scrollWidth <= innerWidth"), (width, "Dashboard horizontal overflow")
+            if os.getenv("UI_DASHBOARD_SCREENSHOT_PATH"):
+                import base64
+                screenshot = cdp.call("Page.captureScreenshot", {"format": "png", "captureBeyondViewport": True})
+                Path(os.environ["UI_DASHBOARD_SCREENSHOT_PATH"]).write_bytes(base64.b64decode(screenshot["data"]))
+            dashboard_after_layout = cdp.evaluate("fetch('/api/dashboard').then(r=>r.json()).then(r=>JSON.stringify(r.data))", await_promise=True)
+            assert dashboard_before_layout == dashboard_after_layout, "Dashboard layout changed financial values"
             print("UI smoke test passed: passwordless entry, all pages, original forms and columns, no added currency labels, expense create/edit, dashboard totals")
         finally:
             browser.terminate()

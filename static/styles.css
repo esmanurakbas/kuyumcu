@@ -3156,7 +3156,7 @@ button.secondary:hover {
 .cari-table .cari-net-balance { font-size: 16px; font-weight: 800; white-space: nowrap; }
 .cari-table .balance-zero, .cari-detail-balance.balance-zero { color: var(--muted); }
 .cari-table .actions-cell { gap: 10px; min-width: 120px; white-space: nowrap; }
-.cari-detail-btn { padding: 7px 12px; font-size: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 7px; }
+.cari-detail-btn { width: 32px; height: 32px; padding: 6px; }
 .cari-detail-box { width: min(1050px, 96vw); }
 .cari-detail-box .modal-title { gap: 20px; align-items: center; }
 .cari-detail-box .modal-title h2 { margin: 0; overflow-wrap: anywhere; }
@@ -3166,3 +3166,41 @@ button.secondary:hover {
   .cari-detail-body .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .cari-table .cari-net-balance { font-size: 17px; }
 }
+
+
+/* Compact dashboard: preserve values, reduce hierarchy and whitespace. */
+.dashboard-root.dashboard-compact { display: grid; gap: 12px; }
+.dashboard-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.dashboard-kpis .metric-card { min-height: 88px; padding: 11px 13px; gap: 4px; justify-content: flex-start; }
+.dashboard-kpis .metric-card > span { font-size: 12px; line-height: 1.35; }
+.dashboard-kpis .metric-card > strong { font-size: 25px; }
+.dashboard-kpis .metric-card > small { font-size: 11px; font-weight: 500; }
+.dashboard-columns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.dashboard-compact-panel { min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); }
+.dashboard-compact-panel > h2 { margin: 0 0 8px; padding-bottom: 9px; border-bottom: 1px solid var(--line); font-size: 16px; }
+.dashboard-data-list { margin: 0; }
+.dashboard-data-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid rgba(221,214,200,.45); }
+.dashboard-data-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.dashboard-data-row dt { font-size: 12px; line-height: 1.45; color: var(--muted); }
+.dashboard-data-row dd { margin: 0; font-size: 14px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dashboard-status { margin: 0; padding: 9px 12px; border: 1px solid var(--line); border-radius: 7px; font-size: 12px; }
+.dashboard-status.is-ok { background: #f0f7f1; color: var(--green); }
+.dashboard-status.has-warning { background: var(--amber-soft); color: var(--amber); }
+.app[data-view="dashboard"] .topbar { gap: 12px; margin-bottom: 12px; }
+.app[data-view="dashboard"] .topbar h1 { font-size: 24px; margin-bottom: 3px; }
+.app[data-view="dashboard"] .topbar p { font-size: 12px; margin: 0; }
+.app[data-view="dashboard"] .topbar-controls { gap: 6px; }
+.app[data-view="dashboard"] .top-export-button { min-height: 34px; padding: 7px 9px; font-size: 11px; }
+.app[data-view="dashboard"] #search { width: 170px; min-height: 34px; padding: 7px 10px; font-size: 13px; }
+.cari-detail-box .modal-title { position: relative; padding-right: 44px; min-height: 34px; }
+.cari-detail-close { position: absolute; top: 0; right: 0; width: 34px; height: 34px; padding: 7px; }
+@media (max-width: 760px) {
+  .dashboard-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dashboard-columns { grid-template-columns: 1fr; }
+  .dashboard-kpis .metric-card { min-height: 92px; }
+  .app[data-view="dashboard"] .topbar-controls { flex-wrap: wrap; }
+  .app[data-view="dashboard"] #search { width: 100%; }
+}
+
+.cari-person-modal .modal-title, .cari-actions-title { position: relative; padding-right: 44px; min-height: 34px; }
+.cari-dialog-close { position: absolute; top: 0; right: 0; width: 34px; height: 34px; padding: 7px; }

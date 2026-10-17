@@ -174,8 +174,8 @@ Total milyem profit combines normal and scrap sales. Net profit is total milyem
 profit minus all recorded expenses; no price or currency conversion is used.
 Only the expense form shows three compact summary cards on the right
 on desktop; only small screens stack the cards below the form. The expense
-history stays below the form and summary. The existing dashboard layout is
-preserved, without an added expense summary. Expenses support edit/delete and are
+history stays below the form and summary. The dashboard uses four KPI cards and compact sales/profit, stock, and account
+columns with the same existing data, without an added expense summary. Expenses support edit/delete and are
 included in SQLite backups and JSON exports.
 
 

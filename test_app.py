@@ -463,16 +463,16 @@ def test_frontend_layout_tabs_columns_and_confirmations():
     assert 'state.selectedHurdaPurchase?.id' in app_js
     assert "const isEditing = editing?.type === type" in app_js
     assert "editing.type === type" not in app_js
-    assert "dashboard-groups-top" in app_js
-    assert "dashboard-groups-bottom" in app_js
+    assert "dashboard-kpis" in app_js
+    assert "dashboard-columns" in app_js
     assert "Normal Stok \u00d6zeti" not in app_js
     styles_css = Path("static/styles.css").read_text(encoding="utf-8")
     assert ":is(.transaction-payment-modal, .cari-person-modal) .payment-fill-field" in styles_css
     assert ".transaction-payment-modal .transaction-paid-field" in styles_css
     assert ".cari-person-modal .cari-paid-field" in styles_css
     assert "grid-column: 1 / -1" in styles_css
-    assert ".dashboard-groups-polished.dashboard-groups-top" in styles_css
-    assert ".dashboard-groups-polished.dashboard-groups-bottom" in styles_css
+    assert ".dashboard-kpis" in styles_css
+    assert ".dashboard-columns" in styles_css
     assert "attachPaymentButton" in app_js
     assert "payment-action-box" in app_js
     assert "if (key === \"odeme_tipi\") return paymentLabel(value);" in app_js
@@ -1249,4 +1249,5 @@ def test_dashboard_does_not_render_form_summary():
     source = Path("static/app.js").read_text(encoding="utf-8")
     dashboard = source.split("function renderDashboard(data)", 1)[1].split("async function render()", 1)[0]
     assert "renderProfitSummary" not in dashboard
-    assert "root.append(hero, topGroups, bottomGroups)" in dashboard
+    assert "root.append(kpis, columns, status)" in dashboard
+    assert "dashboard-hero" not in dashboard
