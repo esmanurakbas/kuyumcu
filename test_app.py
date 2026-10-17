@@ -7,7 +7,6 @@ import main
 def make_client(tmp_path, monkeypatch):
     monkeypatch.setattr(main, "DB_PATH", tmp_path / "test.db")
     main.sessions.clear()
-    main.login_attempts.clear()
     main.init_db()
     return TestClient(main.app)
 
@@ -19,7 +18,7 @@ def ok(response):
 
 
 def login(client):
-    response = client.post("/api/login", json={"password": "2526E"})
+    response = client.post("/api/login")
     assert response.status_code == 200
     assert "ba\u015far" in response.json()["message"].casefold()
 
@@ -29,9 +28,9 @@ def test_login_rules(tmp_path, monkeypatch):
     assert client.get("/").status_code in {200, 307}
     assert client.get("/api/dashboard").status_code == 401
     assert client.get("/api/export").status_code == 401
-    assert client.post("/api/login", json={"password": ""}).status_code == 401
+    assert client.post("/api/login").status_code == 200
     wrong = client.post("/api/login", json={"password": "yanlis"})
-    assert wrong.status_code == 401
+    assert wrong.status_code == 200
     login(client)
     assert ok(client.get("/api/session"))["authenticated"] is True
     assert client.get("/api/dashboard").status_code == 200
@@ -39,15 +38,19 @@ def test_login_rules(tmp_path, monkeypatch):
     assert client.get("/api/dashboard").status_code == 401
 
 
-def test_login_lockout_after_repeated_wrong_passwords(tmp_path, monkeypatch):
+def test_passwordless_entry_and_reentry(tmp_path, monkeypatch):
     client = make_client(tmp_path, monkeypatch)
-    for _ in range(main.MAX_LOGIN_ATTEMPTS):
-        response = client.post("/api/login", json={"password": "yanlis"})
-        assert response.status_code == 401
-
-    locked = client.post("/api/login", json={"password": "2526E"})
-    assert locked.status_code == 429
-    assert client.get("/api/dashboard").status_code == 401
+    for _ in range(7):
+        assert client.post("/api/login").status_code == 200
+    assert client.get("/api/dashboard").status_code == 200
+    client.post("/api/logout")
+    assert ok(client.get("/api/session"))["authenticated"] is False
+    login(client)
+    assert client.get("/api/dashboard").status_code == 200
+    splash = client.get("/login").text
+    assert 'type="password"' not in splash
+    assert "1600" in splash
+    assert "window.location.replace('/')" in splash
 
 
 def test_pages_and_required_business_flow(tmp_path, monkeypatch):
@@ -249,7 +252,8 @@ def test_purchase_id_and_turkish_char_flow_without_milyem_stock_block(tmp_path, 
     stock = ok(client.get("/api/stok"))[0]
     assert stock["kalan_gram"] == 0.000
     assert stock["kalan_has"] == -0.100
-    assert "HASI" in stock["uyari"]
+    assert stock["uyari"] == ""
+    assert stock["stok_degeri"] == 0
 
     cari = ok(client.get("/api/cari"))
     assert cari["tedarikciler"][0]["tedarikci_adi"] == "\u015eAH\u0130N TEDAR\u0130K\u00c7\u0130"
@@ -275,13 +279,10 @@ def test_turkish_encoding_login_and_frontend_flow_guards():
     login_html = Path("static/login.html").read_text(encoding="utf-8")
     assert '<html lang="tr">' in login_html
     assert "AKBA\u015e" in login_html
-    assert "\u015eifre" in login_html
-    assert "G\u0130R\u0130\u015e YAP" in login_html
-    assert "G\u00fcvenli Ba\u011flant\u0131" in login_html
-    assert 'autocomplete="off"' in login_html
+    assert "Kuyumcu Takip Sistemi" in login_html
+    assert 'type="password"' not in login_html
     assert "fetch('/api/login'" in login_html
-    assert "Giri\u015f ba\u015far\u0131l\u0131" in login_html
-    assert "\u015eifre hatal\u0131" in login_html
+    assert 'role="status"' in login_html
 
     app_js = Path("static/app.js").read_text(encoding="utf-8")
     assert "\u00d6deme Yok" in app_js
@@ -440,7 +441,9 @@ def test_frontend_layout_tabs_columns_and_confirmations():
     assert "autocomplete" in alis_form.split("cinsi", 1)[1].split("ayar", 1)[0]
     assert "select" not in alis_form.split("cinsi", 1)[1].split("ayar", 1)[0]
     assert "document.createElement(\"datalist\")" in app_js
-    assert "input.setAttribute(\"list\", list.id)" in app_js
+    autocomplete = app_js.split("function attachAutocomplete(", 1)[1].split("function fieldElement(", 1)[0]
+    assert 'createElement("datalist")' not in autocomplete
+    assert 'input.removeAttribute("list")' in autocomplete
     for removed in ["has_fiyati", "iscilik", "ek_masraf"]:
         assert removed not in alis_form
     for removed in ["has_fiyati", "iscilik", "ek_ucret", "indirim", "alinan"]:
@@ -1081,3 +1084,126 @@ def test_old_supplier_payments_are_migrated_as_our_payments(tmp_path, monkeypatc
         assert conn.execute("SELECT yon FROM cari_odeme").fetchone()[0] == "ODEME"
         supplier = next(row for row in main.cari_data(conn)["kisiler"] if row["isim"] == "ESKI TEDARIKCI")
         assert supplier["kalan_has"] == -60.000
+
+
+def test_gram_stock_and_expense_profit_lifecycle(tmp_path, monkeypatch):
+    client = make_client(tmp_path, monkeypatch)
+    assert client.get("/api/giderler").status_code == 401
+    assert client.post("/api/giderler", json={}).status_code == 401
+    login(client)
+    purchase = ok(client.post("/api/alis", json={
+        "tedarikci": "Supplier", "cinsi": "BILEZIK", "ayar": "22",
+        "gram": 50, "milyem": 900, "has_fiyati": 1000, "iscilik": 100, "ek_masraf": 50,
+    }))
+    sale = {"musteri": "Customer", "alis_id": purchase["id"], "cinsi": "BILEZIK", "ayar": "22",
+            "gram": 20, "satis_milyem": 950, "has_fiyati": 1200}
+    first = ok(client.post("/api/satis", json=sale))
+    assert first["alis_maliyeti"] == 18060
+    assert first["brut_kar"] == 4740
+    sale["gram"] = 30
+    second = ok(client.post("/api/satis", json=sale))
+    stock = ok(client.get("/api/stok"))[0]
+    assert stock["kalan_gram"] == 0
+    assert stock["uyari"] == ""
+    assert stock["stok_degeri"] == 0
+    sale["gram"] = 0.001
+    assert client.post("/api/satis", json=sale).status_code == 400
+    sale["gram"] = 30
+    assert client.put(f"/api/satis/{second['id']}", json=sale).status_code == 200
+    sale["gram"] = 30.001
+    assert client.put(f"/api/satis/{second['id']}", json=sale).status_code == 400
+    expense = {"tarih": "2026-10-16", "tutar": 0.850, "kategori": "Yemek", "notlar": "Business"}
+    for invalid in [{**expense, "tutar": -1}, {**expense, "tutar": 0}, {**expense, "tutar": "NaN"},
+                    {**expense, "tarih": "invalid"}, {**expense, "kategori": " "}]:
+        assert client.post("/api/giderler", json=invalid).status_code == 422
+    saved = ok(client.post("/api/giderler", json=expense))
+    report = ok(client.get("/api/dashboard"))
+    assert report["kar_birimi"] == "HAS"
+    assert report["genel_milyem_kari"] == 2.500
+    assert report["brut_kar"] == 2.500
+    assert report["toplam_gider"] == 0.850
+    assert report["net_kar"] == 1.650
+    expense["tutar"] = 3.001
+    ok(client.put(f"/api/giderler/{saved['id']}", json=expense))
+    assert ok(client.get("/api/dashboard"))["net_kar"] == -0.501
+    main.init_db()
+    assert len(ok(client.get("/api/giderler"))) == 1
+    exported = ok(client.get("/api/export"))
+    assert exported["giderler"][0]["tutar"] == 3.001
+    assert exported["dashboard"]["net_kar"] == -0.501
+    ok(client.delete(f"/api/giderler/{saved['id']}"))
+    assert ok(client.get("/api/dashboard"))["net_kar"] == 2.500
+    assert client.put("/api/giderler/999", json=expense).status_code == 404
+    assert client.delete("/api/giderler/999").status_code == 404
+
+
+def test_scrap_profit_uses_purchased_grams(tmp_path, monkeypatch):
+    client = make_client(tmp_path, monkeypatch)
+    login(client)
+    base = {"kisi": "Supplier", "cinsi": "HURDA", "ayar": "22", "gram": 50, "milyem": 900, "has_fiyati": 1000}
+    purchase = ok(client.post("/api/hurda", json={**base, "islem_turu": "ALIS"}))
+    sale = ok(client.post("/api/hurda", json={**base, "islem_turu": "SATIS", "hurda_alis_id": purchase["id"], "milyem": 950, "has_fiyati": 1200}))
+    assert sale["hurda_kar"] == 12000
+    stock = ok(client.get("/api/stok/hurda"))[0]
+    assert stock["kalan_gram"] == 0
+    assert stock["uyari"] == ""
+    assert stock["stok_degeri"] == 0
+    report = ok(client.get("/api/dashboard"))
+    assert report["genel_milyem_kari"] == 2.500
+    assert report["net_kar"] == 2.500
+
+
+def test_fractional_gram_sales_allow_exact_remaining_stock(tmp_path, monkeypatch):
+    client = make_client(tmp_path, monkeypatch)
+    login(client)
+    purchase = ok(client.post("/api/alis", json={"tedarikci": "S", "cinsi": "BILEZIK", "ayar": "22", "gram": 0.6, "milyem": 900}))
+    sale = {"musteri": "C", "cinsi": "BILEZIK", "ayar": "22", "alis_id": purchase["id"], "satis_milyem": 950}
+    for grams in [0.1, 0.2, 0.3]:
+        ok(client.post("/api/satis", json={**sale, "gram": grams}))
+    stock = ok(client.get("/api/stok"))[0]
+    assert stock["kalan_gram"] == 0
+    assert stock["uyari"] == ""
+
+
+def test_mixed_cost_inventory_and_price_edits(tmp_path, monkeypatch):
+    client = make_client(tmp_path, monkeypatch)
+    login(client)
+    base = {"tedarikci": "S", "cinsi": "BILEZIK", "ayar": "22", "gram": 10, "milyem": 900}
+    first = ok(client.post("/api/alis", json={**base, "has_fiyati": 1000}))
+    ok(client.post("/api/alis", json={**base, "has_fiyati": 2000}))
+    sale = {"musteri": "C", "cinsi": "BILEZIK", "ayar": "22", "gram": 10,
+            "satis_milyem": 950, "alis_id": first["id"], "has_fiyati": 1500, "alinan": 100}
+    sold = ok(client.post("/api/satis", json=sale))
+    stock = ok(client.get("/api/stok"))[0]
+    assert stock["kalan_gram"] == 10
+    assert stock["stok_degeri"] == 18000
+    report = ok(client.get("/api/dashboard"))
+    assert report["genel_milyem_kari"] == 0.500
+    assert report["net_kar"] == 0.500
+    # Changing notes without sending monetary fields must preserve prior money values.
+    partial = {k: v for k, v in sale.items() if k not in {"has_fiyati", "alinan"}}
+    edited = ok(client.put(f"/api/satis/{sold['id']}", json={**partial, "notlar": "Updated"}))
+    assert edited["has_fiyati"] == 1500
+    assert edited["alinan"] == 100
+    ok(client.delete(f"/api/satis/{sold['id']}"))
+    assert ok(client.get("/api/stok"))[0]["stok_degeri"] == 27000
+    assert ok(client.get("/api/dashboard"))["net_kar"] == 0
+
+
+def test_combined_milyem_expenses_with_three_decimal_precision(tmp_path, monkeypatch):
+    client = make_client(tmp_path, monkeypatch)
+    login(client)
+    normal = ok(client.post("/api/alis", json={"tedarikci": "S", "cinsi": "BILEZIK", "ayar": "22", "gram": 10, "milyem": 900}))
+    ok(client.post("/api/satis", json={"musteri": "C", "alis_id": normal["id"], "cinsi": "BILEZIK", "ayar": "22", "gram": 10, "satis_milyem": 950}))
+    scrap_base = {"kisi": "S", "cinsi": "HURDA", "ayar": "22", "gram": 10, "milyem": 900}
+    scrap = ok(client.post("/api/hurda", json={**scrap_base, "islem_turu": "ALIS"}))
+    ok(client.post("/api/hurda", json={**scrap_base, "islem_turu": "SATIS", "milyem": 920, "hurda_alis_id": scrap["id"]}))
+    report = ok(client.get("/api/dashboard"))
+    assert report["genel_milyem_kari"] == 0.700
+    expense = {"tarih": "2026-10-16", "kategori": "Yemek", "tutar": "0.125"}
+    saved = ok(client.post("/api/giderler", json=expense))
+    assert saved["tutar"] == 0.125
+    assert ok(client.get("/api/dashboard"))["net_kar"] == 0.575
+    ok(client.post("/api/giderler", json={**expense, "tutar": "0.001"}))
+    assert ok(client.get("/api/dashboard"))["net_kar"] == 0.574
+    assert client.post("/api/giderler", json={**expense, "tutar": "0.0001"}).status_code == 422

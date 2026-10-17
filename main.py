@@ -6,7 +6,6 @@ import sqlite3
 import sys
 import unicodedata
 import secrets
-import hashlib
 import time
 import tempfile
 from contextlib import asynccontextmanager, contextmanager
@@ -36,18 +35,14 @@ LEGACY_DB_PATH = BASE_DIR / "kuyumcu.db"
 DB_PATH = Path(os.getenv("DB_PATH", str(DEFAULT_DB_PATH)))
 STATIC_DIR = resource_path("static")
 BACKUP_KEEP_DAYS = 14
-SCHEMA_VERSION = "3"
+SCHEMA_VERSION = "4"
 
 ZERO = Decimal("0")
 MONEY_Q = Decimal("0.01")
 HAS_Q = Decimal("0.001")
 NUM_Q = Decimal("0.001")
-PASSWORD_HASH = hashlib.sha256("2526E".encode("utf-8")).hexdigest()
 SESSION_TIMEOUT = 60 * 60 * 8
 sessions: dict[str, dict[str, Any]] = {}
-MAX_LOGIN_ATTEMPTS = 5
-LOCKOUT_SECONDS = 5 * 60
-login_attempts: dict[str, list[float]] = {}
 
 PRODUCTS = [
     "B\u0130LEZ\u0130K",
@@ -72,7 +67,7 @@ PRODUCTS = [
     "D\u0130\u011eER",
 ]
 
-BUSINESS_TABLES = ("alis", "satis", "hurda", "cari_odeme")
+BUSINESS_TABLES = ("alis", "satis", "hurda", "cari_odeme", "giderler")
 
 
 def db_has_business_rows(path: Path) -> bool:
@@ -116,33 +111,6 @@ def fail(message: str, status_code: int = 400) -> JSONResponse:
 
 
 
-
-def failed_attempts(ip: str) -> list[float]:
-    now = time.time()
-    attempts = [item for item in login_attempts.get(ip, []) if now - item < LOCKOUT_SECONDS]
-    login_attempts[ip] = attempts
-    return attempts
-
-
-def is_login_locked(ip: str) -> bool:
-    return len(failed_attempts(ip)) >= MAX_LOGIN_ATTEMPTS
-
-
-def lock_remaining_seconds(ip: str) -> int:
-    attempts = failed_attempts(ip)
-    if len(attempts) < MAX_LOGIN_ATTEMPTS:
-        return 0
-    return max(1, int(LOCKOUT_SECONDS - (time.time() - attempts[0])))
-
-
-def record_failed_login(ip: str) -> None:
-    attempts = failed_attempts(ip)
-    attempts.append(time.time())
-    login_attempts[ip] = attempts
-
-
-def clear_failed_logins(ip: str) -> None:
-    login_attempts.pop(ip, None)
 
 def client_ip(request: Request) -> str:
     return request.client.host if request.client else "local"
@@ -444,7 +412,7 @@ def migrate_quantity_to_total_gram(conn: sqlite3.Connection) -> None:
     done = conn.execute("SELECT value FROM app_meta WHERE key = 'quantity_to_total_gram_v1'").fetchone()
     if done:
         return
-    for table in ("alis", "satis", "hurda", "cari_odeme"):
+    for table in ("alis", "satis", "hurda", "cari_odeme", "giderler"):
         if {"adet", "gram"}.issubset(columns(conn, table)):
             conn.execute(f"UPDATE {table} SET gram = adet * gram WHERE COALESCE(adet, 0) NOT IN (0, 1)")
             conn.execute(f"UPDATE {table} SET adet = CASE WHEN gram > 0 THEN 1 ELSE 0 END")
@@ -522,6 +490,13 @@ def init_db() -> None:
                 purchase_id INTEGER
             );
 
+            CREATE TABLE IF NOT EXISTS giderler (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tarih TEXT NOT NULL,
+                tutar REAL NOT NULL CHECK(tutar > 0),
+                kategori TEXT NOT NULL,
+                notlar TEXT NOT NULL DEFAULT ''
+            );
             CREATE TABLE IF NOT EXISTS cari_odeme (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 tarih TEXT NOT NULL,
@@ -547,7 +522,7 @@ def init_db() -> None:
             add_column(conn, table, "odenen_milyem REAL NOT NULL DEFAULT 0")
         add_column(conn, "cari_odeme", "yon TEXT NOT NULL DEFAULT 'TAHSILAT'")
         migrate_quantity_to_total_gram(conn)
-        if database_existed and previous_schema_version != SCHEMA_VERSION:
+        if database_existed and previous_schema_version not in {"3", "4"}:
             migrate_cari_payment_directions(conn)
         conn.execute(
             "INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', ?)",
@@ -813,7 +788,7 @@ def purchase_remaining(conn: sqlite3.Connection, alis: sqlite3.Row, exclude_sale
         f"SELECT COALESCE(SUM(gram),0) gram, COALESCE(SUM(has),0) has FROM satis WHERE COALESCE(purchase_id, alis_id) = ?{extra}",
         params,
     ).fetchone()
-    kalan_gram = row_total_gram(alis) - d(sold["gram"])
+    kalan_gram = q(row_total_gram(alis) - d(sold["gram"]), NUM_Q)
     return {
         "kalan_gram": kalan_gram,
         "kalan_has": d(alis["has"]) - d(sold["has"]),
@@ -830,7 +805,7 @@ def stock_items(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     def get(cinsi: str, ayar: str) -> dict[str, Any]:
         key = (normalize_text(cinsi), normalize_text(ayar))
         if key not in items:
-            items[key] = {"cinsi": normalize_product(cinsi), "ayar": clean_text(ayar), "alis_gram": ZERO, "alis_has": ZERO, "alis_maliyet": ZERO, "satis_gram": ZERO, "satis_has": ZERO}
+            items[key] = {"cinsi": normalize_product(cinsi), "ayar": clean_text(ayar), "alis_gram": ZERO, "alis_has": ZERO, "alis_maliyet": ZERO, "satilan_maliyet": ZERO, "satis_gram": ZERO, "satis_has": ZERO}
         return items[key]
 
     for row in fetch_all(conn, "alis"):
@@ -847,13 +822,14 @@ def stock_items(conn: sqlite3.Connection) -> list[dict[str, Any]]:
         item = get(row["cinsi"], row["ayar"])
         item["satis_gram"] += row_total_gram(row)
         item["satis_has"] += d(row["has"])
+        item["satilan_maliyet"] += sale_purchase_cost(conn, row)
 
     result = []
     for item in items.values():
         kalan_gram = item["alis_gram"] - item["satis_gram"]
         kalan_has = item["alis_has"] - item["satis_has"]
         avg = item["alis_maliyet"] / item["alis_has"] if item["alis_has"] > 0 else ZERO
-        result.append({"cinsi": item["cinsi"], "ayar": item["ayar"], "alis_gram": as_float(item["alis_gram"], NUM_Q), "alis_has": as_float(item["alis_has"], HAS_Q), "satis_gram": as_float(item["satis_gram"], NUM_Q), "satis_has": as_float(item["satis_has"], HAS_Q), "kalan_gram": as_float(kalan_gram, NUM_Q), "kalan_has": as_float(kalan_has, HAS_Q), "ortalama_has_maliyeti": as_float(avg, MONEY_Q), "stok_degeri": as_float(kalan_has * avg, MONEY_Q), "uyari": "SATIS HASI ALISTAN YKSEK" if kalan_has < 0 else ("STOK YETERSIZ" if kalan_gram < 0 else "")})
+        result.append({"cinsi": item["cinsi"], "ayar": item["ayar"], "alis_gram": as_float(item["alis_gram"], NUM_Q), "alis_has": as_float(item["alis_has"], HAS_Q), "satis_gram": as_float(item["satis_gram"], NUM_Q), "satis_has": as_float(item["satis_has"], HAS_Q), "kalan_gram": as_float(kalan_gram, NUM_Q), "kalan_has": as_float(kalan_has, HAS_Q), "ortalama_has_maliyeti": as_float(avg, MONEY_Q), "stok_degeri": as_float(item.get("alis_maliyet", item.get("hurda_alis_tutari", ZERO)) - item["satilan_maliyet"], MONEY_Q), "uyari": "STOK YETERSIZ" if kalan_gram < 0 else ""})
     return sorted(result, key=lambda x: (normalize_text(x["cinsi"]), normalize_text(x["ayar"])))
 
 
@@ -871,7 +847,7 @@ def hurda_purchase_remaining(conn: sqlite3.Connection, hurda_alis: sqlite3.Row, 
         f"SELECT COALESCE(SUM(gram),0) gram, COALESCE(SUM(has),0) has FROM hurda WHERE islem_turu = 'SATIS' AND hurda_alis_id = ?{extra}",
         params,
     ).fetchone()
-    kalan_gram = row_total_gram(hurda_alis) - d(sold["gram"])
+    kalan_gram = q(row_total_gram(hurda_alis) - d(sold["gram"]), NUM_Q)
     return {
         "kalan_gram": kalan_gram,
         "kalan_has": d(hurda_alis["has"]) - d(sold["has"]),
@@ -884,7 +860,7 @@ def hurda_stock_items(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     def get(cinsi: str, ayar: str) -> dict[str, Any]:
         key = (normalize_text(cinsi), normalize_text(ayar))
         if key not in items:
-            items[key] = {"cinsi": normalize_product(cinsi), "ayar": clean_text(ayar), "hurda_alis_gram": ZERO, "hurda_alis_has": ZERO, "hurda_alis_tutari": ZERO, "hurda_satis_gram": ZERO, "hurda_satis_has": ZERO, "hurda_satis_tutari": ZERO}
+            items[key] = {"cinsi": normalize_product(cinsi), "ayar": clean_text(ayar), "hurda_alis_gram": ZERO, "hurda_alis_has": ZERO, "hurda_alis_tutari": ZERO, "hurda_satis_gram": ZERO, "hurda_satis_has": ZERO, "hurda_satis_tutari": ZERO, "satilan_maliyet": ZERO}
         return items[key]
 
     for row in fetch_all(conn, "hurda"):
@@ -897,25 +873,26 @@ def hurda_stock_items(conn: sqlite3.Connection) -> list[dict[str, Any]]:
             item["hurda_satis_gram"] += row_total_gram(row)
             item["hurda_satis_has"] += d(row["has"])
             item["hurda_satis_tutari"] += scrap_total(row)
+            item["satilan_maliyet"] += scrap_total(row) - hurda_profit(conn, row)
 
     result = []
     for item in items.values():
         kalan_gram = item["hurda_alis_gram"] - item["hurda_satis_gram"]
         kalan_has = item["hurda_alis_has"] - item["hurda_satis_has"]
         avg = item["hurda_alis_tutari"] / item["hurda_alis_has"] if item["hurda_alis_has"] > 0 else ZERO
-        result.append({"cinsi": item["cinsi"], "ayar": item["ayar"], "hurda_alis_gram": as_float(item["hurda_alis_gram"], NUM_Q), "hurda_alis_has": as_float(item["hurda_alis_has"], HAS_Q), "hurda_alis_tutari": as_float(item["hurda_alis_tutari"], MONEY_Q), "hurda_satis_gram": as_float(item["hurda_satis_gram"], NUM_Q), "hurda_satis_has": as_float(item["hurda_satis_has"], HAS_Q), "hurda_satis_tutari": as_float(item["hurda_satis_tutari"], MONEY_Q), "kalan_gram": as_float(kalan_gram, NUM_Q), "kalan_has": as_float(kalan_has, HAS_Q), "ortalama_has_maliyeti": as_float(avg, MONEY_Q), "stok_degeri": as_float(kalan_has * avg, MONEY_Q), "uyari": "SATIS HASI ALISTAN YKSEK" if kalan_has < 0 else ("STOK YETERSIZ" if kalan_gram < 0 else "")})
+        result.append({"cinsi": item["cinsi"], "ayar": item["ayar"], "hurda_alis_gram": as_float(item["hurda_alis_gram"], NUM_Q), "hurda_alis_has": as_float(item["hurda_alis_has"], HAS_Q), "hurda_alis_tutari": as_float(item["hurda_alis_tutari"], MONEY_Q), "hurda_satis_gram": as_float(item["hurda_satis_gram"], NUM_Q), "hurda_satis_has": as_float(item["hurda_satis_has"], HAS_Q), "hurda_satis_tutari": as_float(item["hurda_satis_tutari"], MONEY_Q), "kalan_gram": as_float(kalan_gram, NUM_Q), "kalan_has": as_float(kalan_has, HAS_Q), "ortalama_has_maliyeti": as_float(avg, MONEY_Q), "stok_degeri": as_float(item.get("alis_maliyet", item.get("hurda_alis_tutari", ZERO)) - item["satilan_maliyet"], MONEY_Q), "uyari": "STOK YETERSIZ" if kalan_gram < 0 else ""})
     return sorted(result, key=lambda x: (normalize_text(x["cinsi"]), normalize_text(x["ayar"])))
 
 
 def hurda_stock_lookup(conn: sqlite3.Connection) -> dict[tuple[str, str], dict[str, Any]]:
     return {(normalize_text(item["cinsi"]), normalize_text(item["ayar"])): item for item in hurda_stock_items(conn)}
 
-def ensure_stock(conn: sqlite3.Connection, cinsi: str, ayar: str, needed_has: Decimal) -> None:
+def ensure_stock(conn: sqlite3.Connection, cinsi: str, ayar: str, needed_gram: Decimal) -> None:
     key = (normalize_text(cinsi), normalize_text(ayar))
     stock = stock_lookup(conn).get(key)
-    if not stock or d(stock["alis_has"]) <= 0:
+    if not stock or d(stock["alis_gram"]) <= 0:
         raise HTTPException(status_code=400, detail="ALIS YOK")
-    if d(stock["kalan_has"]) < needed_has:
+    if d(stock["kalan_gram"]) < needed_gram:
         raise HTTPException(status_code=400, detail="STOK YETERSIZ")
 
 
@@ -1152,6 +1129,15 @@ def cari_data(conn: sqlite3.Connection) -> dict[str, Any]:
         "uyari": "Ayni kisi/firma farkli yazilirsa ayri cari olarak grnr.",
     }
 
+def sale_purchase_cost(conn: sqlite3.Connection, row: sqlite3.Row) -> Decimal:
+    alis = conn.execute("SELECT * FROM alis WHERE id = ?", (sale_purchase_id(row),)).fetchone()
+    if alis and row_total_gram(alis) > 0:
+        return q(purchase_total(alis) * row_total_gram(row) / row_total_gram(alis), MONEY_Q)
+    purchases = [r for r in fetch_all(conn, "alis") if normalize_text(r["cinsi"]) == normalize_text(row["cinsi"]) and normalize_text(r["ayar"]) == normalize_text(row["ayar"])]
+    grams = sum((row_total_gram(r) for r in purchases), ZERO)
+    return q(sum((purchase_total(r) for r in purchases), ZERO) * row_total_gram(row) / grams, MONEY_Q) if grams else ZERO
+
+
 def sale_profit(conn: sqlite3.Connection, row: sqlite3.Row) -> Decimal:
     purchase_id = sale_purchase_id(row)
     if not purchase_id:
@@ -1197,6 +1183,8 @@ def sale_out(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, Any]:
     item["alis_id"] = purchase_id
     item["milyem_kari"] = item["has_kari"]
     item["kar"] = item["milyem_kari"]
+    item["alis_maliyeti"] = as_float(sale_purchase_cost(conn, row))
+    item["brut_kar"] = as_float(sale_total(row) - sale_purchase_cost(conn, row))
     item["uyari"] = ""
     return item
 
@@ -1204,12 +1192,12 @@ def hurda_profit(conn: sqlite3.Connection, row: sqlite3.Row) -> Decimal:
     if row["islem_turu"] != "SATIS":
         return ZERO
     alis = conn.execute("SELECT * FROM hurda WHERE id = ? AND islem_turu = 'ALIS'", (row["hurda_alis_id"],)).fetchone() if "hurda_alis_id" in row.keys() and row["hurda_alis_id"] else None
-    if alis and d(alis["has"]) > 0:
-        unit_cost = scrap_total(alis) / d(alis["has"])
-        return q(scrap_total(row) - d(row["has"]) * unit_cost, MONEY_Q)
-    stock = hurda_stock_lookup(conn).get((normalize_text(row["cinsi"]), normalize_text(row["ayar"])))
-    unit_cost = d(stock["ortalama_has_maliyeti"]) if stock else ZERO
-    return q(scrap_total(row) - d(row["has"]) * unit_cost, MONEY_Q)
+    if alis and row_total_gram(alis) > 0:
+        return q(scrap_total(row) - row_total_gram(row) * scrap_total(alis) / row_total_gram(alis), MONEY_Q)
+    purchases = [r for r in fetch_all(conn, "hurda") if r["islem_turu"] == "ALIS" and normalize_text(r["cinsi"]) == normalize_text(row["cinsi"]) and normalize_text(r["ayar"]) == normalize_text(row["ayar"])]
+    grams = sum((row_total_gram(r) for r in purchases), ZERO)
+    cost = sum((scrap_total(r) for r in purchases), ZERO)
+    return q(scrap_total(row) - row_total_gram(row) * cost / grams, MONEY_Q) if grams else scrap_total(row)
 
 
 def hurda_out(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, Any]:
@@ -1314,10 +1302,6 @@ def login_page() -> FileResponse:
     return FileResponse(STATIC_DIR / "login.html")
 
 
-class LoginRequest(BaseModel):
-    password: str = ""
-
-
 @app.get("/api/session")
 def session(request: Request) -> dict[str, Any]:
     try:
@@ -1328,19 +1312,10 @@ def session(request: Request) -> dict[str, Any]:
 
 
 @app.post("/api/login")
-def login(request: Request, response: Response, payload: LoginRequest):
+def login(request: Request, response: Response):
+    cleanup_sessions()
+    sessions.pop(request.cookies.get("session_token") or "", None)
     ip = client_ip(request)
-    if is_login_locked(ip):
-        remaining = lock_remaining_seconds(ip)
-        return fail(f"ok fazla hatali deneme. {remaining} saniye sonra tekrar deneyin.", 429)
-    password = clean_text(payload.password)
-    if not password:
-        record_failed_login(ip)
-        return fail("Şifre hatalı", 401)
-    if hashlib.sha256(password.encode("utf-8")).hexdigest() != PASSWORD_HASH:
-        record_failed_login(ip)
-        return fail("Şifre hatalı", 401)
-    clear_failed_logins(ip)
     token = secrets.token_urlsafe(32)
     sessions[token] = {"ip": ip, "last": time.time()}
     response.set_cookie("session_token", token, max_age=SESSION_TIMEOUT, httponly=True, samesite="lax")
@@ -1667,7 +1642,14 @@ def dashboard_payload(conn: sqlite3.Connection) -> dict[str, Any]:
     hurda_stock_has = sum((d(item["kalan_has"]) for item in hurda_stocks), ZERO)
     hurda_stock_gram = sum((d(item["kalan_gram"]) for item in hurda_stocks), ZERO)
     hurda_stock_value = sum((d(item["stok_degeri"]) for item in hurda_stocks), ZERO)
+    gross_milyem = total_profit + hurda_milyem_profit_total
+    expenses = sum((d(row["tutar"]) for row in fetch_all(conn, "giderler")), ZERO)
     return {
+        "kar_birimi": "HAS",
+        "genel_milyem_kari": as_float(gross_milyem, HAS_Q),
+        "brut_kar": as_float(gross_milyem, HAS_Q),
+        "toplam_gider": as_float(expenses, HAS_Q),
+        "net_kar": as_float(gross_milyem - expenses, HAS_Q),
         "toplam_normal_alis": as_float(sum((purchase_total(row) for row in alis_rows), ZERO), MONEY_Q),
         "toplam_normal_satis": as_float(sum((sale_total(row) for row in satis_rows), ZERO), MONEY_Q),
         "toplam_normal_alis_has": as_float(normal_alis_has_total, HAS_Q),
@@ -1711,6 +1693,46 @@ def dashboard_payload(conn: sqlite3.Connection) -> dict[str, Any]:
     }
 
 
+class GiderIn(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    tarih: date = Field(default_factory=date.today)
+    tutar: Decimal = Field(gt=0, max_digits=14, decimal_places=3, allow_inf_nan=False)
+    kategori: str = Field(min_length=1, max_length=100)
+    notlar: str = Field(default="", max_length=2000)
+
+
+@app.get("/api/giderler")
+def list_expenses(_: None = Depends(require_auth)) -> dict[str, Any]:
+    with db() as conn:
+        return ok([dict(row) for row in fetch_all(conn, "giderler")])
+
+
+@app.post("/api/giderler")
+def create_expense(payload: GiderIn, _: None = Depends(require_auth)) -> dict[str, Any]:
+    with db() as conn:
+        cur = conn.execute("INSERT INTO giderler (tarih, tutar, kategori, notlar) VALUES (?, ?, ?, ?)",
+                           (payload.tarih.isoformat(), float(payload.tutar), payload.kategori, payload.notlar))
+        return ok(dict(conn.execute("SELECT * FROM giderler WHERE id = ?", (cur.lastrowid,)).fetchone()))
+
+
+@app.put("/api/giderler/{item_id}")
+def update_expense(item_id: int, payload: GiderIn, _: None = Depends(require_auth)) -> dict[str, Any]:
+    with db() as conn:
+        cur = conn.execute("UPDATE giderler SET tarih=?, tutar=?, kategori=?, notlar=? WHERE id=?",
+                           (payload.tarih.isoformat(), float(payload.tutar), payload.kategori, payload.notlar, item_id))
+        if not cur.rowcount:
+            raise HTTPException(status_code=404, detail="Gider bulunamad\u0131.")
+        return ok(dict(conn.execute("SELECT * FROM giderler WHERE id=?", (item_id,)).fetchone()))
+
+
+@app.delete("/api/giderler/{item_id}")
+def delete_expense(item_id: int, _: None = Depends(require_auth)) -> dict[str, Any]:
+    with db() as conn:
+        if not conn.execute("DELETE FROM giderler WHERE id=?", (item_id,)).rowcount:
+            raise HTTPException(status_code=404, detail="Gider bulunamad\u0131.")
+        return ok(message="Gider silindi.")
+
+
 @app.get("/api/dashboard")
 def dashboard(_: None = Depends(require_auth)) -> dict[str, Any]:
     with db() as conn:
@@ -1733,12 +1755,13 @@ def export_all(_: None = Depends(require_auth)) -> dict[str, Any]:
             "stok_hurda": hurda_stock_items(conn),
             "cari": cari_data(conn),
             "dashboard": dashboard_payload(conn),
+            "giderler": [dict(row) for row in fetch_all(conn, "giderler")],
         })
 
 
 @app.get("/api/ayarlar")
 def settings(_: None = Depends(require_auth)) -> dict[str, Any]:
-    return ok([{"baslik": "Login", "deger": "Aktif"}, {"baslik": "Stok", "deger": "Otomatik hesaplanir"}, {"baslik": "Hurda", "deger": "Normal stoktan ayridir"}])
+    return ok([{"baslik": "Giris", "deger": "Sifresiz otomatik acilis"}, {"baslik": "Stok", "deger": "Otomatik hesaplanir"}, {"baslik": "Hurda", "deger": "Normal stoktan ayridir"}])
 
 
 @app.post("/api/backup")

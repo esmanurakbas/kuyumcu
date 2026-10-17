@@ -13,6 +13,7 @@ const state = {
 };
 
 const views = {
+  giderler: { title: "Giderler", subtitle: "Ki\u015fisel ve i\u015fletme giderleri" },
   dashboard: { title: "Dashboard", subtitle: "G\u00fcncel stok, cari ve sat\u0131\u015f \u00f6zeti" },
   alis: { title: "Al\u0131\u015f", subtitle: "Normal \u00fcr\u00fcn al\u0131\u015f kay\u0131tlar\u0131" },
   satis: { title: "Sat\u0131\u015f", subtitle: "Al\u0131\u015ftan se\u00e7erek sat\u0131\u015f" },
@@ -23,6 +24,7 @@ const views = {
 };
 
 const forms = {
+  giderler: [["tarih", "Tarih", "date"], ["tutar", "Gider (has)", "decimal"], ["kategori", "Kategori", "text"], ["notlar", "A\u00e7\u0131klama / not", "textarea"]],
   alis: [
     ["tarih", "Tarih", "date"], ["tedarikci", "Tedarik\u00e7i", "autocomplete", "suppliers"],
     ["cinsi", "Cinsi", "autocomplete", "products"], ["ayar", "Ayar", "text"],
@@ -46,6 +48,7 @@ const forms = {
 };
 
 const columns = {
+  giderler: ["tarih", "tutar", "kategori", "notlar"],
   alis: ["tarih", "tedarikci", "cinsi", "ayar", "gram", "milyem", "has", "not"],
   satis: ["tarih", "musteri", "cinsi", "ayar", "gram", "alis_milyem", "satis_milyem", "milyem_farki", "milyem_kari", "not"],
   hurdaAlis: ["tarih", "kisi", "cinsi", "ayar", "gram", "milyem", "has", "not"],
@@ -59,6 +62,7 @@ const columns = {
 };
 
 const labels = {
+  tutar: "Gider (has)", kategori: "Kategori", notlar: "A\u00e7\u0131klama / not",
   tarih: "Tarih", tedarikci: "Tedarik\u00e7i", musteri: "M\u00fc\u015fteri", kisi: "Ki\u015fi / Firma", cinsi: "Cinsi", ayar: "Ayar",
   gram: "Gram", milyem: "Milyem", has: "Has", has_fiyati: "Has Fiyat\u0131", toplam_tutar: "Toplam",
   odenen: "\u00d6denen", alinan: "Al\u0131nan", odenen_veya_alinan: "\u00d6denen / Al\u0131nan", kalan_borc: "Kalan Bor\u00e7", not: "Not",
@@ -70,7 +74,7 @@ const labels = {
 };
 
 const moneyFields = new Set(["has_fiyati", "iscilik", "ek_masraf", "ek_ucret", "indirim", "odenen", "alinan", "toplam_tutar", "kalan_borc", "toplam_satis", "toplam_alis", "alis_borcu", "satis_borcu", "net_bakiye", "odenen_veya_alinan"]);
-const numberFields = new Set(["gram", "milyem", "has", "alis_gram", "alis_has", "satis_gram", "satis_has", "kalan_gram", "kalan_has", "alis_milyem", "satis_milyem", "milyem_farki", "has_kari", "milyem_kari", "tahmini_kar", "hurda_alis_gram", "hurda_alis_has", "hurda_satis_gram", "hurda_satis_has", "normal_alis_has", "normal_satis_has", "toplam_alis_has", "toplam_satis_has", "toplam_has", "odeme_has", "odedigimiz_has", "tahsil_edilen_has", "odeyecegimiz_has", "tahsil_edilecek_has", "net_bakiye_has", "odenen_has", "odenen_gram", "odenen_milyem", "hesaplanan_has"]);
+const numberFields = new Set(["gram", "milyem", "has", "alis_gram", "alis_has", "satis_gram", "satis_has", "kalan_gram", "kalan_has", "alis_milyem", "satis_milyem", "milyem_farki", "has_kari", "milyem_kari", "tahmini_kar", "hurda_alis_gram", "hurda_alis_has", "hurda_satis_gram", "hurda_satis_has", "normal_alis_has", "normal_satis_has", "toplam_alis_has", "toplam_satis_has", "tutar", "toplam_has", "odeme_has", "odedigimiz_has", "tahsil_edilen_has", "odeyecegimiz_has", "tahsil_edilecek_has", "net_bakiye_has", "odenen_has", "odenen_gram", "odenen_milyem", "hesaplanan_has"]);
 
 const content = document.querySelector("#content");
 const search = document.querySelector("#search");
@@ -179,37 +183,71 @@ async function refreshSuggestions() {
 }
 
 function attachAutocomplete(input, source) {
-  const values = state.suggestions[source] || [];
-  const list = document.createElement("datalist");
-  list.id = `${source}-${input.name || "field"}-options`;
-  values.forEach((value) => {
-    const option = document.createElement("option");
-    option.value = value;
-    list.appendChild(option);
-  });
-  input.setAttribute("list", list.id);
-  input.parentElement.appendChild(list);
+  if (input._autocompleteAttached) return;
+  input._autocompleteAttached = true;
+  // A single custom list owns suggestions; no native datalist is mounted.
+  input.removeAttribute("list");
   const box = document.createElement("div");
   box.className = "suggest-box hidden";
+  box.id = `suggest-${source}-${input.name}`;
+  box.setAttribute("role", "listbox");
   input.parentElement.appendChild(box);
-  const close = () => box.classList.add("hidden");
+  input.setAttribute("role", "combobox");
+  input.setAttribute("aria-autocomplete", "list");
+  input.setAttribute("aria-controls", box.id);
+  input.setAttribute("aria-expanded", "false");
+  let active = -1;
+  const close = () => {
+    box.classList.add("hidden"); active = -1;
+    input.setAttribute("aria-expanded", "false");
+    input.removeAttribute("aria-activedescendant");
+  };
+  const select = value => {
+    input.value = value;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    close();
+  };
   const open = () => {
+    const values = [...new Map((state.suggestions[source] || []).map(value => [normalize(value), value])).values()];
     const needle = normalize(input.value);
-    const matches = values.filter((item) => !needle || normalize(item).includes(needle)).slice(0, 8);
+    const matches = values.filter(item => !needle || normalize(item).includes(needle));
+    box.replaceChildren(); active = -1;
+    input.removeAttribute("aria-activedescendant");
     if (!matches.length) { close(); return; }
-    box.innerHTML = "";
-    matches.forEach((item) => {
+    matches.forEach((item, index) => {
       const btn = document.createElement("button");
-      btn.type = "button";
-      btn.textContent = item;
-      btn.onmousedown = (event) => { event.preventDefault(); input.value = item; close(); };
+      btn.type = "button"; btn.textContent = item; btn.tabIndex = -1;
+      btn.id = `${box.id}-${index}`; btn.setAttribute("role", "option");
+      btn.setAttribute("aria-selected", "false");
+      btn.addEventListener("pointerdown", event => event.preventDefault());
+      btn.addEventListener("click", () => select(item));
       box.appendChild(btn);
     });
+    box.scrollTop = 0;
     box.classList.remove("hidden");
+    input.setAttribute("aria-expanded", "true");
   };
   input.addEventListener("input", open);
   input.addEventListener("focus", open);
-  input.addEventListener("blur", () => setTimeout(close, 120));
+  input.addEventListener("click", () => { if (box.classList.contains("hidden")) open(); });
+  input.addEventListener("blur", close);
+  input.addEventListener("keydown", event => {
+    if (event.key === "Escape" || event.key === "Tab") { close(); return; }
+    if (event.key === "Enter" && !box.classList.contains("hidden")) {
+      event.preventDefault();
+      if (active >= 0) select(box.children[active].textContent);
+      return;
+    }
+    if (!["ArrowDown", "ArrowUp"].includes(event.key)) return;
+    event.preventDefault();
+    if (box.classList.contains("hidden")) open();
+    if (!box.children.length) return;
+    active = (active + (event.key === "ArrowDown" ? 1 : (active < 0 ? 0 : -1)) + box.children.length) % box.children.length;
+    [...box.children].forEach((option, index) => option.setAttribute("aria-selected", String(index === active)));
+    input.setAttribute("aria-activedescendant", box.children[active].id);
+    box.children[active].scrollIntoView({ block: "nearest" });
+  });
 }
 function fieldElement(name, type, source, readonly) {
   if (type === "hidden") { const input = document.createElement("input"); input.type = "hidden"; return input; }
@@ -713,7 +751,7 @@ function renderTable(type, rows, title = "") {
   const cols = columns[type];
   const actionType = type === "hurdaAlis" || type === "hurdaSatis" ? "hurda" : type;
   const table = document.createElement("table");
-  table.innerHTML = `<thead><tr>${cols.map((col) => `<th>${columnLabel(type, col)}</th>`).join("")}${["alis", "satis", "hurda", "hurdaAlis", "hurdaSatis", "kisiCari", "cariOdeme"].includes(type) ? "<th>\u0130\u015flemler</th>" : ""}</tr></thead>`;
+  table.innerHTML = `<thead><tr>${cols.map((col) => `<th>${columnLabel(type, col)}</th>`).join("")}${["giderler", "alis", "satis", "hurda", "hurdaAlis", "hurdaSatis", "kisiCari", "cariOdeme"].includes(type) ? "<th>\u0130\u015flemler</th>" : ""}</tr></thead>`;
   const tbody = document.createElement("tbody");
   rows.forEach((row) => {
     const tr = document.createElement("tr");
@@ -760,7 +798,7 @@ function renderTable(type, rows, title = "") {
       td.append(edit, del);
       tr.appendChild(td);
     }
-    if (["alis", "satis", "hurda", "hurdaAlis", "hurdaSatis"].includes(type)) {
+    if (["giderler", "alis", "satis", "hurda", "hurdaAlis", "hurdaSatis"].includes(type)) {
       const td = document.createElement("td");
       td.className = "actions-cell";
       td.dataset.label = "\u0130\u015flemler";
@@ -789,11 +827,11 @@ function renderTable(type, rows, title = "") {
   return section;
 }
 
-function startEdit(type, row) {
+async function startEdit(type, row) {
   editing = { type, id: row.id };
   state.selectedPurchase = null;
   state.selectedHurdaPurchase = null;
-  render();
+  await render();
   setTimeout(() => {
     const form = document.querySelector(".entry-form");
     if (!form) return;
@@ -807,7 +845,7 @@ function startEdit(type, row) {
       form.elements.alis_id.value = selectedId || "";
       form.elements.satis_milyem.value = row.satis_milyem || row.milyem || "";
     }
-    syncTransactionPayment(form);
+    if (type !== "giderler") syncTransactionPayment(form);
     if (type === "hurda") {
       const selectedHurdaId = row.hurda_alis_id || "";
       state.selectedHurdaPurchase = selectedHurdaId ? { id: selectedHurdaId } : null;
@@ -1207,6 +1245,61 @@ function openCariActions(row, data) {
   overlay.appendChild(box);
   document.body.appendChild(overlay);
 }
+function renderProfitSummary(data) {
+  const panel = document.createElement("aside"); panel.className = "expense-profit-summary";
+  const title = document.createElement("h2"); title.textContent = "Milyem K\u00e2r\u0131 \u00d6zeti";
+  const note = document.createElement("p"); note.textContent = "T\u00fcm zamanlar \u00b7 Normal + hurda \u00b7 Has";
+  panel.append(title, note);
+  [["Toplam Milyem K\u00e2r\u0131", data.genel_milyem_kari, "neutral"],
+   ["Toplam Gider", data.toplam_gider, "warn"],
+   ["Kalan Net K\u00e2r", data.net_kar, data.net_kar < 0 ? "warn" : "good"]].forEach(([label, value, tone]) => {
+    const card = renderMetricCard(label, value, "has", tone);
+    card.classList.add("expense-summary-card"); panel.appendChild(card);
+  });
+  const formula = document.createElement("small"); formula.textContent = "Net k\u00e2r = toplam milyem k\u00e2r\u0131 \u2212 giderler"; panel.appendChild(formula);
+  return panel;
+}
+
+function renderExpenseForm() {
+  const panel = document.createElement("section"); panel.className = "panel form-panel expense-form-panel";
+  const heading = document.createElement("h2"); heading.textContent = editing?.type === "giderler" ? "Gideri d\u00fczenle" : "Yeni gider";
+  const note = document.createElement("p"); note.className = "hint"; note.textContent = "Gider miktar\u0131n\u0131 milyem k\u00e2r\u0131yla ayn\u0131 birimde, has olarak girin.";
+  panel.append(heading, note);
+  const form = document.createElement("form"); form.className = "entry-form expense-form";
+  forms.giderler.forEach(([name, label, type]) => {
+    const wrap = document.createElement("label"); wrap.className = "field field-main";
+    wrap.dataset.field = name;
+    const input = fieldElement(name, type); input.name = name; input.required = name !== "notlar";
+    if (name === "tutar") input.placeholder = "0,000";
+    if (name === "notlar") { input.rows = 3; input.placeholder = "Giderle ilgili k\u0131sa bir not..."; }
+    if (name === "tarih") input.value = today();
+    if (name === "kategori") {
+      input.setAttribute("list", "expenseCategories");
+      const list = document.createElement("datalist"); list.id = "expenseCategories";
+      ["Ara\xe7 / yak\u0131t", "U\xe7ak bileti", "\xc7al\u0131\u015fan \xf6demesi", "Kargo / ula\u015f\u0131m", "Yemek", "Konaklama", "Ki\u015fisel", "Di\u011fer i\u015fletme giderleri"].forEach(value => {
+        const option = document.createElement("option"); option.value = value; list.appendChild(option);
+      }); wrap.appendChild(list);
+    }
+    wrap.append(label, input); form.appendChild(wrap);
+  });
+  const save = document.createElement("button"); save.type = "submit";
+  save.textContent = editing?.type === "giderler" ? "G\xfcncelle" : "Kaydet";
+  const cancel = document.createElement("button"); cancel.type = "button"; cancel.textContent = "Vazge\xe7";
+  cancel.onclick = () => { editing = null; render(); };
+  const actions = document.createElement("div"); actions.className = "form-bottom-actions"; actions.append(save, cancel); cancel.className = "secondary";
+  form.appendChild(actions);
+  form.onsubmit = async event => {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(form).entries()); data.tutar = String(data.tutar).replace(",", ".");
+    const id = editing?.type === "giderler" ? editing.id : null;
+    try {
+      await api(`/api/giderler${id ? `/${id}` : ""}`, { method: id ? "PUT" : "POST", body: JSON.stringify(data) });
+      editing = null; await render(); showMessage("Gider kaydedildi.");
+    } catch (error) { showMessage(error.message, true); }
+  };
+  panel.appendChild(form); return panel;
+}
+
 function renderDashboard(data) {
   const root = document.createElement("div");
   root.className = "dashboard-root";
@@ -1266,7 +1359,7 @@ function renderDashboard(data) {
   topPanels.forEach(([title, subtitle, cards]) => topGroups.appendChild(renderDashboardPanel(title, subtitle, cards)));
   bottomPanels.forEach(([title, subtitle, cards]) => bottomGroups.appendChild(renderDashboardPanel(title, subtitle, cards)));
 
-  root.append(hero, topGroups, bottomGroups);
+  root.append(renderProfitSummary(data), hero, topGroups, bottomGroups);
   return root;
 }
 async function render() {
@@ -1278,6 +1371,14 @@ async function render() {
     if (state.view === "dashboard") {
       const dashboard = await api("/api/dashboard");
       content.appendChild(renderDashboard(dashboard));
+      return;
+    }
+    if (state.view === "giderler") {
+      const [rows, summary] = await Promise.all([api("/api/giderler"), api("/api/dashboard")]);
+      const layout = document.createElement("div"); layout.className = "expenses-layout";
+      const main = document.createElement("div"); main.className = "expenses-main";
+      main.appendChild(renderExpenseForm());
+      layout.append(main, renderProfitSummary(summary), renderTable("giderler", rows, "Gider Kay\u0131tlar\u0131")); content.appendChild(layout);
       return;
     }
     if (state.view === "cari") {

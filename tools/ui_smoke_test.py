@@ -76,7 +76,6 @@ def run(chrome: Path) -> None:
     with tempfile.TemporaryDirectory(prefix="kuyumcu-ui-") as temp:
         main.DB_PATH = Path(temp) / "data" / "kuyumcu.db"
         main.sessions.clear()
-        main.login_attempts.clear()
         app_port = free_port()
         debug_port = free_port()
         server = uvicorn.Server(uvicorn.Config(main.app, host="127.0.0.1", port=app_port, log_level="error"))
@@ -94,8 +93,8 @@ def run(chrome: Path) -> None:
             pages = wait_json(f"http://127.0.0.1:{debug_port}/json")
             page = next(item for item in pages if item["type"] == "page")
             cdp = Cdp(page["webSocketDebuggerUrl"])
-            cdp.wait_for("document.querySelector('#loginForm') !== null")
-            cdp.evaluate("document.querySelector('#password').value='2526E'; document.querySelector('#loginForm').requestSubmit()")
+            cdp.wait_for("document.querySelector('.logo') !== null")
+            assert cdp.evaluate("document.querySelector('input[type=password]') === null")
             cdp.wait_for("location.pathname === '/' && document.querySelector('[data-view=alis]') !== null")
 
             payload = json.dumps({
@@ -126,10 +125,86 @@ def run(chrome: Path) -> None:
             cdp.evaluate("[...document.querySelectorAll('.page-tab')].find(b=>b.innerText==='MÜŞTERİLER').click()")
             cdp.wait_for("[...document.querySelectorAll('.page-tab.active')].some(b=>b.innerText==='MÜŞTERİLER')")
 
+            cdp.evaluate("document.querySelector('[data-view=giderler]').click()")
+            cdp.wait_for("document.querySelector('input[name=tutar]') !== null")
+            cdp.evaluate("(()=>{const f=document.querySelector('.entry-form');f.elements.tutar.value='0,125';f.elements.kategori.value='Yemek';f.elements.notlar.value='UI test';f.requestSubmit()})()")
+            cdp.wait_for("document.querySelector('tbody')?.innerText.includes('UI test')")
+            cdp.evaluate("document.querySelector('button.icon-edit').click()")
+            cdp.wait_for("document.querySelector('input[name=tutar]')?.value === '0.125'")
+            cdp.evaluate("(()=>{const f=document.querySelector('.entry-form');f.elements.tutar.value='0,350';f.requestSubmit()})()")
+            cdp.wait_for("document.querySelector('tbody')?.innerText.includes('0,35')")
+            cdp.evaluate("document.querySelector('[data-view=alis]').click()")
+            cdp.wait_for("document.querySelector('input[name=gram]') !== null")
+            assert cdp.evaluate("['has_fiyati','iscilik','ek_masraf','ek_ucret','indirim'].every(name=>!document.querySelector(`.entry-form [name=${name}]`))")
+            cdp.evaluate("(()=>{const i=document.querySelector('[name=cinsi]'); i.value=''; i.focus();})()")
+            cdp.wait_for("document.querySelector('[name=cinsi]').getAttribute('aria-expanded') === 'true'")
+            assert cdp.evaluate("!document.querySelector('[name=cinsi]').hasAttribute('list')")
+            assert cdp.evaluate("document.querySelectorAll('.suggest-box:not(.hidden)').length === 1")
+            assert cdp.evaluate("document.querySelector('[name=cinsi]').parentElement.querySelectorAll('.suggest-box').length === 1")
+            assert cdp.evaluate("document.querySelector('.suggest-box:not(.hidden)').children.length === new Set(state.suggestions.products.map(normalize)).size")
+            cdp.evaluate("(()=>{const i=document.querySelector('[name=cinsi]');i.value='BILE';i.dispatchEvent(new Event('input',{bubbles:true}));})()")
+            assert cdp.evaluate("document.querySelector('.suggest-box:not(.hidden)').children.length === 1")
+            cdp.evaluate("document.querySelector('.suggest-box:not(.hidden) button').click()")
+            assert cdp.evaluate("document.querySelector('[name=cinsi]').value.length > 0 && document.querySelectorAll('.suggest-box:not(.hidden)').length === 0")
+            cdp.evaluate("(()=>{const i=document.querySelector('[name=cinsi]');i.value='';i.dispatchEvent(new Event('input',{bubbles:true}));i.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}));i.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));})()")
+            assert cdp.evaluate("document.querySelectorAll('.suggest-box:not(.hidden)').length === 0")
+            cdp.evaluate("(()=>{const i=document.querySelector('[name=cinsi]');i.value='';i.dispatchEvent(new Event('input',{bubbles:true}));i.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));})()")
+            assert cdp.evaluate("document.querySelectorAll('.suggest-box:not(.hidden)').length === 0")
+            cdp.evaluate("document.querySelector('[data-view=satis]').click()")
+            cdp.wait_for("document.querySelector('input[name=satis_milyem]') !== null")
+            assert cdp.evaluate("['has_fiyati','iscilik','ek_masraf','ek_ucret','indirim'].every(name=>!document.querySelector(`.entry-form [name=${name}]`))")
+            cdp.evaluate("document.querySelector('[data-view=hurda_alis]').click()")
+            cdp.wait_for("document.querySelector('[name=islem_turu]') !== null")
+            assert cdp.evaluate("['has_fiyati','iscilik','ek_masraf','ek_ucret','indirim'].every(name=>!document.querySelector(`.entry-form [name=${name}]`))")
+
             cdp.evaluate("document.querySelector('[data-view=dashboard]').click()")
             cdp.wait_for("document.querySelector('#pageTitle')?.innerText === 'Dashboard'")
             cdp.wait_for("document.querySelector('.dashboard-root') !== null")
-            print("UI smoke test passed: login, dashboard, search, stock filter, customer filter")
+            dashboard = cdp.evaluate("fetch('/api/dashboard').then(r=>r.json()).then(r=>r.data)", await_promise=True)
+            assert dashboard["toplam_gider"] == 0.350
+            assert dashboard["net_kar"] == -0.350
+            cards = cdp.evaluate("[...document.querySelectorAll('.expense-profit-summary')].find(p=>p.textContent.includes('Toplam Gider'))?.textContent")
+            assert cards and "0,35" in cards, cards
+            assert "Toplam Milyem K\u00e2r\u0131" in cards, cards
+            assert "Kalan Net K\u00e2r" in cards, cards
+            assert "Net K\u00e2r" in cards, cards
+            baseline = json.loads((ROOT / "tools" / "original_ui.json").read_text(encoding="utf-8"))
+            actual_forms = cdp.evaluate("forms")
+            actual_columns = cdp.evaluate("columns")
+            for name, fields in baseline["forms"].items():
+                assert actual_forms[name] == fields, (name, actual_forms[name])
+            for name, fields in baseline["columns"].items():
+                assert actual_columns[name] == fields, (name, actual_columns[name])
+            expected_nav = list(baseline["views"]) + ["giderler"]
+            for view in expected_nav:
+                cdp.evaluate(f"document.querySelector('[data-view={view}]').click()")
+                cdp.wait_for("document.querySelector('#content').children.length > 0")
+                cdp.wait_for(f"document.querySelector('#pageTitle').textContent === views[{json.dumps(view)}].title")
+                body = cdp.evaluate("document.querySelector('#content').textContent")
+                assert "(TL)" not in body and "TL /" not in body and "\u20ba" not in body, (view, body)
+                assert "Parasal rapor" not in body, view
+                if view in {"alis", "satis", "hurda_alis", "hurda_satis"}:
+                    assert cdp.evaluate("['has_fiyati','iscilik','ek_masraf','ek_ucret','indirim'].every(name=>!document.querySelector(`.entry-form [name=${name}]`))"), view
+                print(f"Page checked: {view}")
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1440, "height": 1000, "deviceScaleFactor": 1, "mobile": False})
+            cdp.wait_for("document.querySelector('.expenses-layout').getBoundingClientRect().width > 900")
+            assert cdp.evaluate("(()=>{const a=document.querySelector('.expenses-main').getBoundingClientRect();const b=document.querySelector('.expenses-layout>.expense-profit-summary').getBoundingClientRect();return b.left>=a.right;})()")
+            assert cdp.evaluate("Math.abs(document.querySelector('.expenses-main').getBoundingClientRect().top-document.querySelector('.expenses-layout>.expense-profit-summary').getBoundingClientRect().top)<2")
+            assert cdp.evaluate("document.querySelector('.expenses-main').getBoundingClientRect().width < 740"), "Expense form must leave space for compact summary"
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1024, "height": 900, "deviceScaleFactor": 1, "mobile": False})
+            cdp.wait_for("document.querySelector('.expenses-layout>.expense-profit-summary').getBoundingClientRect().left >= document.querySelector('.expenses-main').getBoundingClientRect().right")
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1440, "height": 1000, "deviceScaleFactor": 1, "mobile": False})
+            cdp.evaluate("document.querySelectorAll('.toast').forEach(toast => toast.remove())")
+            if os.getenv("UI_SCREENSHOT_PATH"):
+                import base64
+                screenshot = cdp.call("Page.captureScreenshot", {"format": "png", "captureBeyondViewport": True})
+                Path(os.environ["UI_SCREENSHOT_PATH"]).write_bytes(base64.b64decode(screenshot["data"]))
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 390, "height": 844, "deviceScaleFactor": 1, "mobile": False})
+            cdp.wait_for("document.querySelector('.expenses-layout>.expense-profit-summary').getBoundingClientRect().bottom <= document.querySelector('.expenses-main').getBoundingClientRect().top")
+            assert cdp.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), "Expense page overflows mobile width"
+            cdp.evaluate("document.querySelector('[data-view=dashboard]').click()")
+            cdp.wait_for("document.querySelector('.dashboard-root')?.firstElementChild.classList.contains('expense-profit-summary')")
+            print("UI smoke test passed: passwordless entry, all pages, original forms and columns, no added currency labels, expense create/edit, dashboard totals")
         finally:
             browser.terminate()
             server.should_exit = True

@@ -15,11 +15,9 @@ Tarayıcıdan aç:
 http://127.0.0.1:8000
 ```
 
-Giriş şifresi:
-
-```text
-2526E
-```
+Uygulama sifre istemez. AKBAS logosuyla yaklasik 1,6 saniyelik acilis ekranindan
+sonra dashboard otomatik acilir. Oturum suresi doldugunda ayni ekran oturumu
+yeniden baslatir; kullanicinin sifre girmesi gerekmez.
 
 ## Windows masaüstü uygulaması
 
@@ -162,3 +160,18 @@ python -m pytest -q
 python -m py_compile main.py
 node --check static/app.js
 ```
+
+
+## Gram stock and expenses
+
+Stock checks use grams only. Existing purchase/sale forms are unchanged.
+Autocomplete uses one custom listbox, with no native datalist; it supports search,
+scrolling, pointer selection, keyboard navigation and closing with Escape or blur.
+
+Expenses are entered in has, to three decimal places, in the same unit as the
+existing milyem profit calculation (grams * purity difference / 1000).
+Total milyem profit combines normal and scrap sales. Net profit is total milyem
+profit minus all recorded expenses; no price or currency conversion is used.
+The expenses page shows the form and history beside a total-profit summary;
+the dashboard shows the same summary. Expenses support edit/delete and are
+included in SQLite backups and JSON exports.
