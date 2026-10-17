@@ -253,7 +253,7 @@ function attachAutocomplete(input, source) {
 }
 function fieldElement(name, type, source, readonly) {
   if (type === "hidden") { const input = document.createElement("input"); input.type = "hidden"; return input; }
-  if (type === "textarea") { const input = document.createElement("textarea"); input.rows = 2; return input; }
+  if (type === "textarea") { const input = document.createElement("textarea"); input.rows = 3; input.maxLength = 200; return input; }
   if (type === "select") {
     const input = document.createElement("select");
     const values = Array.isArray(source) ? source : (state.suggestions[source] || []); values.forEach((value) => { const opt = document.createElement("option"); opt.value = value; opt.textContent = value; input.appendChild(opt); });
@@ -604,9 +604,9 @@ function renderSelectAction(text, note, onClick) {
 function showSelectedPurchase(label, row, includeMilyem = false) {
   const remaining = document.createElement("strong");
   remaining.className = "purchase-remaining";
-  remaining.textContent = `Kalan ${row.kalan_gram} gr`;
+  remaining.textContent = `${row.kalan_gram} gr`;
   const prefix = `Se\u00e7ilen: ${row.cinsi} ${row.ayar} | ${includeMilyem ? `Al\u0131\u015f milyem ${row.milyem} | ` : ""}`;
-  label.replaceChildren(document.createTextNode(prefix), remaining, document.createTextNode(` / ${row.kalan_has} has`));
+  label.replaceChildren(document.createTextNode(`${prefix}Kalan `), remaining, document.createTextNode(` / ${row.kalan_has} has`));
 }
 
 async function openPurchaseModal(form, chosenLabel) {
@@ -756,6 +756,7 @@ function renderTable(type, rows, title = "", applySearch = true) {
   const section = document.createElement("section");
   section.className = "table-section";
   if (title) { const h = document.createElement("h2"); h.textContent = title; section.appendChild(h); }
+  if (["stok", "hurdaStok"].includes(type)) rows = (rows || []).filter(row => Number(row.kalan_gram) !== 0);
   rows = applySearch ? filteredRows(rows || []) : (rows || []);
   section.dataset.tableType = type;
   if (["kisiCari", "musteriCari", "tedarikciCari", "cariOdeme"].includes(type)) section.classList.add("cari-table");
@@ -1046,7 +1047,8 @@ function renderCariPaymentForm(data) {
 
   const noteInput = document.createElement("textarea");
   noteInput.name = "notlar";
-  noteInput.rows = 2;
+  noteInput.rows = 3;
+  noteInput.maxLength = 200;
 
   const paidField = makeField("\u00d6denen Has", paidInput);
   const gramField = makeField("Gram", gramInput);

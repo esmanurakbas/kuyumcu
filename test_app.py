@@ -110,7 +110,7 @@ def test_pages_and_required_business_flow(tmp_path, monkeypatch):
     stok = ok(client.get("/api/stok"))[0]
     assert stok["satis_has"] == 4.700
     assert stok["kalan_gram"] == 15.000
-    assert stok["kalan_has"] == 13.620
+    assert stok["kalan_has"] == 13.740
 
     fazla = client.post("/api/satis", json={
         "tarih": "2026-06-29", "musteri": "FAZLA", "alis_id": alis["id"],
@@ -181,11 +181,11 @@ def test_pages_and_required_business_flow(tmp_path, monkeypatch):
     assert dashboard["hurda_alis_toplami"] == 27480.00
     assert dashboard["hurda_satis_toplami"] == 12824.00
     assert dashboard["hurda_kar"] == 1832.00
-    assert dashboard["normal_stok_has"] == 13.620
+    assert dashboard["normal_stok_has"] == 13.740
     assert dashboard["normal_stok_gram"] == 15.000
     assert dashboard["hurda_kalan_has"] == 5.496
     assert dashboard["hurda_kalan_gram"] == 6.000
-    assert dashboard["toplam_stok_has"] == 19.116
+    assert dashboard["toplam_stok_has"] == 19.236
     assert dashboard["uyari_sayisi"] == 0
 
     normal_stock_rows = ok(client.get("/api/stok/normal"))
@@ -251,7 +251,7 @@ def test_purchase_id_and_turkish_char_flow_without_milyem_stock_block(tmp_path, 
 
     stock = ok(client.get("/api/stok"))[0]
     assert stock["kalan_gram"] == 0.000
-    assert stock["kalan_has"] == -0.100
+    assert stock["kalan_has"] == 0.000
     assert stock["uyari"] == ""
     assert stock["stok_degeri"] == 0
 
@@ -646,7 +646,7 @@ def test_hurda_sale_stock_check_uses_gram_not_milyem(tmp_path, monkeypatch):
     stok = ok(client.get("/api/hurda"))["stok"][0]
     assert stok["kalan_gram"] == 0.000
     assert stok["kalan_gram"] == 0.000
-    assert stok["kalan_has"] == -1.000
+    assert stok["kalan_has"] == 0.000
 
     too_much = client.post("/api/hurda", json={
         "tarih": "2026-06-30", "islem_turu": "SATIS", "hurda_alis_id": hurda_alis["id"],
@@ -1251,3 +1251,52 @@ def test_dashboard_does_not_render_form_summary():
     assert "renderProfitSummary" not in dashboard
     assert "root.append(kpis, columns)" in dashboard
     assert "dashboard-hero" not in dashboard
+
+
+def test_remaining_stock_has_uses_purchase_purity_and_zeroes_when_sold_out(tmp_path, monkeypatch):
+    client = make_client(tmp_path, monkeypatch)
+    login(client)
+    purchase = ok(client.post("/api/alis", json={"tedarikci": "S", "cinsi": "BILEZIK", "ayar": "22", "gram": 50, "milyem": 900}))
+    sale = {"musteri": "C", "alis_id": purchase["id"], "cinsi": "BILEZIK", "ayar": "22", "gram": 45, "satis_milyem": 950}
+    ok(client.post("/api/satis", json=sale))
+    stock = ok(client.get("/api/stok"))[0]
+    assert stock["kalan_gram"] == 5
+    assert stock["kalan_has"] == 4.500
+    assert ok(client.get("/api/satis/urun-secenekleri"))[0]["kalan_has"] == 4.500
+    ok(client.post("/api/satis", json={**sale, "gram": 5}))
+    stock = ok(client.get("/api/stok"))[0]
+    assert stock["kalan_gram"] == stock["kalan_has"] == stock["stok_degeri"] == 0
+    assert ok(client.get("/api/satis/urun-secenekleri")) == []
+    assert len(ok(client.get("/api/alis"))) == 1
+    assert len(ok(client.get("/api/satis"))) == 2
+    assert ok(client.get("/api/dashboard"))["genel_milyem_kari"] == 2.500
+    base = {"islem_turu": "ALIS", "kisi": "S", "cinsi": "HURDA", "ayar": "18", "gram": 10, "milyem": 750}
+    scrap = ok(client.post("/api/hurda", json=base))
+    scrap_sale = {**base, "islem_turu": "SATIS", "hurda_alis_id": scrap["id"], "milyem": 800, "gram": 5}
+    ok(client.post("/api/hurda", json=scrap_sale))
+    assert ok(client.get("/api/stok/hurda"))[0]["kalan_has"] == 3.750
+    ok(client.post("/api/hurda", json=scrap_sale))
+    assert ok(client.get("/api/stok/hurda"))[0]["kalan_has"] == 0
+    assert ok(client.get("/api/hurda"))["ozet"]["hurda_kalan_has"] == 0
+    assert ok(client.get("/api/hurda/urun-secenekleri")) == []
+    report = ok(client.get("/api/dashboard"))
+    assert report["normal_stok_has"] == report["hurda_kalan_has"] == 0
+    assert report["genel_milyem_kari"] == 3.000
+
+
+def test_all_note_fields_accept_200_characters_and_reject_201(tmp_path, monkeypatch):
+    client = make_client(tmp_path, monkeypatch)
+    login(client)
+    purchase_payload = {"tedarikci": "S", "cinsi": "BILEZIK", "ayar": "22", "gram": 10, "milyem": 900}
+    assert client.post("/api/alis", json={**purchase_payload, "notlar": "x" * 201}).status_code == 422
+    purchase = ok(client.post("/api/alis", json={**purchase_payload, "notlar": "x" * 200}))
+    cases = [
+        ("/api/satis", {"musteri": "C", "alis_id": purchase["id"], "cinsi": "BILEZIK", "ayar": "22", "gram": 1, "satis_milyem": 950}),
+        ("/api/hurda", {"islem_turu": "ALIS", "kisi": "S", "cinsi": "HURDA", "ayar": "18", "gram": 1, "milyem": 750}),
+        ("/api/giderler", {"tutar": "0.001", "kategori": "Yemek"}),
+        ("/api/cari/odeme", {"isim": "S", "odeme_tipi": "HAS", "yon": "ODEME", "odenen_has": "0.100"}),
+    ]
+    for path, payload in cases:
+        assert client.post(path, json={**payload, "notlar": "x" * 201}).status_code == 422, path
+        response = client.post(path, json={**payload, "notlar": "x" * 200})
+        assert response.status_code == 200, (path, response.json())

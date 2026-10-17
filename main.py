@@ -544,7 +544,7 @@ class BaseTransaction(BaseModel):
     milyem: Any = ZERO
     has_fiyati: Any = ZERO
     iscilik: Any = ZERO
-    notlar: str = ""
+    notlar: str = Field(default="", max_length=200)
     odeme_tipi: str = "ODEME_YOK"
     odenen_has: Any = ZERO
     odenen_adet: Any = ""
@@ -638,7 +638,7 @@ class CariOdemeIn(BaseModel):
     adet: Any = ZERO
     gram: Any = ZERO
     milyem: Any = ZERO
-    notlar: str = ""
+    notlar: str = Field(default="", max_length=200)
 
 
 
@@ -791,7 +791,7 @@ def purchase_remaining(conn: sqlite3.Connection, alis: sqlite3.Row, exclude_sale
     kalan_gram = q(row_total_gram(alis) - d(sold["gram"]), NUM_Q)
     return {
         "kalan_gram": kalan_gram,
-        "kalan_has": d(alis["has"]) - d(sold["has"]),
+        "kalan_has": q(kalan_gram * d(alis["has"]) / row_total_gram(alis), HAS_Q) if row_total_gram(alis) > 0 else ZERO,
     }
 
 
@@ -805,10 +805,12 @@ def stock_items(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     def get(cinsi: str, ayar: str) -> dict[str, Any]:
         key = (normalize_text(cinsi), normalize_text(ayar))
         if key not in items:
-            items[key] = {"cinsi": normalize_product(cinsi), "ayar": clean_text(ayar), "alis_gram": ZERO, "alis_has": ZERO, "alis_maliyet": ZERO, "satilan_maliyet": ZERO, "satis_gram": ZERO, "satis_has": ZERO}
+            items[key] = {"cinsi": normalize_product(cinsi), "ayar": clean_text(ayar), "alis_gram": ZERO, "alis_has": ZERO, "alis_maliyet": ZERO, "satilan_maliyet": ZERO, "satis_stok_has": ZERO, "satis_gram": ZERO, "satis_has": ZERO}
         return items[key]
 
-    for row in fetch_all(conn, "alis"):
+    purchases = fetch_all(conn, "alis")
+    purchases_by_id = {row["id"]: row for row in purchases}
+    for row in purchases:
         if is_hurda_product(row["cinsi"]):
             continue
         item = get(row["cinsi"], row["ayar"])
@@ -822,14 +824,17 @@ def stock_items(conn: sqlite3.Connection) -> list[dict[str, Any]]:
         item = get(row["cinsi"], row["ayar"])
         item["satis_gram"] += row_total_gram(row)
         item["satis_has"] += d(row["has"])
+        purchase = purchases_by_id.get(sale_purchase_id(row))
+        original_ratio = d(purchase["has"]) / row_total_gram(purchase) if purchase and row_total_gram(purchase) > 0 else (item["alis_has"] / item["alis_gram"] if item["alis_gram"] > 0 else ZERO)
+        item["satis_stok_has"] += row_total_gram(row) * original_ratio
         item["satilan_maliyet"] += sale_purchase_cost(conn, row)
 
     result = []
     for item in items.values():
-        kalan_gram = item["alis_gram"] - item["satis_gram"]
-        kalan_has = item["alis_has"] - item["satis_has"]
+        kalan_gram = q(item["alis_gram"] - item["satis_gram"], NUM_Q)
+        kalan_has = item["alis_has"] - item["satis_stok_has"] if kalan_gram != ZERO else ZERO
         avg = item["alis_maliyet"] / item["alis_has"] if item["alis_has"] > 0 else ZERO
-        result.append({"cinsi": item["cinsi"], "ayar": item["ayar"], "alis_gram": as_float(item["alis_gram"], NUM_Q), "alis_has": as_float(item["alis_has"], HAS_Q), "satis_gram": as_float(item["satis_gram"], NUM_Q), "satis_has": as_float(item["satis_has"], HAS_Q), "kalan_gram": as_float(kalan_gram, NUM_Q), "kalan_has": as_float(kalan_has, HAS_Q), "ortalama_has_maliyeti": as_float(avg, MONEY_Q), "stok_degeri": as_float(item.get("alis_maliyet", item.get("hurda_alis_tutari", ZERO)) - item["satilan_maliyet"], MONEY_Q), "uyari": "STOK YETERSIZ" if kalan_gram < 0 else ""})
+        result.append({"cinsi": item["cinsi"], "ayar": item["ayar"], "alis_gram": as_float(item["alis_gram"], NUM_Q), "alis_has": as_float(item["alis_has"], HAS_Q), "satis_gram": as_float(item["satis_gram"], NUM_Q), "satis_has": as_float(item["satis_has"], HAS_Q), "kalan_gram": as_float(kalan_gram, NUM_Q), "kalan_has": as_float(kalan_has, HAS_Q), "ortalama_has_maliyeti": as_float(avg, MONEY_Q), "stok_degeri": as_float(item.get("alis_maliyet", item.get("hurda_alis_tutari", ZERO)) - item["satilan_maliyet"] if kalan_gram != ZERO else ZERO, MONEY_Q), "uyari": "STOK YETERSIZ" if kalan_gram < 0 else ""})
     return sorted(result, key=lambda x: (normalize_text(x["cinsi"]), normalize_text(x["ayar"])))
 
 
@@ -850,7 +855,7 @@ def hurda_purchase_remaining(conn: sqlite3.Connection, hurda_alis: sqlite3.Row, 
     kalan_gram = q(row_total_gram(hurda_alis) - d(sold["gram"]), NUM_Q)
     return {
         "kalan_gram": kalan_gram,
-        "kalan_has": d(hurda_alis["has"]) - d(sold["has"]),
+        "kalan_has": q(kalan_gram * d(hurda_alis["has"]) / row_total_gram(hurda_alis), HAS_Q) if row_total_gram(hurda_alis) > 0 else ZERO,
     }
 
 
@@ -860,10 +865,12 @@ def hurda_stock_items(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     def get(cinsi: str, ayar: str) -> dict[str, Any]:
         key = (normalize_text(cinsi), normalize_text(ayar))
         if key not in items:
-            items[key] = {"cinsi": normalize_product(cinsi), "ayar": clean_text(ayar), "hurda_alis_gram": ZERO, "hurda_alis_has": ZERO, "hurda_alis_tutari": ZERO, "hurda_satis_gram": ZERO, "hurda_satis_has": ZERO, "hurda_satis_tutari": ZERO, "satilan_maliyet": ZERO}
+            items[key] = {"cinsi": normalize_product(cinsi), "ayar": clean_text(ayar), "hurda_alis_gram": ZERO, "hurda_alis_has": ZERO, "hurda_alis_tutari": ZERO, "hurda_satis_gram": ZERO, "hurda_satis_has": ZERO, "hurda_satis_tutari": ZERO, "satilan_maliyet": ZERO, "satis_stok_has": ZERO, "unlinked_satis_gram": ZERO}
         return items[key]
 
-    for row in fetch_all(conn, "hurda"):
+    rows = fetch_all(conn, "hurda")
+    purchases_by_id = {row["id"]: row for row in rows if row["islem_turu"] == "ALIS"}
+    for row in rows:
         item = get(row["cinsi"], row["ayar"])
         if row["islem_turu"] == "ALIS":
             item["hurda_alis_gram"] += row_total_gram(row)
@@ -872,15 +879,21 @@ def hurda_stock_items(conn: sqlite3.Connection) -> list[dict[str, Any]]:
         else:
             item["hurda_satis_gram"] += row_total_gram(row)
             item["hurda_satis_has"] += d(row["has"])
+            purchase = purchases_by_id.get(row["hurda_alis_id"])
+            if purchase and row_total_gram(purchase) > 0:
+                item["satis_stok_has"] += row_total_gram(row) * d(purchase["has"]) / row_total_gram(purchase)
+            else:
+                item["unlinked_satis_gram"] += row_total_gram(row)
             item["hurda_satis_tutari"] += scrap_total(row)
             item["satilan_maliyet"] += scrap_total(row) - hurda_profit(conn, row)
 
     result = []
     for item in items.values():
-        kalan_gram = item["hurda_alis_gram"] - item["hurda_satis_gram"]
-        kalan_has = item["hurda_alis_has"] - item["hurda_satis_has"]
+        kalan_gram = q(item["hurda_alis_gram"] - item["hurda_satis_gram"], NUM_Q)
+        original_ratio = item["hurda_alis_has"] / item["hurda_alis_gram"] if item["hurda_alis_gram"] > 0 else ZERO
+        kalan_has = item["hurda_alis_has"] - item["satis_stok_has"] - item["unlinked_satis_gram"] * original_ratio if kalan_gram != ZERO else ZERO
         avg = item["hurda_alis_tutari"] / item["hurda_alis_has"] if item["hurda_alis_has"] > 0 else ZERO
-        result.append({"cinsi": item["cinsi"], "ayar": item["ayar"], "hurda_alis_gram": as_float(item["hurda_alis_gram"], NUM_Q), "hurda_alis_has": as_float(item["hurda_alis_has"], HAS_Q), "hurda_alis_tutari": as_float(item["hurda_alis_tutari"], MONEY_Q), "hurda_satis_gram": as_float(item["hurda_satis_gram"], NUM_Q), "hurda_satis_has": as_float(item["hurda_satis_has"], HAS_Q), "hurda_satis_tutari": as_float(item["hurda_satis_tutari"], MONEY_Q), "kalan_gram": as_float(kalan_gram, NUM_Q), "kalan_has": as_float(kalan_has, HAS_Q), "ortalama_has_maliyeti": as_float(avg, MONEY_Q), "stok_degeri": as_float(item.get("alis_maliyet", item.get("hurda_alis_tutari", ZERO)) - item["satilan_maliyet"], MONEY_Q), "uyari": "STOK YETERSIZ" if kalan_gram < 0 else ""})
+        result.append({"cinsi": item["cinsi"], "ayar": item["ayar"], "hurda_alis_gram": as_float(item["hurda_alis_gram"], NUM_Q), "hurda_alis_has": as_float(item["hurda_alis_has"], HAS_Q), "hurda_alis_tutari": as_float(item["hurda_alis_tutari"], MONEY_Q), "hurda_satis_gram": as_float(item["hurda_satis_gram"], NUM_Q), "hurda_satis_has": as_float(item["hurda_satis_has"], HAS_Q), "hurda_satis_tutari": as_float(item["hurda_satis_tutari"], MONEY_Q), "kalan_gram": as_float(kalan_gram, NUM_Q), "kalan_has": as_float(kalan_has, HAS_Q), "ortalama_has_maliyeti": as_float(avg, MONEY_Q), "stok_degeri": as_float(item.get("alis_maliyet", item.get("hurda_alis_tutari", ZERO)) - item["satilan_maliyet"] if kalan_gram != ZERO else ZERO, MONEY_Q), "uyari": "STOK YETERSIZ" if kalan_gram < 0 else ""})
     return sorted(result, key=lambda x: (normalize_text(x["cinsi"]), normalize_text(x["ayar"])))
 
 
@@ -1455,7 +1468,7 @@ def list_hurda(_: None = Depends(require_auth)) -> dict[str, Any]:
         summary = {
             "hurda_alis_has": as_float(alis_has, HAS_Q),
             "hurda_satis_has": as_float(satis_has, HAS_Q),
-            "hurda_kalan_has": as_float(alis_has - satis_has, HAS_Q),
+            "hurda_kalan_has": as_float(sum((d(item["kalan_has"]) for item in hurda_stock_items(conn)), ZERO), HAS_Q),
             "hurda_alis_tutari": as_float(alis_tutar, MONEY_Q),
             "hurda_satis_tutari": as_float(satis_tutar, MONEY_Q),
             "hurda_kar": as_float(sum((hurda_profit(conn, row) for row in hurda_rows), ZERO), MONEY_Q),
@@ -1698,7 +1711,7 @@ class GiderIn(BaseModel):
     tarih: date = Field(default_factory=date.today)
     tutar: Decimal = Field(gt=0, max_digits=14, decimal_places=3, allow_inf_nan=False)
     kategori: str = Field(min_length=1, max_length=100)
-    notlar: str = Field(default="", max_length=2000)
+    notlar: str = Field(default="", max_length=200)
 
 
 @app.get("/api/giderler")

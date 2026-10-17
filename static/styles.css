@@ -3104,25 +3104,25 @@ button.secondary:hover {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 250px;
   grid-template-areas: "entry summary" "history history";
-  column-gap: 24px;
-  row-gap: 28px;
+  column-gap: 12px;
+  row-gap: 20px;
   align-items: stretch;
 }
 .expenses-layout > .expenses-main { grid-area: entry; }
 .expenses-layout > .expense-profit-summary { grid-area: summary; min-width: 0; align-self: stretch; }
 .expenses-layout > .table-section { grid-area: history; }
-.expenses-layout .expense-form [data-field="kategori"] { grid-column: 1 / -1; }
+.expenses-layout .expense-form [data-field="kategori"] { grid-column: auto; }
 .expenses-layout .expense-form .form-bottom-actions { gap: 16px; }
 .expenses-layout .expense-form .form-bottom-actions button { min-width: 120px; }
 .expenses-layout .expense-form-panel { height: 100%; }
 .expenses-layout .table-wrap td.actions-cell { display: table-cell; white-space: nowrap; }
 .expenses-layout .actions-cell .icon-btn { margin: 0; }
 .expenses-layout .actions-cell .icon-btn + .icon-btn { margin-left: 12px; }
-.expenses-layout > .table-section { grid-column: 1 / -1; min-width: 0; margin-top: 0; padding-top: 20px; border-top: 1px solid var(--line); }
-.expense-form-panel { padding: 18px; }
+.expenses-layout > .table-section { grid-column: 1 / -1; min-width: 0; margin-top: 0; padding-top: 14px; border-top: 1px solid var(--line); }
+.expense-form-panel { padding: 16px; }
 .expense-form-panel h2, .expense-profit-summary h2 { margin: 0 0 8px; font-size: 17px; }
 .expense-form-panel > .hint { margin: 0 0 16px; line-height: 1.6; font-size: 12px; }
-.expense-form.entry-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 18px; row-gap: 14px; }
+.expense-form.entry-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 14px; row-gap: 12px; }
 .expense-form .field { grid-column: auto; min-width: 0; gap: 6px; }
 .expense-form [data-field="notlar"], .expense-form .form-bottom-actions { grid-column: 1 / -1; }
 .expense-form textarea { resize: vertical; min-height: 64px; height: 64px; }
@@ -3152,7 +3152,7 @@ button.secondary:hover {
 
 
 /* Account overview: one table per filter, with a separate read-only history. */
-.cari-table:not([data-table-type="cariOdeme"]) th:nth-child(2), .cari-table .cari-net-balance { background: var(--amber-soft); }
+.cari-table:not([data-table-type="cariOdeme"]) th:nth-child(2), .cari-table .cari-net-balance { background: #fffdf4; }
 .cari-table .cari-net-balance { font-size: 16px; font-weight: 800; white-space: nowrap; }
 .cari-table .balance-zero, .cari-detail-balance.balance-zero { color: var(--muted); }
 .cari-table .actions-cell { gap: 10px; min-width: 120px; white-space: nowrap; }
@@ -3207,7 +3207,7 @@ button.secondary:hover {
 .cari-person-modal .modal-title, .cari-actions-title { position: relative; padding-right: 44px; min-height: 34px; }
 .cari-dialog-close { position: absolute; top: 0; right: 0; width: 34px; height: 34px; padding: 7px; }
 
-.purchase-note .purchase-remaining { color: var(--text); font-weight: 800; font-size: 15px; white-space: nowrap; }
+.purchase-note .purchase-remaining { color: inherit; font-weight: 700; font-size: 1.04em; white-space: nowrap; }
 
 .dashboard-stock-boxes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; width: 100%; }
 .dashboard-stock-box { min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 7px; background: #fafbf8; }
@@ -3242,3 +3242,10 @@ button.secondary:hover {
   .dashboard-stock-total { margin-top: 0; }
   .dashboard-stock-total .dashboard-data-row { padding: 8px 0 0; }
 }
+
+/* Notes are three visible lines and cannot expand the page. */
+.entry-form textarea[name="notlar"] { resize: none; box-sizing: border-box; line-height: 18px; height: 74px; min-height: 74px; max-height: 74px; }
+.expense-form input { min-width: 0; width: 100%; }
+
+.expenses-layout .table-wrap table { width: 100%; min-width: 0; table-layout: fixed; }
+.expenses-layout .table-wrap td { overflow-wrap: anywhere; }

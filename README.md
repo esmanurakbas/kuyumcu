@@ -184,3 +184,10 @@ filter. Net has balance is highlighted with positive, negative, and zero states.
 Each account provides a read-only detail dialog with existing sales, purchases,
 transaction payments, and standalone account payments, including scrap activity.
 The detail view reads existing APIs without recalculating or changing balances.
+
+
+Remaining inventory has is based on the unsold grams at the original purchase
+purity, independently of sale purity and profit. Fully sold quantities have zero
+remaining grams, has, and inventory value. Stock screens omit zero-gram entries
+without removing purchase/sale history. Notes are limited to 200 characters by
+the API and form controls, and displayed in fixed three-line input fields.
