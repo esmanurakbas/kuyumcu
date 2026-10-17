@@ -3168,25 +3168,6 @@ button.secondary:hover {
 }
 
 
-/* Compact dashboard: preserve values, reduce hierarchy and whitespace. */
-.dashboard-root.dashboard-compact { display: grid; gap: 12px; align-content: start; }
-.dashboard-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-.dashboard-kpis .metric-card { min-height: 88px; padding: 11px 13px; gap: 4px; justify-content: flex-start; }
-.dashboard-kpis .metric-card > span { font-size: 12px; line-height: 1.35; }
-.dashboard-kpis .metric-card > strong { font-size: 25px; }
-.dashboard-kpis .metric-card > small { font-size: 11px; font-weight: 500; }
-.dashboard-columns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.dashboard-compact-panel { min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); }
-.dashboard-panel-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; min-height: 28px; }
-.dashboard-panel-title h2 { margin: 0; font-size: 16px; font-weight: 800; }
-.dashboard-data-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 12px; margin: 0; }
-.dashboard-data-row { display: grid; align-content: start; gap: 4px; min-width: 0; }
-.dashboard-data-row dt { font-size: 12px; line-height: 1.5; color: var(--muted); font-weight: 400; }
-.dashboard-data-row dd { margin: 0; font-size: 22px; line-height: 1.25; font-weight: 800; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
-.dashboard-status { display: inline-flex; align-items: center; gap: 6px; margin: 0; padding: 4px 8px; border: 1px solid var(--line); border-radius: 999px; font-size: 11px; line-height: 1.3; white-space: nowrap; }
-.dashboard-status::before { content: ""; width: 5px; height: 5px; flex: 0 0 5px; border-radius: 50%; background: currentColor; }
-.dashboard-status.is-ok { background: #f0f7f1; color: var(--green); }
-.dashboard-status.has-warning { background: var(--amber-soft); color: var(--amber); }
 .app[data-view="dashboard"] .topbar { gap: 12px; margin-bottom: 12px; }
 .app[data-view="dashboard"] .topbar h1 { font-size: 24px; margin-bottom: 3px; }
 .app[data-view="dashboard"] .topbar p { font-size: 12px; margin: 0; }
@@ -3196,9 +3177,6 @@ button.secondary:hover {
 .cari-detail-box .modal-title { position: relative; padding-right: 44px; min-height: 34px; }
 .cari-detail-close { position: absolute; top: 0; right: 0; width: 34px; height: 34px; padding: 7px; }
 @media (max-width: 760px) {
-  .dashboard-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .dashboard-columns { grid-template-columns: 1fr; }
-  .dashboard-kpis .metric-card { min-height: 92px; }
   .app[data-view="dashboard"] .topbar-controls { flex-wrap: wrap; }
   .app[data-view="dashboard"] #search { width: 100%; }
 }
@@ -3208,11 +3186,6 @@ button.secondary:hover {
 
 .purchase-note .purchase-remaining { color: inherit; font-weight: 700; font-size: 1.04em; white-space: nowrap; }
 
-.dashboard-stock-total { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--line); }
-.dashboard-total-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 10px; }
-.dashboard-total-row dt { font-size: 11px; color: var(--muted); }
-.dashboard-total-row dd { margin: 0; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
-
 /* Notes resize vertically within their visible line limits. */
 .entry-form textarea[name="notlar"] { resize: vertical; box-sizing: border-box; padding: 9px 10px; line-height: 18px; height: 38px; min-height: 38px; max-height: 74px; }
 .expense-form input { min-width: 0; width: 100%; }
@@ -3221,3 +3194,32 @@ button.secondary:hover {
 .expenses-layout .table-wrap td { overflow-wrap: anywhere; }
 
 .expense-form.entry-form textarea[name="notlar"] { height: 56px; min-height: 56px; max-height: 110px; }
+
+/* Original dashboard structure with content-sized, compact cards. */
+.dashboard-restored { gap: 12px; align-content: start; }
+.dashboard-restored .dashboard-hero { grid-template-columns: minmax(180px, .85fr) minmax(0, 3fr); padding: 14px; gap: 14px; }
+.dashboard-restored .dashboard-hero-text { gap: 6px; }
+.dashboard-restored .dashboard-hero-text h2 { font-size: 21px; }
+.dashboard-restored .dashboard-hero-text p { font-size: 12px; }
+.dashboard-restored .dashboard-hero-text > span { padding: 3px 7px; font-size: 10px; }
+.dashboard-restored .dashboard-hero-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.dashboard-restored .metric-card { min-width: 0; min-height: 0; padding: 10px; gap: 5px; justify-content: flex-start; }
+.dashboard-restored .metric-card span { font-size: 11px; line-height: 1.4; text-transform: none; font-weight: 600; }
+.dashboard-restored .metric-card strong { font-size: 22px; }
+.dashboard-restored .metric-card small { font-size: 10px; font-weight: 400; }
+.dashboard-restored .dashboard-groups-top { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: stretch; }
+.dashboard-restored .dashboard-groups-bottom { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+.dashboard-restored .dashboard-panel { min-width: 0; padding: 12px; gap: 9px; align-content: start; }
+.dashboard-restored .dashboard-panel-head { padding-bottom: 7px; margin: 0; }
+.dashboard-restored .dashboard-panel-head h2 { font-size: 15px; }
+.dashboard-restored .dashboard-panel-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.dashboard-restored .dashboard-groups-bottom .dashboard-panel:first-child .dashboard-panel-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.dashboard-restored .dashboard-groups-bottom .dashboard-panel:last-child .dashboard-panel-grid { grid-template-columns: 1fr; }
+@media (max-width: 980px) {
+ .dashboard-restored .dashboard-hero { grid-template-columns: 1fr; }
+ .dashboard-restored .dashboard-groups-top, .dashboard-restored .dashboard-groups-bottom { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+ .dashboard-restored .dashboard-hero-metrics,
+ .dashboard-restored .dashboard-groups-bottom .dashboard-panel:first-child .dashboard-panel-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

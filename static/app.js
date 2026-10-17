@@ -1378,67 +1378,65 @@ function renderExpenseForm() {
 }
 
 function renderDashboard(data) {
-  const root = document.createElement("div"); root.className = "dashboard-root dashboard-compact";
-  const kpis = document.createElement("section"); kpis.className = "dashboard-kpis";
-  kpis.setAttribute("aria-label", "Temel g\u00f6stergeler");
+  const root = document.createElement("div");
+  root.className = "dashboard-root dashboard-restored";
+
+  const hero = document.createElement("section");
+  hero.className = "dashboard-hero";
+  const heroText = document.createElement("div");
+  heroText.className = "dashboard-hero-text";
+  heroText.innerHTML = `<span>Genel Durum</span><h2>\u0130\u015fletme \u00d6zeti</h2><p>Stok, k\u00e2r ve cari durumunuz tek bak\u0131\u015fta.</p>`;
+  const heroMetrics = document.createElement("div");
+  heroMetrics.className = "dashboard-hero-metrics";
   [
     ["Genel Milyem K\u00e2r\u0131", data.genel_urun_kari, "has", "good", "Normal sat\u0131\u015flardan"],
     ["G\u00fcnl\u00fck Milyem K\u00e2r\u0131", data.gunluk_urun_kari, "has", "good", data.gunluk_tarih ? `Tarih: ${data.gunluk_tarih}` : "G\u00fcnl\u00fck hareket"],
     ["Normal Stok Has", data.normal_stok_has, "has", "neutral", "\u00dcr\u00fcn sto\u011fu"],
     ["Hurda Kalan Has", data.hurda_kalan_has, "has", "accent", "Hurda sto\u011fu"],
-  ].forEach(card => kpis.appendChild(renderMetricCard(...card)));
-  const columns = document.createElement("div"); columns.className = "dashboard-columns";
-  const groups = [
-    ["Sat\u0131\u015f & K\u00e2r", [
-      ["Normal al\u0131\u015f has", data.toplam_normal_alis_has, "has"],
-      ["Normal sat\u0131\u015f has", data.toplam_normal_satis_has, "has"],
-      ["Genel milyem k\u00e2r\u0131", data.genel_urun_kari, "has"],
-      ["G\u00fcnl\u00fck milyem k\u00e2r\u0131", data.gunluk_urun_kari, "has"],
+  ].forEach((card) => heroMetrics.appendChild(renderMetricCard(...card)));
+  hero.append(heroText, heroMetrics);
+
+  const topGroups = document.createElement("div");
+  topGroups.className = "dashboard-groups dashboard-groups-polished dashboard-groups-top";
+  const bottomGroups = document.createElement("div");
+  bottomGroups.className = "dashboard-groups dashboard-groups-polished dashboard-groups-bottom";
+  const topPanels = [
+    ["Genel \u00d6zet", "", [
+      ["Toplam Normal Al\u0131\u015f Has", data.toplam_normal_alis_has, "has", "neutral"],
+      ["Toplam Normal Sat\u0131\u015f Has", data.toplam_normal_satis_has, "has", "accent"],
+      ["Al\u0131\u015f Kayd\u0131", data.alis_adedi, "", "neutral"],
+      ["Sat\u0131\u015f Kayd\u0131", data.satis_adedi, "", "neutral"],
     ]],
-    ["Stok", [
-      ["Normal stok gram", data.normal_stok_gram, "gram"],
-      ["Normal stok has", data.normal_stok_has, "has"],
-      ["Hurda stok gram", data.hurda_kalan_gram, "gram"],
-      ["Hurda kalan has", data.hurda_kalan_has, "has"],
+    ["Stok \u00d6zeti", "", [
+      ["Normal Stok Gram", data.normal_stok_gram, "gram", "neutral"],
+      ["Normal Stok Has", data.normal_stok_has, "has", "accent"],
+      ["Hurda Stok Gram", data.hurda_kalan_gram, "gram", "neutral"],
+      ["Toplam Stok Has", data.toplam_stok_has, "has", "neutral"],
     ]],
-    ["Cari", [
-      ["Alaca\u011f\u0131m\u0131z has", data.net_cari_alacak_has, "has"],
-      ["\u00d6deyece\u011fimiz has", data.net_cari_borc_has, "has"],
-      ["Bize bor\u00e7lu cari", data.alacakli_cari_sayisi, ""],
-      ["Bizim bor\u00e7lu cari", data.borclu_cari_sayisi, ""],
+    ["Cari \u00d6zeti", "", [
+      ["Kar\u015f\u0131 Taraftan Alaca\u011f\u0131m\u0131z Has", data.net_cari_alacak_has, "has", "good"],
+      ["Bizim \u00d6deyece\u011fimiz Has", data.net_cari_borc_has, "has", data.net_cari_borc_has ? "warn" : "neutral"],
+      ["Bize Bor\u00e7lu Cari", data.alacakli_cari_sayisi, "", "neutral"],
+      ["Bizim Bor\u00e7lu Oldu\u011fumuz Cari", data.borclu_cari_sayisi, "", "neutral"],
     ]],
   ];
-  groups.forEach(([title, rows]) => {
-    const panel = document.createElement("section"); panel.className = "dashboard-compact-panel";
-    const heading = document.createElement("h2"); heading.textContent = title;
-    const headingRow = document.createElement("div"); headingRow.className = "dashboard-panel-title"; headingRow.appendChild(heading);
-    const list = document.createElement("dl"); list.className = "dashboard-data-list";
-    const makeRow = (label, value, key) => {
-      const row = document.createElement("div"); row.className = "dashboard-data-row";
-      const term = document.createElement("dt"); term.textContent = label;
-      const amount = document.createElement("dd"); amount.textContent = formatValue(key, value);
-      row.append(term, amount); return row;
-    };
-    rows.forEach(([label, value, key]) => list.appendChild(makeRow(label, value, key)));
-    if (title === "Stok") {
-      const status = document.createElement("span");
-      status.className = `dashboard-status ${data.uyari_sayisi ? "has-warning" : "is-ok"}`;
-      status.setAttribute("role", "status");
-      status.textContent = data.uyari_sayisi ? `${data.uyari_sayisi} uyar\u0131` : "Sorun yok";
-      status.setAttribute("aria-label", `Stok kontrol\u00fc: ${status.textContent}`);
-      status.title = data.uyari_sayisi ? "Stok sayfas\u0131n\u0131 kontrol edin" : "Stok kontrol\u00fc: Sorun yok";
-      headingRow.appendChild(status);
-    }
-    panel.append(headingRow, list);
-    if (title === "Stok") {
-      const total = document.createElement("dl"); total.className = "dashboard-stock-total";
-      const totalRow = makeRow("Toplam stok has", data.toplam_stok_has, "has");
-      totalRow.className = "dashboard-total-row";
-      total.appendChild(totalRow); panel.appendChild(total);
-    }
-    columns.appendChild(panel);
-  });
-  root.append(kpis, columns);
+
+  const bottomPanels = [
+    ["Hurda \u00d6zeti", "", [
+      ["Hurda Al\u0131\u015f Has", data.hurda_alis_has_toplami, "has", "neutral"],
+      ["Hurda Sat\u0131\u015f Has", data.hurda_satis_has_toplami, "has", "accent"],
+      ["Hurda Milyem K\u00e2r\u0131", data.hurda_milyem_kari, "has", "good"],
+      ["Hurda Kayd\u0131", data.hurda_adedi, "", "neutral"],
+    ]],
+    ["Uyar\u0131lar", "", [
+      ["Stok Yetersiz Uyar\u0131s\u0131", data.uyari_sayisi, "", data.uyari_sayisi ? "warn" : "good", data.uyari_sayisi ? "Kontrol edin" : "Sorun yok"],
+    ]],
+  ];
+
+  topPanels.forEach(([title, subtitle, cards]) => topGroups.appendChild(renderDashboardPanel(title, subtitle, cards)));
+  bottomPanels.forEach(([title, subtitle, cards]) => bottomGroups.appendChild(renderDashboardPanel(title, subtitle, cards)));
+
+  root.append(hero, topGroups, bottomGroups);
   return root;
 }
 let renderVersion = 0;
