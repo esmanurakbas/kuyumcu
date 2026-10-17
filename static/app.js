@@ -1410,13 +1410,29 @@ function renderDashboard(data) {
     const panel = document.createElement("section"); panel.className = "dashboard-compact-panel";
     const heading = document.createElement("h2"); heading.textContent = title;
     const headingRow = document.createElement("div"); headingRow.className = "dashboard-panel-title"; headingRow.appendChild(heading);
-    const list = document.createElement("dl"); list.className = "dashboard-data-list";
-    rows.forEach(([label, value, key]) => {
+    const list = document.createElement(title === "Stok" ? "div" : "dl"); list.className = "dashboard-data-list";
+    const makeRow = (label, value, key) => {
       const row = document.createElement("div"); row.className = "dashboard-data-row";
       const term = document.createElement("dt"); term.textContent = label;
       const amount = document.createElement("dd"); amount.textContent = formatValue(key, value);
-      row.append(term, amount); list.appendChild(row);
-    });
+      row.append(term, amount); return row;
+    };
+    if (title === "Stok") {
+      panel.classList.add("dashboard-stock-panel");
+      const boxes = document.createElement("div"); boxes.className = "dashboard-stock-boxes";
+      [["Normal stok", data.normal_stok_gram, data.normal_stok_has], ["Hurda stok", data.hurda_kalan_gram, data.hurda_kalan_has]].forEach(([name, gram, has]) => {
+        const box = document.createElement("section"); box.className = "dashboard-stock-box";
+        const caption = document.createElement("h3"); caption.textContent = name;
+        const values = document.createElement("dl"); values.className = "dashboard-data-list";
+        values.append(makeRow("Gram", gram, "gram"), makeRow("Has", has, "has"));
+        box.append(caption, values); boxes.appendChild(box);
+      });
+      const total = document.createElement("dl"); total.className = "dashboard-data-list dashboard-stock-total";
+      total.appendChild(makeRow("Toplam stok has", data.toplam_stok_has, "has"));
+      list.append(boxes, total);
+    } else {
+      rows.forEach(([label, value, key]) => list.appendChild(makeRow(label, value, key)));
+    }
     if (title === "Stok") {
       const status = document.createElement("span");
       status.className = `dashboard-status ${data.uyari_sayisi ? "has-warning" : "is-ok"}`;

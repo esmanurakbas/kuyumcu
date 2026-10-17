@@ -3208,3 +3208,37 @@ button.secondary:hover {
 .cari-dialog-close { position: absolute; top: 0; right: 0; width: 34px; height: 34px; padding: 7px; }
 
 .purchase-note .purchase-remaining { color: var(--text); font-weight: 800; font-size: 15px; white-space: nowrap; }
+
+.dashboard-stock-boxes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; width: 100%; }
+.dashboard-stock-box { min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 7px; background: #fafbf8; }
+.dashboard-stock-box:last-child { background: #fffbf2; }
+.dashboard-stock-box h3 { margin: 0 0 5px; font-size: 12px; font-weight: 700; }
+.dashboard-stock-box .dashboard-data-row { grid-template-columns: 1fr; gap: 3px; padding: 6px 0; }
+.dashboard-stock-box .dashboard-data-row dt { font-size: 11px; }
+.dashboard-stock-box .dashboard-data-row dd { font-size: 18px; white-space: normal; overflow-wrap: anywhere; }
+.dashboard-stock-total { margin-top: 10px; padding-top: 2px; }
+.dashboard-stock-total .dashboard-data-row { padding: 6px 0 0; }
+.dashboard-stock-total dd { font-size: 18px; }
+
+/* Use the desktop workspace without adding another scroll area. */
+@media (min-width: 981px) and (min-height: 600px) {
+  .dashboard-root.dashboard-compact { height: 100%; min-height: 420px; grid-template-rows: clamp(88px, 14vh, 120px) minmax(0, 1fr); gap: 14px; }
+  .dashboard-columns { min-height: 0; gap: 14px; }
+  .dashboard-kpis .metric-card { padding: 14px 16px; justify-content: center; }
+  .dashboard-kpis .metric-card > strong { font-size: clamp(26px, 2.2vw, 32px); }
+  .dashboard-compact-panel { display: flex; flex-direction: column; min-height: 0; padding: clamp(14px, 1.2vw, 20px); }
+  .dashboard-panel-title { flex: 0 0 auto; margin-bottom: 12px; }
+  .dashboard-panel-title h2 { font-size: 18px; }
+  .dashboard-compact-panel > .dashboard-data-list { flex: 1; display: grid; grid-template-rows: repeat(4, minmax(0, 1fr)); min-height: 0; }
+  .dashboard-data-row dt { font-size: 13px; }
+  .dashboard-data-row dd { font-size: clamp(22px, 1.8vw, 28px); }
+  .dashboard-stock-panel > .dashboard-data-list { grid-template-rows: minmax(0, 1fr) auto; gap: 10px; }
+  .dashboard-stock-box { display: flex; flex-direction: column; padding: 12px; }
+  .dashboard-stock-box h3 { flex: 0 0 auto; font-size: 13px; }
+  .dashboard-stock-box > .dashboard-data-list { flex: 1; display: grid; grid-template-rows: repeat(2, minmax(0, 1fr)); }
+  .dashboard-stock-box .dashboard-data-row { align-content: center; gap: 5px; }
+  .dashboard-stock-box .dashboard-data-row dt { font-size: 12px; }
+  .dashboard-stock-box .dashboard-data-row dd { font-size: clamp(22px, 1.8vw, 28px); }
+  .dashboard-stock-total { margin-top: 0; }
+  .dashboard-stock-total .dashboard-data-row { padding: 8px 0 0; }
+}
