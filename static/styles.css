@@ -3262,3 +3262,8 @@ button.secondary:hover {
  .stock-heading-summary { gap: 16px; }
  .stock-heading-summary > span { min-width: 0; }
 }
+
+.table-heading-summary { flex-wrap: wrap; justify-content: flex-end; row-gap: 6px; }
+@media (max-width: 600px) {
+ .table-heading-summary { margin-left: 0; justify-content: flex-start; }
+}

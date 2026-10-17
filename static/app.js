@@ -763,27 +763,54 @@ function columnLabel(type, col) {
   return labels[col] || col;
 }
 
+function tableSummaryMetrics(type, rows) {
+  const sum = value => rows.reduce((total, row) => total + value(row), 0);
+  const quantity = key => sum(row => Number(row[key] || 0));
+  if (["stok", "hurdaStok"].includes(type)) return [
+    ["gram", "Toplam gram", quantity("kalan_gram"), "gr"],
+    ["has", "Toplam has", quantity("kalan_has"), "has"],
+  ];
+  if (["alis", "hurdaAlis"].includes(type)) return [
+    ["gram", "Al\u0131nan gram", quantity("gram"), "gr"],
+    ["has", "Al\u0131\u015f has", quantity("has"), "has"],
+  ];
+  if (["satis", "hurdaSatis"].includes(type)) return [
+    ["gram", "Sat\u0131lan gram", quantity("gram"), "gr"],
+    ["profit", "Milyem k\u00e2r\u0131", quantity("milyem_kari"), "has"],
+  ];
+  if (["kisiCari", "musteriCari", "tedarikciCari"].includes(type)) return [
+    ["receivable", "Alaca\u011f\u0131m\u0131z", sum(row => Math.max(Number(row.net_bakiye_has || 0), 0)), "has"],
+    ["payable", "\u00d6deyece\u011fimiz", sum(row => Math.max(-Number(row.net_bakiye_has || 0), 0)), "has"],
+  ];
+  if (type === "cariOdeme") return [
+    ["collected", "Tahsil edilen", sum(row => row.yon === "TAHSILAT" ? Number(row.odenen_has || 0) : 0), "has"],
+    ["paid", "\u00d6denen", sum(row => row.yon === "ODEME" ? Number(row.odenen_has || 0) : 0), "has"],
+  ];
+  return [];
+}
+
 function renderTable(type, rows, title = "", applySearch = true) {
   const section = document.createElement("section");
   section.className = "table-section";
+  if (["stok", "hurdaStok"].includes(type)) rows = (rows || []).filter(row => Number(row.kalan_gram) !== 0);
+  rows = applySearch ? filteredRows(rows || []) : (rows || []);
   if (title) {
     const h = document.createElement("h2"); h.textContent = title;
-    if (["stok", "hurdaStok"].includes(type)) {
+    const metrics = tableSummaryMetrics(type, rows);
+    if (metrics.length) {
       const header = document.createElement("div"); header.className = "stock-table-heading";
-      const summary = document.createElement("div"); summary.className = "stock-heading-summary";
-      [["gram", "Toplam gram", "gr"], ["has", "Toplam has", "has"]].forEach(([key, label, unit]) => {
+      const summary = document.createElement("div"); summary.className = "stock-heading-summary table-heading-summary";
+      metrics.forEach(([key, label, total, unit]) => {
         const metric = document.createElement("span");
-        const amount = document.createElement("strong"); amount.dataset.stockTotal = key;
-        const total = (rows || []).reduce((sum, row) => sum + Number(row[`kalan_${key}`] || 0), 0);
-        amount.textContent = `${formatValue(key, total)} ${unit}`;
+        const amount = document.createElement("strong"); amount.dataset.summaryMetric = key;
+        if (["stok", "hurdaStok"].includes(type)) amount.dataset.stockTotal = key;
+        amount.textContent = `${formatValue(unit === "gr" ? "gram" : "has", total)} ${unit}`;
         const caption = document.createElement("span"); caption.className = "stock-summary-label"; caption.textContent = `${label}:`;
         metric.append(caption, amount); summary.appendChild(metric);
       });
       header.append(h, summary); section.appendChild(header);
     } else section.appendChild(h);
   }
-  if (["stok", "hurdaStok"].includes(type)) rows = (rows || []).filter(row => Number(row.kalan_gram) !== 0);
-  rows = applySearch ? filteredRows(rows || []) : (rows || []);
   section.dataset.tableType = type;
   if (["kisiCari", "musteriCari", "tedarikciCari", "cariOdeme"].includes(type)) section.classList.add("cari-table");
   const wrap = document.createElement("div");
@@ -1526,7 +1553,7 @@ async function render() {
     }
     if (["alis", "satis"].includes(view)) {
       rendered.appendChild(renderForm(view));
-      rendered.appendChild(renderTable(view, await api(`/api/${view}`)));
+      rendered.appendChild(renderTable(view, await api(`/api/${view}`), `${views[view].title} Kayıtları`));
       return;
     }
     if (["hurda_alis", "hurda_satis"].includes(view)) {
@@ -1538,7 +1565,7 @@ async function render() {
       rendered.appendChild(renderTable(isSale ? "hurdaSatis" : "hurdaAlis", hurdaRows, isSale ? "Hurda Sat\u0131\u015f Kay\u0131tlar\u0131" : "Hurda Al\u0131\u015f Kay\u0131tlar\u0131"));
       return;
     }
-    rendered.appendChild(renderTable(view, await api(`/api/${view}`)));
+    rendered.appendChild(renderTable(view, await api(`/api/${view}`), `${views[view].title} Kayıtları`));
   } catch (error) { if (version === renderVersion) showMessage(error.message, true); }
   finally { if (version === renderVersion) content.replaceChildren(rendered); }
 }
