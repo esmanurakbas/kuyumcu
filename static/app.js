@@ -469,7 +469,16 @@ function openTransactionPaymentModal(form) {
   if (type === "satis") form.appendChild(renderSelectAction("ALI\u015eTAN \u00dcR\u00dcN SE\u00c7", "Sat\u0131\u015f i\u00e7in \u00f6nce al\u0131\u015ftan \u00fcr\u00fcn se\u00e7in.", (label) => openPurchaseModal(form, label)));
   if (type === "hurda" && hurdaMode === "SATIS") form.appendChild(renderSelectAction("HURDA ALI\u015eTAN SE\u00c7", "Hurda sat\u0131\u015f i\u00e7in al\u0131\u015ftan se\u00e7im yap\u0131n.", (label) => openHurdaPurchaseModal(form, label)));
 
-  forms[type].forEach(([name, label, inputType, source, readonly]) => {
+  // Both sale screens share the same visible fields; keep the scrap API names.
+  const formFields = type === "hurda" && hurdaMode === "SATIS" ? [
+    ...forms.hurda.filter(([, , inputType]) => inputType === "hidden"),
+    ...forms.satis.filter(([, , inputType]) => inputType !== "hidden").map(field => {
+      if (field[0] === "musteri") return ["kisi", field[1], field[2], "people"];
+      if (field[0] === "satis_milyem") return ["milyem", ...field.slice(1)];
+      return field;
+    }),
+  ] : forms[type];
+  formFields.forEach(([name, label, inputType, source, readonly]) => {
     const input = fieldElement(name, inputType, source, readonly);
     input.name = name;
     if (inputType === "hidden") { form.appendChild(input); return; }
@@ -548,6 +557,7 @@ function openTransactionPaymentModal(form) {
     }
     if (type === "hurda") {
       if (hurdaMode) data.islem_turu = hurdaMode;
+      delete data.alis_milyem; // Display only; the linked purchase remains the source of cost.
       data.has_fiyati = 0;
       data.iscilik = 0;
       data.odenen_veya_alinan = 0;
@@ -638,9 +648,10 @@ async function openHurdaPurchaseModal(form, chosenLabel) {
       form.elements.hurda_alis_id.value = row.id;
       form.elements.cinsi.value = row.cinsi;
       form.elements.ayar.value = row.ayar;
+      if (form.elements.alis_milyem) form.elements.alis_milyem.value = row.milyem;
       form.elements.milyem.value = "";
       form.elements.milyem.placeholder = "Sat\u0131\u015f milyem girin";
-      showSelectedPurchase(chosenLabel, row, true);
+      showSelectedPurchase(chosenLabel, row);
     });
   } catch (error) { showMessage(error.message, true); }
 }

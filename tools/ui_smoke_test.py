@@ -346,6 +346,46 @@ def run(chrome: Path) -> None:
                 Path(os.environ["UI_DASHBOARD_SCREENSHOT_PATH"]).write_bytes(base64.b64decode(screenshot["data"]))
             dashboard_after_layout = cdp.evaluate("fetch('/api/dashboard').then(r=>r.json()).then(r=>JSON.stringify(r.data))", await_promise=True)
             assert dashboard_before_layout == dashboard_after_layout, "Dashboard layout changed financial values"
+            # Exercise the unified scrap sale form against the isolated test database.
+            assert cdp.evaluate("(()=>{const fields=form=>[...form.querySelectorAll('.field-main')].map(field=>[field.firstChild.textContent,field.querySelector('input,textarea').readOnly]);return JSON.stringify(fields(renderForm('satis')))===JSON.stringify(fields(renderForm('hurda','SATIS')));})()"), "Sale forms have different visible labels or readonly behavior"
+            scrap = cdp.evaluate("api('/api/hurda',{method:'POST',body:JSON.stringify({islem_turu:'ALIS',kisi:'UI SCRAP SUPPLIER',cinsi:'UI SCRAP',ayar:'18',gram:2,milyem:750})})", await_promise=True)
+            cdp.evaluate("document.querySelector('[data-view=hurda_satis]').click()")
+            cdp.wait_for("document.querySelector('.entry-form [name=alis_milyem]')!==null")
+            cdp.evaluate("document.querySelector('.purchase-actions button').click()")
+            cdp.wait_for("document.querySelector('.modal-box-wide tbody button')!==null")
+            cdp.evaluate("[...document.querySelectorAll('.modal-box-wide tbody tr')].find(row=>row.textContent.includes('UI SCRAP')).querySelector('button').click()")
+            assert cdp.evaluate("(()=>{const f=document.querySelector('.entry-form');return f.elements.alis_milyem.value==='750' && f.elements.alis_milyem.readOnly && f.elements.milyem.value==='' && f.elements.cinsi.readOnly && f.elements.ayar.readOnly;})()")
+            cdp.evaluate("(()=>{const f=document.querySelector('.entry-form');f.elements.kisi.value='UI SCRAP CUSTOMER';f.elements.gram.value='1';f.elements.milyem.value='800';f.elements.milyem.dispatchEvent(new Event('input'));})()")
+            assert cdp.evaluate("document.querySelector('[data-has]').textContent==='0,8'")
+            cdp.evaluate("document.querySelector('.payment-open-btn').click()")
+            cdp.wait_for("document.querySelector('.transaction-payment-modal')!==null")
+            cdp.evaluate("document.querySelector('.payment-type-tab[data-value=HAS]').click();document.querySelector('.transaction-paid-field input').value='0,1';document.querySelector('.transaction-paid-field input').dispatchEvent(new Event('input'))")
+            cdp.evaluate("[...document.querySelectorAll('.transaction-payment-modal button')].at(-1).click()")
+            cdp.evaluate("document.querySelector('.entry-form').requestSubmit()")
+            cdp.wait_for("document.querySelector('.confirm-ok')!==null")
+            cdp.evaluate("document.querySelector('.confirm-ok').click()")
+            cdp.wait_for("document.querySelector('[data-table-type=hurdaSatis] tbody tr')!==null")
+            saved_scrap = cdp.evaluate("api('/api/hurda').then(r=>r.kayitlar.find(row=>row.kisi==='UI SCRAP CUSTOMER'))", await_promise=True)
+            assert saved_scrap['hurda_alis_id'] == scrap['id']
+            assert saved_scrap['alis_milyem'] == 750 and saved_scrap['satis_milyem'] == 800
+            assert saved_scrap['has'] == 0.8 and saved_scrap['milyem_kari'] == 0.05 and saved_scrap['odenen_has'] == 0.1
+            cdp.evaluate("[...document.querySelectorAll('[data-table-type=hurdaSatis] tbody tr')].find(row=>row.textContent.includes('UI SCRAP CUSTOMER')).querySelector('.icon-edit').click()")
+            cdp.wait_for("document.querySelector('.entry-form [name=kisi]')?.value==='UI SCRAP CUSTOMER'")
+            assert cdp.evaluate("document.querySelector('[name=alis_milyem]').value==='750' && document.querySelector('[name=milyem]').value==='800'")
+            cdp.evaluate("(()=>{const f=document.querySelector('.entry-form');f.elements.gram.value='0,5';f.elements.gram.dispatchEvent(new Event('input'));f.requestSubmit();})()")
+            cdp.wait_for("document.querySelector('.confirm-ok')!==null")
+            cdp.evaluate("document.querySelector('.confirm-ok').click()")
+            cdp.wait_for("document.querySelector('[name=kisi]')?.value===''")
+            updated_scrap = cdp.evaluate("api('/api/hurda').then(r=>r.kayitlar.find(row=>row.kisi==='UI SCRAP CUSTOMER'))", await_promise=True)
+            assert updated_scrap['gram'] == 0.5 and updated_scrap['has'] == 0.4 and updated_scrap['milyem_kari'] == 0.025
+            assert updated_scrap['odenen_has'] == 0.1 and updated_scrap['hurda_alis_id'] == scrap['id']
+            for width, height in [(1280,720),(390,844)]:
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width":width,"height":height,"deviceScaleFactor":1,"mobile":False})
+                assert cdp.evaluate("document.documentElement.scrollWidth<=innerWidth"), "Scrap sale form overflows"
+            if os.getenv("UI_SCRAP_SALE_SCREENSHOT_PATH"):
+                import base64
+                screenshot = cdp.call("Page.captureScreenshot", {"format":"png","captureBeyondViewport":True})
+                Path(os.environ["UI_SCRAP_SALE_SCREENSHOT_PATH"]).write_bytes(base64.b64decode(screenshot["data"]))
             print("UI smoke test passed: passwordless entry, all pages, original forms and columns, no added currency labels, expense create/edit, dashboard totals")
         finally:
             browser.terminate()
