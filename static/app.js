@@ -601,6 +601,14 @@ function renderSelectAction(text, note, onClick) {
   return wrap;
 }
 
+function showSelectedPurchase(label, row, includeMilyem = false) {
+  const remaining = document.createElement("strong");
+  remaining.className = "purchase-remaining";
+  remaining.textContent = `Kalan ${row.kalan_gram} gr`;
+  const prefix = `Se\u00e7ilen: ${row.cinsi} ${row.ayar} | ${includeMilyem ? `Al\u0131\u015f milyem ${row.milyem} | ` : ""}`;
+  label.replaceChildren(document.createTextNode(prefix), remaining, document.createTextNode(` / ${row.kalan_has} has`));
+}
+
 async function openPurchaseModal(form, chosenLabel) {
   try {
     const rows = await api("/api/satis/urun-secenekleri");
@@ -615,7 +623,7 @@ async function openPurchaseModal(form, chosenLabel) {
       if (form.elements.alis_has_maliyeti) form.elements.alis_has_maliyeti.value = row.alis_has_maliyeti || "";
       form.elements.satis_milyem.value = "";
       form.elements.satis_milyem.placeholder = "Sat\u0131\u015f milyem girin";
-      chosenLabel.textContent = `Se\u00e7ilen: ${row.cinsi} ${row.ayar} | Kalan ${row.kalan_gram} gr / ${row.kalan_has} has`;
+      showSelectedPurchase(chosenLabel, row);
     });
   } catch (error) { showMessage(error.message, true); }
 }
@@ -632,7 +640,7 @@ async function openHurdaPurchaseModal(form, chosenLabel) {
       form.elements.ayar.value = row.ayar;
       form.elements.milyem.value = "";
       form.elements.milyem.placeholder = "Sat\u0131\u015f milyem girin";
-      chosenLabel.textContent = `Se\u00e7ilen: ${row.cinsi} ${row.ayar} | Al\u0131\u015f milyem ${row.milyem} | Kalan ${row.kalan_gram} gr / ${row.kalan_has} has`;
+      showSelectedPurchase(chosenLabel, row, true);
     });
   } catch (error) { showMessage(error.message, true); }
 }
@@ -1382,18 +1390,13 @@ function renderDashboard(data) {
     ["Sat\u0131\u015f & K\u00e2r", [
       ["Normal al\u0131\u015f has", data.toplam_normal_alis_has, "has"],
       ["Normal sat\u0131\u015f has", data.toplam_normal_satis_has, "has"],
-      ["Al\u0131\u015f kayd\u0131", data.alis_adedi, ""],
-      ["Sat\u0131\u015f kayd\u0131", data.satis_adedi, ""],
-      ["Hurda sat\u0131\u015f has", data.hurda_satis_has_toplami, "has"],
-      ["Hurda milyem k\u00e2r\u0131", data.hurda_milyem_kari, "has"],
-      ["Hurda kayd\u0131", data.hurda_adedi, ""],
+      ["Genel milyem k\u00e2r\u0131", data.genel_urun_kari, "has"],
+      ["G\u00fcnl\u00fck milyem k\u00e2r\u0131", data.gunluk_urun_kari, "has"],
     ]],
     ["Stok", [
       ["Normal stok gram", data.normal_stok_gram, "gram"],
       ["Normal stok has", data.normal_stok_has, "has"],
-      ["Hurda al\u0131\u015f has", data.hurda_alis_has_toplami, "has"],
       ["Hurda stok gram", data.hurda_kalan_gram, "gram"],
-      ["Hurda kalan has", data.hurda_kalan_has, "has"],
       ["Toplam stok has", data.toplam_stok_has, "has"],
     ]],
     ["Cari", [
@@ -1406,6 +1409,7 @@ function renderDashboard(data) {
   groups.forEach(([title, rows]) => {
     const panel = document.createElement("section"); panel.className = "dashboard-compact-panel";
     const heading = document.createElement("h2"); heading.textContent = title;
+    const headingRow = document.createElement("div"); headingRow.className = "dashboard-panel-title"; headingRow.appendChild(heading);
     const list = document.createElement("dl"); list.className = "dashboard-data-list";
     rows.forEach(([label, value, key]) => {
       const row = document.createElement("div"); row.className = "dashboard-data-row";
@@ -1413,13 +1417,18 @@ function renderDashboard(data) {
       const amount = document.createElement("dd"); amount.textContent = formatValue(key, value);
       row.append(term, amount); list.appendChild(row);
     });
-    panel.append(heading, list); columns.appendChild(panel);
+    if (title === "Stok") {
+      const status = document.createElement("span");
+      status.className = `dashboard-status ${data.uyari_sayisi ? "has-warning" : "is-ok"}`;
+      status.setAttribute("role", "status");
+      status.textContent = data.uyari_sayisi ? `${data.uyari_sayisi} uyar\u0131` : "Sorun yok";
+      status.setAttribute("aria-label", `Stok kontrol\u00fc: ${status.textContent}`);
+      status.title = data.uyari_sayisi ? "Stok sayfas\u0131n\u0131 kontrol edin" : "Stok kontrol\u00fc: Sorun yok";
+      headingRow.appendChild(status);
+    }
+    panel.append(headingRow, list); columns.appendChild(panel);
   });
-  const status = document.createElement("p");
-  status.className = `dashboard-status ${data.uyari_sayisi ? "has-warning" : "is-ok"}`;
-  status.setAttribute("role", "status");
-  status.textContent = data.uyari_sayisi ? `Stok kontrol\u00fc: ${data.uyari_sayisi} uyar\u0131 \u00b7 Stok sayfas\u0131n\u0131 kontrol edin` : "Stok kontrol\u00fc: Sorun yok";
-  root.append(kpis, columns, status);
+  root.append(kpis, columns);
   return root;
 }
 let renderVersion = 0;

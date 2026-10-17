@@ -223,7 +223,7 @@ def run(chrome: Path) -> None:
             assert dashboard["toplam_gider"] == 0.350
             assert round(dashboard["genel_milyem_kari"] - dashboard["toplam_gider"], 3) == dashboard["net_kar"]
             assert cdp.evaluate("document.querySelectorAll('.dashboard-root .expense-profit-summary').length === 0")
-            assert cdp.evaluate("document.querySelector('.dashboard-root').children.length === 3")
+            assert cdp.evaluate("document.querySelector('.dashboard-root').children.length === 2")
             cdp.evaluate("document.querySelector('[data-view=giderler]').click()")
             cdp.wait_for("document.querySelector('.expenses-layout') !== null")
             cards = cdp.evaluate("[...document.querySelectorAll('.expense-profit-summary')].find(p=>p.textContent.includes('Toplam Gider'))?.textContent")
@@ -286,6 +286,9 @@ def run(chrome: Path) -> None:
             assert cdp.evaluate("document.querySelectorAll('.dashboard-root .expense-profit-summary').length === 0")
             assert cdp.evaluate("document.querySelector('.dashboard-hero') === null")
             assert cdp.evaluate("document.querySelectorAll('.dashboard-kpis>.metric-card').length === 4")
+            assert cdp.evaluate("document.querySelectorAll('.dashboard-compact-panel').length === 3 && [...document.querySelectorAll('.dashboard-compact-panel')].every(panel=>panel.querySelectorAll('.dashboard-data-row').length === 4)")
+            assert cdp.evaluate("document.querySelector('.dashboard-status').parentElement.classList.contains('dashboard-panel-title')")
+            assert cdp.evaluate("document.querySelector('.dashboard-root>.dashboard-status') === null")
             assert cdp.evaluate("getComputedStyle(document.querySelector('.dashboard-columns')).gridTemplateColumns.split(' ').length === 1")
             assert cdp.evaluate("document.documentElement.scrollWidth <= innerWidth"), "Dashboard overflows mobile width"
             dashboard_before_layout = cdp.evaluate("fetch('/api/dashboard').then(r=>r.json()).then(r=>JSON.stringify(r.data))", await_promise=True)

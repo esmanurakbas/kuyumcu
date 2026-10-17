@@ -1249,5 +1249,5 @@ def test_dashboard_does_not_render_form_summary():
     source = Path("static/app.js").read_text(encoding="utf-8")
     dashboard = source.split("function renderDashboard(data)", 1)[1].split("async function render()", 1)[0]
     assert "renderProfitSummary" not in dashboard
-    assert "root.append(kpis, columns, status)" in dashboard
+    assert "root.append(kpis, columns)" in dashboard
     assert "dashboard-hero" not in dashboard
