@@ -186,11 +186,11 @@ function showConfirm(message, okText = "Tamam", cancelText = "\u0130ptal") {
   });
 }
 
-function openNote(text) {
+function openNote(text, heading = "Not") {
   const overlay = document.createElement("div"); overlay.className = "modal note-modal";
   const box = document.createElement("div"); box.className = "modal-box note-dialog";
-  box.setAttribute("role", "dialog"); box.setAttribute("aria-modal", "true"); box.setAttribute("aria-label", "Not");
-  const title = document.createElement("h2"); title.textContent = "Not";
+  box.setAttribute("role", "dialog"); box.setAttribute("aria-modal", "true"); box.setAttribute("aria-label", heading);
+  const title = document.createElement("h2"); title.textContent = heading;
   const body = document.createElement("p"); body.className = "note-full"; body.textContent = text;
   const close = document.createElement("button"); close.type = "button"; close.className = "secondary"; close.textContent = "Kapat";
   const previous = document.activeElement;
@@ -903,7 +903,10 @@ function iconSvg(kind) {
 }
 
 function columnLabel(type, col) {
-  return labels[col] || col;
+  if (col === "net_bakiye_has") return "NET HAS BAK\u0130YES\u0130 (gr)";
+  const label = labels[col] || col;
+  const hasGram = col === "has" || col.endsWith("_has") || ["has_kari", "milyem_kari", "tahmini_kar", "tutar"].includes(col);
+  return hasGram ? `${label} (gr)` : label;
 }
 
 function tableSummaryMetrics(type, rows) {
@@ -982,7 +985,6 @@ function renderTable(type, rows, title = "", applySearch = true) {
       if (moneyFields.has(col) || numberFields.has(col)) td.className = "num";
       if (["stok", "hurdaStok"].includes(type) && ["kalan_gram", "kalan_has"].includes(col)) td.classList.add("stock-priority");
       if (col === "net_bakiye_has") {
-        td.textContent += " has gr";
         td.title = Number(row[col]) > 0 ? "Alacağımız has gram" : Number(row[col]) < 0 ? "Ödeyeceğimiz has gram" : "Bakiye kapalı";
         td.classList.add("cari-net-balance", Number(row[col]) > 0 ? "pos" : Number(row[col]) < 0 ? "neg" : "balance-zero");
       } else if (["milyem_farki", "has_kari", "milyem_kari"].includes(col)) td.classList.add(Number(row[col]) >= 0 ? "pos" : "neg");
@@ -1474,7 +1476,9 @@ async function openCariDetail(name) {
   const close = document.createElement("button"); close.type = "button"; close.className = "icon-btn cari-detail-close"; close.innerHTML = iconSvg("close");
   close.title = "Kapat"; close.setAttribute("aria-label", "Cari detay\u0131n\u0131 kapat");
   const dismiss = () => { overlay.remove(); if (opener?.isConnected) opener.focus(); };
-  close.onclick = dismiss; head.append(title, close);
+  const help = document.createElement("button"); help.type = "button"; help.className = "icon-btn cari-detail-help";
+  help.textContent = "?"; help.title = "Cari bakiye a\u00e7\u0131klamas\u0131"; help.setAttribute("aria-label", help.title); help.disabled = true;
+  close.onclick = dismiss; head.append(title, close, help);
   const body = document.createElement("div"); body.className = "cari-detail-body"; body.textContent = "\u0130\u015flemler y\u00fckleniyor...";
   box.append(head, body); overlay.appendChild(box); document.body.appendChild(overlay); close.focus();
   overlay.addEventListener("click", event => { if (event.target === overlay) dismiss(); });
@@ -1527,15 +1531,15 @@ async function openCariDetail(name) {
     const balance = document.createElement("p"); balance.className = `cari-detail-balance ${person.net_bakiye_has > 0 ? "pos" : person.net_bakiye_has < 0 ? "neg" : "balance-zero"}`;
     balance.textContent = `Net Has Bakiyesi: ${formatValue("net_bakiye_has", person.net_bakiye_has)} has gram`;
     const totals = renderCards([["Sat\u0131\u015f Has", person.toplam_satis_has, "has"], ["Al\u0131\u015f Has", person.toplam_alis_has, "has"], ["Tahsilat Has", person.tahsil_edilen_has, "has"], ["\u00d6deme Has", person.odedigimiz_has, "has"]]);
-    const reconciliation = document.createElement("div"); reconciliation.className = "cari-reconciliation";
     const difference = document.createElement("p");
     difference.textContent = `Alış–satış farkı: ${formatValue("has", person.toplam_satis_has)} − ${formatValue("has", person.toplam_alis_has)} = ${formatValue("net_bakiye_has", person.toplam_satis_has - person.toplam_alis_has)} has gram`;
     const formula = document.createElement("p");
     formula.textContent = `Net bakiye = satış − alış − tahsilat + ödeme: ${formatValue("has", person.toplam_satis_has)} − ${formatValue("has", person.toplam_alis_has)} − ${formatValue("has", person.tahsil_edilen_has)} + ${formatValue("has", person.odedigimiz_has)} = ${formatValue("net_bakiye_has", person.net_bakiye_has)} has gram`;
     const direction = document.createElement("p");
     direction.textContent = person.net_bakiye_has > 0 ? "Pozitif bakiye: karşı taraftan alacağımız has." : person.net_bakiye_has < 0 ? "Negatif bakiye: karşı tarafa ödeyeceğimiz has." : "Cari bakiyesi kapalı.";
-    reconciliation.append(difference, formula, direction);
-    body.replaceChildren(balance, totals, reconciliation, renderTable("cariHistory", history, "\u0130\u015flem Ge\u00e7mi\u015fi", false));
+    help.disabled = false;
+    help.onclick = () => openNote([difference.textContent, formula.textContent, direction.textContent].join("\n\n"), "Cari bakiye a\u00e7\u0131klamas\u0131");
+    body.replaceChildren(balance, totals, renderTable("cariHistory", history, "\u0130\u015flem Ge\u00e7mi\u015fi", false));
   } catch (error) { if (overlay.isConnected) body.textContent = error.message; }
 }
 

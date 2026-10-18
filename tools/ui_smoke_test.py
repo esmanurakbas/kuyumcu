@@ -159,7 +159,7 @@ def run(chrome: Path) -> None:
             cdp.wait_for("document.querySelector('[data-table-type=kisiCari] tbody') !== null")
             assert cdp.evaluate("document.querySelectorAll('#content>.table-section').length === 1")
             assert cdp.evaluate("formatValue('net_bakiye_has', 2768.17-2766.177) === '+1,99' && formatValue('net_bakiye_has', 1993) === '+1.993' && formatValue('net_bakiye_has', -1.993) === '-1,99'")
-            assert cdp.evaluate("[...document.querySelectorAll('#content .cari-net-balance')].every(cell=>cell.textContent.endsWith(' has gr'))")
+            assert cdp.evaluate("[...document.querySelectorAll('#content .cari-net-balance')].every(cell=>!cell.textContent.includes('has') && !cell.textContent.includes('gr'))")
             assert cdp.evaluate("(()=>{const table=document.querySelector('#content>.cari-table');return table.getBoundingClientRect().width >= document.querySelector('#content').clientWidth-2 && getComputedStyle(table.querySelector('.table-wrap')).maxHeight==='none';})()")
             assert cdp.evaluate("document.querySelectorAll('#content [role=tab]').length === 4")
             assert cdp.evaluate("document.querySelectorAll('#content .cari-net-balance.pos').length === 1")
@@ -169,7 +169,15 @@ def run(chrome: Path) -> None:
             assert cdp.evaluate("[...document.querySelectorAll('#content .cari-detail-btn')].every(button=>button.querySelector('svg') && button.getAttribute('aria-label') && !button.textContent.trim())")
             cdp.evaluate("document.querySelector('#content .cari-detail-btn').click()")
             cdp.wait_for("document.querySelector('[data-table-type=cariHistory] tbody') !== null")
-            assert cdp.evaluate("document.querySelectorAll('.cari-reconciliation p').length === 3 && document.querySelector('.cari-reconciliation').textContent.includes('has gram')")
+            assert cdp.evaluate("document.querySelector('.cari-reconciliation')===null && document.querySelector('.cari-detail-help')!==null")
+            assert cdp.evaluate("columnLabel('kisiCari','net_bakiye_has')==='NET HAS BAK\u0130YES\u0130 (gr)' && columnLabel('cariHistory','has').endsWith('(gr)')")
+            assert cdp.evaluate("(()=>{const c=document.querySelector('.cari-net-balance');return getComputedStyle(c).fontSize===getComputedStyle(c.parentElement.querySelector('td')).fontSize;})()")
+            detail_size = cdp.evaluate("(()=>{const r=document.querySelector('.cari-detail-box').getBoundingClientRect();return [r.width,r.height];})()")
+            cdp.evaluate("document.querySelector('.cari-detail-help').click()")
+            cdp.wait_for("document.querySelector('.note-dialog')!==null")
+            assert cdp.evaluate("document.querySelector('.note-full').textContent.includes('has gram') && document.querySelector('.note-full').textContent.includes('=')")
+            cdp.evaluate("document.querySelector('.note-dialog button').click()")
+            assert cdp.evaluate("document.querySelector('.cari-detail-modal')!==null")
             assert cdp.evaluate("document.querySelector('.cari-detail-close svg') !== null && document.querySelector('.cari-detail-close').getAttribute('aria-label') !== null")
             assert cdp.evaluate("getComputedStyle(document.querySelector('.cari-detail-close')).position === 'absolute'")
             assert cdp.evaluate("document.querySelector('.cari-detail-modal h2').textContent === 'ARANACAK TEDARIKCI'")
@@ -177,6 +185,11 @@ def run(chrome: Path) -> None:
             assert cdp.evaluate("new Set([...document.querySelectorAll('[data-table-type=cariHistory] [data-col=hareket]')].map(td=>td.textContent)).size === 4")
             cdp.evaluate("document.querySelector('.cari-detail-modal button').click()")
             assert cdp.evaluate("document.querySelector('.cari-detail-modal') === null")
+            cdp.evaluate("openCariDetail('CARI SIFIR')")
+            cdp.wait_for("document.querySelector('.cari-detail-body .cards')!==null")
+            assert cdp.evaluate("(()=>{const r=document.querySelector('.cari-detail-box').getBoundingClientRect();return [r.width,r.height];})()") == detail_size
+            cdp.evaluate("document.querySelector('.cari-detail-close').click()")
+
             cdp.evaluate("document.querySelector('#content .kebab-btn').click()")
             assert cdp.evaluate("document.querySelector('.cari-actions-modal .cari-dialog-close svg') !== null")
             cdp.evaluate("document.querySelector('.cari-actions-modal .cari-dialog-close').click()")
@@ -593,6 +606,21 @@ def run(chrome: Path) -> None:
                     (target/f"settings-{requested_theme}-{width}.png").write_bytes(base64.b64decode(cdp.call("Page.captureScreenshot", {"format":"png"})["data"]))
             cdp.evaluate("document.querySelector('.settings-form .secondary').click()")
 
+
+            cdp.evaluate("openCariDetail('UI MANUAL HAS')")
+            cdp.wait_for("document.querySelector('.cari-detail-body .cards')!==null")
+            for width,height in [(1280,820),(390,844)]:
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width":width,"height":height,"deviceScaleFactor":1,"mobile":False})
+                assert cdp.evaluate("(()=>{const b=document.querySelector('.cari-detail-box'),r=b.getBoundingClientRect();return r.left>=0 && r.right<=innerWidth && r.top>=0 && r.bottom<=innerHeight && getComputedStyle(document.querySelector('.cari-detail-body')).overflowY==='auto';})()")
+                if os.getenv("UI_THEME_SCREENSHOT_DIR"):
+                    import base64
+                    target=Path(os.environ["UI_THEME_SCREENSHOT_DIR"])
+                    (target/f"cari-{requested_theme}-{width}.png").write_bytes(base64.b64decode(cdp.call("Page.captureScreenshot", {"format":"png"})["data"]))
+            cdp.evaluate("document.querySelector('.cari-detail-help').click()")
+            assert cdp.evaluate("(()=>{const r=document.querySelector('.note-dialog').getBoundingClientRect();return r.width<=innerWidth && r.height<innerHeight*.8;})()")
+            if os.getenv("UI_THEME_SCREENSHOT_DIR"):
+                (target/f"note-{requested_theme}.png").write_bytes(base64.b64decode(cdp.call("Page.captureScreenshot", {"format":"png"})["data"]))
+            cdp.evaluate("document.querySelector('.note-dialog button').click();document.querySelector('.cari-detail-close').click()")
             # An old backend must not block local appearance preferences.
             original_theme = cdp.evaluate("document.documentElement.dataset.theme")
             cdp.evaluate("window.__realApi=api;api=async function(path,options){if(path==='/api/uygulama-ayarlari')throw new Error('Sunucu endpointi bulunamadi.');return window.__realApi(path,options);};openSettings()")

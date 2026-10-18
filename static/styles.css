@@ -3154,7 +3154,7 @@ button.secondary:hover {
 
 /* Account overview: one table per filter, with a separate read-only history. */
 .cari-table:not([data-table-type="cariOdeme"]) th:nth-child(2), .cari-table .cari-net-balance { background: var(--theme-surface, #fffdf4); }
-.cari-table .cari-net-balance { font-size: 16px; font-weight: 800; white-space: nowrap; }
+.cari-table .cari-net-balance { font-weight: 600; white-space: nowrap; }
 .cari-table .balance-zero, .cari-detail-balance.balance-zero { color: var(--muted); }
 .cari-table .actions-cell { gap: 10px; min-width: 120px; white-space: nowrap; }
 .cari-detail-btn { width: 32px; height: 32px; padding: 6px; }
@@ -3165,7 +3165,6 @@ button.secondary:hover {
 .cari-detail-body .cards { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 24px; }
 @media (max-width: 700px) {
   .cari-detail-body .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .cari-table .cari-net-balance { font-size: 17px; }
 }
 
 
@@ -3383,3 +3382,34 @@ button.secondary, .payment-open-btn { padding: 9px 13px; font-weight: 600; }
 .settings-form { grid-template-columns: minmax(0, 1fr); }
 .settings-form > * { grid-column: 1 / -1; min-width: 0; }
 .settings-form .field { grid-template-columns: minmax(0, 1fr); }
+
+/* A single soft divider between cells, rather than doubled adjacent borders. */
+:root { --table-divider: rgba(55, 69, 60, .13); }
+:root[data-theme="dark"] { --table-divider: rgba(210, 224, 215, .13); }
+.table-wrap table th, .table-wrap table td { border: 0; border-right: 1px solid var(--table-divider); border-bottom: 1px solid var(--table-divider); }
+.table-wrap table tr > :last-child { border-right: 0; }
+.table-wrap table tbody tr:last-child td { border-bottom: 0; }
+.table-wrap thead th { box-shadow: none; }
+.cari-table .cari-net-balance { font-weight: 600; }
+.note-dialog { width: min(440px, 92vw); padding: 22px; border-radius: 10px; border: 1px solid var(--table-divider); box-shadow: 0 8px 26px rgba(0, 0, 0, .12); display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.note-dialog h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.note-dialog .note-full { margin: 0; font-size: 13px; line-height: 1.7; color: var(--text); }
+.note-dialog > button { justify-self: end; min-width: 86px; }
+.cari-detail-modal { padding: 16px; }
+.cari-detail-modal .cari-detail-box { width: 100%; height: calc(100vh - 32px); height: calc(100dvh - 32px); max-width: none; max-height: none; padding: 20px; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 16px; overflow: hidden; }
+.cari-detail-box .modal-title { margin: 0; padding-right: 88px; min-height: 34px; }
+.cari-detail-help { position: absolute; right: 44px; top: 0; width: 34px; height: 34px; font-size: 17px; font-weight: 600; }
+.cari-detail-body { min-height: 0; overflow: auto; overscroll-behavior: contain; padding-right: 4px; }
+.cari-detail-body .cards { margin-bottom: 18px; }
+.cari-detail-body .table-wrap { max-height: none; overflow: visible; }
+@media (max-width: 680px) {
+  .table-wrap table td { border-right: 0; }
+  .cari-detail-modal { padding: 8px; }
+  .cari-detail-modal .cari-detail-box { height: calc(100vh - 16px); height: calc(100dvh - 16px); padding: 14px; }
+  .note-dialog { padding: 18px; }
+}
+
+/* Note/help cards stay compact even when mobile modals normally stretch. */
+.note-modal { align-items: center; padding: 16px; }
+.note-dialog { align-self: center; height: auto; align-content: start; grid-template-rows: auto minmax(0, auto) auto; }
+.note-dialog > button { align-self: end; }
