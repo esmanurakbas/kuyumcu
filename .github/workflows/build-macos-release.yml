@@ -36,7 +36,9 @@ jobs:
         run: python -m pytest -q
 
       - name: Build app
-        run: bash build_mac.sh
+        run: |
+          python -c "import json,os,pathlib; pathlib.Path('static/build-info.json').write_text(json.dumps({'version':os.environ['GITHUB_REF_NAME'],'commit':os.environ['GITHUB_SHA']}), encoding='utf-8')"
+          bash build_mac.sh
 
       - name: Verify clean app bundle
         run: |

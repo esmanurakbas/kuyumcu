@@ -81,6 +81,7 @@ const numberFields = new Set(["gram", "milyem", "has", "alis_gram", "alis_has", 
 const content = document.querySelector("#content");
 const search = document.querySelector("#search");
 let editing = null;
+const tableLayoutObserver = new ResizeObserver(() => requestAnimationFrame(fitPageTable));
 
 const today = () => new Date().toISOString().slice(0, 10);
 const normalize = (value) => String(value || "").toLocaleLowerCase("tr-TR").replaceAll("\u0131", "i").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -113,13 +114,22 @@ function attachDecimalGuard(input) {
   input.addEventListener("focus", () => { if (parseNum(input.value) === 0) input.value = ""; });
 }
 
+// Keep decimal/group separators consistent in desktop WebViews as well as browsers.
+function formatTurkishNumber(value, minimumDigits = 0, maximumDigits = 2) {
+  const parts = (Math.trunc(Number(value) * 10 ** maximumDigits + Math.sign(Number(value)) * 1e-8) / 10 ** maximumDigits).toFixed(maximumDigits).split(".");
+  let fraction = parts[1] || "";
+  while (fraction.length > minimumDigits && fraction.endsWith("0")) fraction = fraction.slice(0, -1);
+  const integer = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return integer + (fraction ? "," + fraction : "");
+}
+
 function formatValue(key, value) {
   if (value === null || value === undefined || value === "") return "";
   if (key === "odeme_tipi") return paymentLabel(value);
   if (key === "yon") return value === "ODEME" ? "Tedarik\u00e7iye \u00d6deme" : "M\u00fc\u015fteriden Tahsilat";
-  if (key === "net_bakiye_has") return `${Number(value) > 0 ? "+" : ""}${Number(value).toLocaleString("tr-TR", { maximumFractionDigits: 3 })}`;
-  if (moneyFields.has(key)) return Number(value).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  if (numberFields.has(key)) return Number(value).toLocaleString("tr-TR", { maximumFractionDigits: 3 });
+  if (key === "net_bakiye_has") return `${Number(value) > 0 ? "+" : ""}${formatTurkishNumber(value)}`;
+  if (moneyFields.has(key)) return formatTurkishNumber(value, 2, 2);
+  if (numberFields.has(key)) return formatTurkishNumber(value);
   return String(value);
 }
 
@@ -174,6 +184,72 @@ function showConfirm(message, okText = "Tamam", cancelText = "\u0130ptal") {
     overlay.appendChild(dialog);
     document.body.appendChild(overlay);
   });
+}
+
+function openNote(text) {
+  const overlay = document.createElement("div"); overlay.className = "modal note-modal";
+  const box = document.createElement("div"); box.className = "modal-box note-dialog";
+  box.setAttribute("role", "dialog"); box.setAttribute("aria-modal", "true"); box.setAttribute("aria-label", "Not");
+  const title = document.createElement("h2"); title.textContent = "Not";
+  const body = document.createElement("p"); body.className = "note-full"; body.textContent = text;
+  const close = document.createElement("button"); close.type = "button"; close.className = "secondary"; close.textContent = "Kapat";
+  const previous = document.activeElement;
+  const dismiss = () => { overlay.remove(); previous?.focus(); };
+  close.onclick = dismiss; overlay.onclick = event => { if (event.target === overlay) dismiss(); };
+  overlay.onkeydown = event => { if (event.key === "Escape") dismiss(); if (event.key === "Tab") { event.preventDefault(); close.focus(); } };
+  box.append(title, body, close); overlay.appendChild(box); document.body.appendChild(overlay); close.focus();
+}
+
+async function openSettings() {
+  if (document.querySelector(".settings-modal")) return;
+  const previous = document.activeElement;
+  const overlay = document.createElement("div"); overlay.className = "modal settings-modal";
+  const box = document.createElement("div"); box.className = "modal-box settings-box";
+  box.setAttribute("role", "dialog"); box.setAttribute("aria-modal", "true"); box.setAttribute("aria-label", "Ayarlar");
+  const title = document.createElement("h2"); title.textContent = "Ayarlar";
+  const intro = document.createElement("p"); intro.className = "settings-intro"; intro.textContent = "G\u00f6r\u00fcn\u00fcm ve yedekleme tercihleri";
+  const form = document.createElement("form"); form.className = "settings-form";
+  const theme = document.createElement("select"); theme.name = "theme";
+  [["light", "A\u00e7\u0131k"], ["dark", "Koyu"]].forEach(([value, text]) => theme.add(new Option(text, value)));
+  theme.value = document.documentElement.dataset.theme;
+  const frequency = document.createElement("select"); frequency.name = "backup_frequency";
+  [["daily", "G\u00fcnde bir (ilk a\u00e7\u0131l\u0131\u015fta)"], ["startup", "Her a\u00e7\u0131l\u0131\u015fta"]].forEach(([value, text]) => frequency.add(new Option(text, value)));
+  function field(text, input) { const label = document.createElement("label"); label.className = "field"; label.append(text, input); return label; }
+  const last = document.createElement("p"); last.className = "hint"; last.textContent = "Y\u00fckleniyor...";
+  const about = document.createElement("p"); about.className = "settings-about";
+  const hint = document.createElement("p"); hint.className = "hint"; hint.textContent = "Otomatik yedek uygulama a\u00e7\u0131l\u0131\u015f\u0131nda al\u0131n\u0131r. S\u0131kl\u0131k tercihi sonraki a\u00e7\u0131l\u0131\u015fta uygulan\u0131r; mevcut yedekler de\u011fi\u015ftirilmez.";
+  const cancel = document.createElement("button"); cancel.type = "button"; cancel.className = "secondary"; cancel.textContent = "\u0130ptal";
+  const save = document.createElement("button"); save.type = "submit"; save.textContent = "Kaydet"; save.disabled = true;
+  const dismiss = () => { overlay.remove(); if (previous?.isConnected) previous.focus(); };
+  cancel.onclick = dismiss; overlay.onclick = event => { if (event.target === overlay) dismiss(); };
+  overlay.onkeydown = event => {
+    if (event.key === "Escape") dismiss();
+    if (event.key === "Tab") {
+      const controls = [...box.querySelectorAll("select, button:not(:disabled)")];
+      if (event.shiftKey && document.activeElement === controls[0]) { event.preventDefault(); controls.at(-1).focus(); }
+      else if (!event.shiftKey && document.activeElement === controls.at(-1)) { event.preventDefault(); controls[0].focus(); }
+    }
+  };
+  const actions = document.createElement("div"); actions.className = "form-bottom-actions"; actions.append(cancel, save);
+  form.append(field("G\u00f6r\u00fcn\u00fcm", theme), field("Otomatik yedekleme", frequency), hint, last, about, actions);
+  box.append(title, intro, form); overlay.appendChild(box); document.body.appendChild(overlay); theme.focus();
+  try {
+    const data = await api("/api/uygulama-ayarlari");
+    if (!overlay.isConnected) return;
+    frequency.value = data.backup_frequency;
+    last.textContent = `Son ba\u015far\u0131l\u0131 yedek: ${data.last_backup ? new Date(data.last_backup).toLocaleString("tr-TR") : "Hen\u00fcz yok"}`;
+    about.textContent = `S\u00fcr\u00fcm: ${data.version}\n${data.update_info}`;
+    save.disabled = false;
+  } catch (error) { last.textContent = error.message; }
+  form.onsubmit = async event => {
+    event.preventDefault(); if (save.disabled) return; save.disabled = true;
+    try {
+      await api("/api/uygulama-ayarlari", {method:"PUT", body:JSON.stringify({backup_frequency:frequency.value})});
+      if (!overlay.isConnected) return;
+      if (document.documentElement.dataset.theme !== theme.value) document.querySelector("#themeToggle").click();
+      dismiss(); showMessage("Ayarlar kaydedildi.");
+    } catch (error) { if (overlay.isConnected) { save.disabled = false; last.textContent = error.message; } }
+  };
 }
 
 async function refreshSuggestions() {
@@ -253,7 +329,7 @@ function attachAutocomplete(input, source) {
 }
 function fieldElement(name, type, source, readonly) {
   if (type === "hidden") { const input = document.createElement("input"); input.type = "hidden"; return input; }
-  if (type === "textarea") { const input = document.createElement("textarea"); input.rows = 1; input.maxLength = 200; return input; }
+  if (type === "textarea") { const input = document.createElement("textarea"); input.rows = 1; input.maxLength = 500; return input; }
   if (type === "select") {
     const input = document.createElement("select");
     const values = Array.isArray(source) ? source : (state.suggestions[source] || []); values.forEach((value) => { const opt = document.createElement("option"); opt.value = value; opt.textContent = value; input.appendChild(opt); });
@@ -270,6 +346,7 @@ function fieldElement(name, type, source, readonly) {
 }
 
 function calcHas(form) {
+  if (form.elements.has_override?.value.trim()) return parseNum(form.elements.has_override.value);
   const milyem = form.elements.satis_milyem ? parseNum(form.elements.satis_milyem.value) : parseNum(form.elements.milyem?.value);
   return parseNum(form.elements.gram.value) * milyem / 1000;
 }
@@ -525,6 +602,16 @@ function openTransactionPaymentModal(form) {
   const preview = document.createElement("div");
   preview.className = "has-preview";
   preview.innerHTML = "<span>Hesaplanan Has</span><strong data-has>0</strong><span>Gram</span><strong data-gram>0</strong>";
+  const manualHas = document.createElement("input");
+  manualHas.type = "text"; manualHas.name = "has_override"; manualHas.inputMode = "decimal";
+  manualHas.placeholder = "Otomatik"; manualHas.setAttribute("aria-label", "Manuel has");
+  manualHas.className = "manual-has-input"; attachDecimalGuard(manualHas);
+  const manualLabel = document.createElement("label"); manualLabel.className = "manual-has-label";
+  manualLabel.append("Manuel has", manualHas);
+  const automatic = document.createElement("button"); automatic.type = "button"; automatic.className = "secondary has-auto";
+  automatic.textContent = "Otomatik";
+  automatic.onclick = () => { manualHas.value = ""; restoreAutomaticPurity(); updatePreview(); syncTransactionPayment(form); };
+  preview.append(manualLabel, automatic);
   const payment = attachPaymentButton(form);
   if (type === "satis" || (type === "hurda" && hurdaMode === "SATIS")) {
     const summaryRow = document.createElement("div"); summaryRow.className = "sale-summary-row";
@@ -535,7 +622,23 @@ function openTransactionPaymentModal(form) {
     preview.querySelector("[data-has]").textContent = formatValue("has", calcHas(form));
     preview.querySelector("[data-gram]").textContent = formatValue("gram", parseNum(form.elements.gram.value));
   };
-  ["gram", "milyem", "satis_milyem"].map((name) => form.elements[name]).filter(Boolean).forEach((input) => input.addEventListener("input", updatePreview));
+  const purityInput = form.elements.satis_milyem || form.elements.milyem;
+  let automaticPurity;
+  function restoreAutomaticPurity() {
+    if (automaticPurity !== undefined) purityInput.value = automaticPurity;
+    automaticPurity = undefined; manualHas.setCustomValidity("");
+  }
+  function syncManualPurity() {
+    manualHas.setCustomValidity("");
+    if (!manualHas.value.trim()) { restoreAutomaticPurity(); return; }
+    if (automaticPurity === undefined) automaticPurity = purityInput.value;
+    const gram = parseNum(form.elements.gram.value);
+    if (gram <= 0) { manualHas.setCustomValidity("Manuel has i\u00e7in gram s\u0131f\u0131rdan b\u00fcy\u00fck olmal\u0131."); return; }
+    purityInput.value = String(parseNum(manualHas.value) * 1000 / gram);
+  }
+  form.elements.gram.addEventListener("input", () => { if (manualHas.value.trim()) syncManualPurity(); updatePreview(); syncTransactionPayment(form); });
+  purityInput.addEventListener("input", () => { manualHas.value = ""; automaticPurity = undefined; manualHas.setCustomValidity(""); updatePreview(); syncTransactionPayment(form); });
+  manualHas.addEventListener("input", () => { syncManualPurity(); updatePreview(); syncTransactionPayment(form); });
   form._updatePreview = updatePreview;
   updatePreview();
 
@@ -545,12 +648,18 @@ function openTransactionPaymentModal(form) {
   save.type = "submit";
   save.textContent = isEditing ? "G\u00fcncelle" : "Kaydet";
   actions.appendChild(save);
+  if (isEditing) {
+    const cancel = document.createElement("button"); cancel.type = "button"; cancel.className = "secondary"; cancel.textContent = "\u0130ptal";
+    cancel.onclick = () => { editing = null; state.selectedPurchase = null; state.selectedHurdaPurchase = null; render(); };
+    actions.appendChild(cancel);
+  }
   form.appendChild(actions);
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     syncTransactionPayment(form);
     const data = Object.fromEntries(new FormData(form).entries());
+    if (!data.has_override?.trim()) delete data.has_override;
     if (type === "alis") { data.has_fiyati = 0; data.iscilik = 0; data.ek_masraf = 0; data.odenen = 0; }
     if (type === "satis") {
       data.stoktan = ["true", "1"].includes(String(data.stoktan));
@@ -712,6 +821,7 @@ function renderSelectableTable(cols, rows, onSelect) {
       const td = document.createElement("td");
       td.dataset.label = labels[col] || col;
       td.textContent = formatValue(col, row[col]);
+
       if (moneyFields.has(col) || numberFields.has(col)) td.className = "num";
       tr.appendChild(td);
     });
@@ -843,7 +953,7 @@ function renderTable(type, rows, title = "", applySearch = true) {
   const cols = columns[type];
   const actionType = type === "hurdaAlis" || type === "hurdaSatis" ? "hurda" : type;
   const table = document.createElement("table");
-  table.innerHTML = `<thead><tr>${cols.map((col) => `<th>${columnLabel(type, col)}</th>`).join("")}${["giderler", "alis", "satis", "hurda", "hurdaAlis", "hurdaSatis", "kisiCari", "musteriCari", "tedarikciCari", "cariOdeme"].includes(type) ? "<th>\u0130\u015flemler</th>" : ""}</tr></thead>`;
+  table.innerHTML = `<thead><tr>${cols.map((col) => `<th>${columnLabel(type, col)}</th>`).join("")}${["giderler", "alis", "satis", "hurda", "hurdaAlis", "hurdaSatis", "kisiCari", "musteriCari", "tedarikciCari", "cariOdeme", "cariHistory"].includes(type) ? "<th>\u0130\u015flemler</th>" : ""}</tr></thead>`;
   const tbody = document.createElement("tbody");
   rows.forEach((row) => {
     const tr = document.createElement("tr");
@@ -852,9 +962,19 @@ function renderTable(type, rows, title = "", applySearch = true) {
       td.dataset.label = columnLabel(type, col);
       td.dataset.col = col;
       td.textContent = formatValue(col, row[col]);
+      if (["not", "notlar"].includes(col)) {
+        td.classList.add("note-cell"); td.textContent = "";
+        if (row[col]) {
+          const note = document.createElement("button"); note.type = "button"; note.className = "note-preview";
+          note.textContent = String(row[col]); note.setAttribute("aria-label", "Notun tamam\u0131n\u0131 g\u00f6ster");
+          note.onclick = () => openNote(String(row[col])); td.appendChild(note);
+        }
+      }
       if (moneyFields.has(col) || numberFields.has(col)) td.className = "num";
       if (["stok", "hurdaStok"].includes(type) && ["kalan_gram", "kalan_has"].includes(col)) td.classList.add("stock-priority");
       if (col === "net_bakiye_has") {
+        td.textContent += " has gr";
+        td.title = Number(row[col]) > 0 ? "Alacağımız has gram" : Number(row[col]) < 0 ? "Ödeyeceğimiz has gram" : "Bakiye kapalı";
         td.classList.add("cari-net-balance", Number(row[col]) > 0 ? "pos" : Number(row[col]) < 0 ? "neg" : "balance-zero");
       } else if (["milyem_farki", "has_kari", "milyem_kari"].includes(col)) td.classList.add(Number(row[col]) >= 0 ? "pos" : "neg");
       tr.appendChild(td);
@@ -921,6 +1041,12 @@ function renderTable(type, rows, title = "", applySearch = true) {
       td.append(edit, del);
       tr.appendChild(td);
     }
+    if (type === "cariHistory" && row.openRecord) {
+      const td = document.createElement("td"); td.className = "actions-cell";
+      const go = document.createElement("button"); go.type = "button"; go.className = "icon-btn";
+      go.innerHTML = iconSvg("edit"); go.title = "As\u0131l kayd\u0131 a\u00e7"; go.setAttribute("aria-label", go.title);
+      go.onclick = row.openRecord; td.appendChild(go); tr.appendChild(td);
+    }
     tbody.appendChild(tr);
   });
   table.appendChild(tbody);
@@ -936,7 +1062,7 @@ async function startEdit(type, row) {
   await render();
   setTimeout(async () => {
     const form = document.querySelector(".entry-form");
-    if (!form) return;
+    if (!form || editing?.type !== type || editing?.id !== row.id) return;
     Object.entries(row).forEach(([key, value]) => { if (form.elements[key]) form.elements[key].value = value ?? ""; });
     form.elements.islem_turu?.dispatchEvent(new Event("change"));
     if (form.elements.notlar) form.elements.notlar.value = row.notlar ?? row.not ?? "";
@@ -946,6 +1072,9 @@ async function startEdit(type, row) {
       form.elements.purchase_id.value = selectedId || "";
       form.elements.alis_id.value = selectedId || "";
       form.elements.satis_milyem.value = row.satis_milyem || row.milyem || "";
+    }
+    if (form.elements.has_override) {
+      form.elements.has_override.value = row.has_override ?? "";
     }
     if (type !== "giderler") syncTransactionPayment(form);
     if (type === "hurda") {
@@ -1138,7 +1267,7 @@ function renderCariPaymentForm(data) {
   const noteInput = document.createElement("textarea");
   noteInput.name = "notlar";
   noteInput.rows = 1;
-  noteInput.maxLength = 200;
+  noteInput.maxLength = 500;
 
   const paidField = makeField("\u00d6denen Has", paidInput);
   const gramField = makeField("Gram", gramInput);
@@ -1364,11 +1493,40 @@ async function openCariDetail(name) {
     addTransactions((scrap.kayitlar || []).filter(row => normalize(row.islem_turu) === "alis"), "kisi", false, "Hurda");
     addTransactions((scrap.kayitlar || []).filter(row => normalize(row.islem_turu) === "satis"), "kisi", true, "Hurda");
     (accounts.odemeler || []).filter(row => normalize(row.isim) === normalize(name)).forEach(row => history.push({ tarih: row.tarih, hareket: row.yon === "ODEME" ? "\u00d6deme" : "Tahsilat", kaynak: "Cari", gram: null, has: row.odenen_has, not: row.not ?? row.notlar ?? "", id: row.id }));
+    history.forEach(item => {
+      const source = item.kaynak.split(" #")[0];
+      let type, record, view;
+      if (source === "Cari") {
+        record = accounts.odemeler.find(row => row.id === item.id);
+        item.openRecord = () => { close.click(); openCariPaymentModal(accounts, name, record); };
+        return;
+      }
+      if (source === "Hurda") {
+        type = "hurda"; record = scrap.kayitlar.find(row => row.id === item.id);
+        view = record.islem_turu === "SATIS" ? "hurda_satis" : "hurda_alis";
+      } else {
+        type = ["Sat\u0131\u015f", "Tahsilat"].includes(item.hareket) ? "satis" : "alis";
+        record = (type === "satis" ? sales : purchases).find(row => row.id === item.id); view = type;
+      }
+      item.openRecord = () => {
+        close.click(); state.view = view; state.search = ""; search.value = "";
+        document.querySelectorAll(".nav").forEach(button => button.classList.toggle("active", button.dataset.view === view));
+        startEdit(type, record);
+      };
+    });
     history.sort((a, b) => String(b.tarih).localeCompare(String(a.tarih)) || Number(b.id) - Number(a.id));
     const balance = document.createElement("p"); balance.className = `cari-detail-balance ${person.net_bakiye_has > 0 ? "pos" : person.net_bakiye_has < 0 ? "neg" : "balance-zero"}`;
-    balance.textContent = `Net Has Bakiyesi: ${formatValue("net_bakiye_has", person.net_bakiye_has)} has`;
+    balance.textContent = `Net Has Bakiyesi: ${formatValue("net_bakiye_has", person.net_bakiye_has)} has gram`;
     const totals = renderCards([["Sat\u0131\u015f Has", person.toplam_satis_has, "has"], ["Al\u0131\u015f Has", person.toplam_alis_has, "has"], ["Tahsilat Has", person.tahsil_edilen_has, "has"], ["\u00d6deme Has", person.odedigimiz_has, "has"]]);
-    body.replaceChildren(balance, totals, renderTable("cariHistory", history, "\u0130\u015flem Ge\u00e7mi\u015fi", false));
+    const reconciliation = document.createElement("div"); reconciliation.className = "cari-reconciliation";
+    const difference = document.createElement("p");
+    difference.textContent = `Alış–satış farkı: ${formatValue("has", person.toplam_satis_has)} − ${formatValue("has", person.toplam_alis_has)} = ${formatValue("net_bakiye_has", person.toplam_satis_has - person.toplam_alis_has)} has gram`;
+    const formula = document.createElement("p");
+    formula.textContent = `Net bakiye = satış − alış − tahsilat + ödeme: ${formatValue("has", person.toplam_satis_has)} − ${formatValue("has", person.toplam_alis_has)} − ${formatValue("has", person.tahsil_edilen_has)} + ${formatValue("has", person.odedigimiz_has)} = ${formatValue("net_bakiye_has", person.net_bakiye_has)} has gram`;
+    const direction = document.createElement("p");
+    direction.textContent = person.net_bakiye_has > 0 ? "Pozitif bakiye: karşı taraftan alacağımız has." : person.net_bakiye_has < 0 ? "Negatif bakiye: karşı tarafa ödeyeceğimiz has." : "Cari bakiyesi kapalı.";
+    reconciliation.append(difference, formula, direction);
+    body.replaceChildren(balance, totals, reconciliation, renderTable("cariHistory", history, "\u0130\u015flem Ge\u00e7mi\u015fi", false));
   } catch (error) { if (overlay.isConnected) body.textContent = error.message; }
 }
 
@@ -1438,7 +1596,7 @@ function renderExpenseForm() {
     wrap.dataset.field = name;
     const input = fieldElement(name, type); input.name = name; input.required = name !== "notlar";
     if (name === "tutar") input.placeholder = "0,000";
-    if (name === "notlar") { input.rows = 2; input.maxLength = 1000; input.placeholder = "Giderle ilgili k\u0131sa bir not..."; }
+    if (name === "notlar") { input.rows = 2; input.maxLength = 500; input.placeholder = "Giderle ilgili k\u0131sa bir not..."; }
     if (name === "tarih") input.value = today();
     if (name === "kategori") {
       input.setAttribute("list", "expenseCategories");
@@ -1451,7 +1609,7 @@ function renderExpenseForm() {
   });
   const save = document.createElement("button"); save.type = "submit";
   save.textContent = editing?.type === "giderler" ? "G\xfcncelle" : "Kaydet";
-  const cancel = document.createElement("button"); cancel.type = "button"; cancel.textContent = "Vazge\xe7";
+  const cancel = document.createElement("button"); cancel.type = "button"; cancel.textContent = "\u0130ptal";
   cancel.onclick = () => { editing = null; render(); };
   const actions = document.createElement("div"); actions.className = "form-bottom-actions"; actions.append(save, cancel); cancel.className = "secondary";
   form.appendChild(actions);
@@ -1604,7 +1762,11 @@ async function render() {
     }
     rendered.appendChild(renderTable(view, await api(`/api/${view}`), `${views[view].title} Kayıtları`));
   } catch (error) { if (version === renderVersion) showMessage(error.message, true); }
-  finally { if (version === renderVersion) content.replaceChildren(rendered); }
+  finally { if (version === renderVersion) { content.replaceChildren(rendered); requestAnimationFrame(() => {
+      tableLayoutObserver.disconnect();
+      content.querySelectorAll(".form-panel, .page-tabs").forEach(element => tableLayoutObserver.observe(element));
+      fitPageTable();
+    }); } }
 }
 
 document.querySelectorAll(".nav").forEach((button) => button.addEventListener("click", () => {
@@ -1621,6 +1783,7 @@ search.addEventListener("input", () => { state.search = search.value; render(); 
 
 
 document.querySelector("#exportBtn").addEventListener("click", downloadAllData);
+document.querySelector("#settingsBtn").addEventListener("click", openSettings);
 document.querySelector("#backupBtn").addEventListener("click", createDatabaseBackup);
 document.querySelector("#restoreBtn").addEventListener("click", restoreLatestDatabaseBackup);
 
@@ -1635,3 +1798,16 @@ document.addEventListener("keydown", event => {
 });
 
 api("/api/session").then((session) => { if (!session?.authenticated) window.location.href = "/login"; else refreshSuggestions().then(render); }).catch((error) => showMessage(error.message, true));
+
+// Size the records area from its actual position, after forms and filters.
+function fitPageTable() {
+  const section = content.querySelector(":scope > .table-section, :scope > .expenses-layout > .table-section");
+  if (!section) return;
+  const wrap = section.querySelector(".table-wrap");
+  if (!wrap) return;
+  if (window.innerWidth <= 680) { wrap.style.removeProperty("height"); return; }
+  const trailingSpace = section.getBoundingClientRect().bottom - wrap.getBoundingClientRect().bottom + parseFloat(getComputedStyle(section).marginBottom || 0);
+  const available = content.getBoundingClientRect().bottom - wrap.getBoundingClientRect().top - content.scrollTop - trailingSpace - 8;
+  wrap.style.height = `${Math.max(100, available)}px`;
+}
+window.addEventListener("resize", fitPageTable);

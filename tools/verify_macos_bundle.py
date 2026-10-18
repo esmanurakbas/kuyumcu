@@ -63,6 +63,10 @@ def verify(bundle: Path) -> None:
                     url = base + ("/" if name == "index.html" else "/static/" + name)
                     with opener.open(url, timeout=10) as response:
                         assert response.read() == (source / "static" / name).read_bytes(), name
+                with opener.open(base + "/api/uygulama-ayarlari", timeout=10) as response:
+                    settings = json.load(response)["data"]
+                    assert settings["backup_frequency"] == "daily" and settings["last_backup"]
+                    assert settings["version"] == json.loads((source / "static/build-info.json").read_text())["version"]
                 assert database.is_file(), "Disposable database was not created"
                 assert process.poll() is None, "App closed during startup verification"
                 print("macOS bundle passed: current assets, native app startup, login, clean database and API.")

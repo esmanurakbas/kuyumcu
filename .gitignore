@@ -42,3 +42,7 @@ dist/
 KuyumcuTakip-Windows/
 KuyumcuTakip-Windows.zip
 *.dmg
+
+# Runtime preferences and generated release metadata
+/data/ui_settings.json
+/static/build-info.json

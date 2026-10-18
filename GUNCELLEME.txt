@@ -28,3 +28,12 @@ Stok kontrolü gram üzerinden yapılır; alış/satış fiyatı stok sınırın
 
 Güncelleme tamamlandığında mevcut alış, satış, cari ve gider kayıtlarınızın
 göründüğünü kontrol edin. Veri taşımak için ayrıca içe aktarma gerekmez.
+
+
+SON SURUMDEKI EK IYILESTIRMELER
+Ayarlar uc nokta menusundedir: gorunum, acilista yedekleme sikligi ve son
+basarili yedek bilgisi. Finansal hesaplama kurallari ayarlardan degistirilmez.
+Manuel has girildiginde gram sabit kalir, islem milyemi otomatik hesaplanir.
+Satisin alis milyemi stok kaynagindan korunur. Eski kayitlar yeniden hesaplanmaz.
+Tablolarda sabit baslik, not goruntuleme ve cari gecmisinden kayda gecis bulunur.
+Bu surumde musteri veritabani veya bos bir veritabani dagitilmaz.

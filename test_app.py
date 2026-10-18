@@ -458,7 +458,6 @@ def test_frontend_layout_tabs_columns_and_confirmations():
     assert "transaction-payment-modal" in app_js
     assert "transaction-product-payment-field" in app_js
     assert "payment-inactive" in app_js
-    assert 'map((name) => form.elements[name]).filter(Boolean).forEach((input) => input.addEventListener("input", updatePreview))' in app_js
     assert 'state.selectedPurchase?.id' in app_js
     assert 'state.selectedHurdaPurchase?.id' in app_js
     assert "const isEditing = editing?.type === type" in app_js
@@ -1288,8 +1287,8 @@ def test_note_fields_enforce_their_character_limits(tmp_path, monkeypatch):
     client = make_client(tmp_path, monkeypatch)
     login(client)
     purchase_payload = {"tedarikci": "S", "cinsi": "BILEZIK", "ayar": "22", "gram": 10, "milyem": 900}
-    assert client.post("/api/alis", json={**purchase_payload, "notlar": "x" * 201}).status_code == 422
-    purchase = ok(client.post("/api/alis", json={**purchase_payload, "notlar": "x" * 200}))
+    assert client.post("/api/alis", json={**purchase_payload, "notlar": "x" * 501}).status_code == 422
+    purchase = ok(client.post("/api/alis", json={**purchase_payload, "notlar": "x" * 500}))
     cases = [
         ("/api/satis", {"musteri": "C", "alis_id": purchase["id"], "cinsi": "BILEZIK", "ayar": "22", "gram": 1, "satis_milyem": 950}),
         ("/api/hurda", {"islem_turu": "ALIS", "kisi": "S", "cinsi": "HURDA", "ayar": "18", "gram": 1, "milyem": 750}),
@@ -1297,7 +1296,7 @@ def test_note_fields_enforce_their_character_limits(tmp_path, monkeypatch):
         ("/api/cari/odeme", {"isim": "S", "odeme_tipi": "HAS", "yon": "ODEME", "odenen_has": "0.100"}),
     ]
     for path, payload in cases:
-        limit = 1000 if path == "/api/giderler" else 200
+        limit = 500
         assert client.post(path, json={**payload, "notlar": "x" * (limit + 1)}).status_code == 422, path
         response = client.post(path, json={**payload, "notlar": "x" * limit})
         assert response.status_code == 200, (path, response.json())

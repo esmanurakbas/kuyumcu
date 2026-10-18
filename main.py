@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import json
 import shutil
 import sqlite3
 import sys
@@ -308,6 +309,34 @@ def create_daily_backup() -> Path:
     return result
 
 
+
+def read_ui_settings() -> dict[str, str]:
+    try:
+        data = json.loads((DB_PATH.parent / "ui_settings.json").read_text(encoding="utf-8"))
+        if isinstance(data, dict) and data.get("backup_frequency") in ("daily", "startup"):
+            return {"backup_frequency": data["backup_frequency"]}
+    except (OSError, ValueError):
+        pass
+    return {"backup_frequency": "daily"}
+
+
+def settings_status() -> dict[str, Any]:
+    candidates = sorted(backup_dir().glob("kuyumcu_*.db"), key=lambda path: path.stat().st_mtime, reverse=True)
+    latest = next((path for path in candidates if database_integrity(path)), None)
+    version_file = resource_path("SURUM.txt")
+    version = "Yerel kaynak s\u00fcr\u00fcm\u00fc"
+    if version_file.is_file():
+        version = version_file.read_text(encoding="utf-8-sig").strip()
+    metadata = resource_path("static/build-info.json")
+    if metadata.is_file():
+        try:
+            info = json.loads(metadata.read_text(encoding="utf-8"))
+            version = str(info["version"])
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+    return {**read_ui_settings(), "last_backup": datetime.fromtimestamp(latest.stat().st_mtime).astimezone().isoformat() if latest else None,
+            "version": version, "update_info": "G\u00fcncelleme yeni uygulama paketiyle yap\u0131l\u0131r. Mevcut veritaban\u0131 korunur."}
+
 def schema_version() -> str | None:
     if not DB_PATH.exists() or not database_integrity():
         return None
@@ -548,6 +577,8 @@ def init_db() -> None:
     if not database_integrity():
         raise RuntimeError(f"Migration sonrası veritabanı kontrolü başarısız: {DB_PATH}")
     create_daily_backup()
+    if read_ui_settings()["backup_frequency"] == "startup":
+        create_database_backup("startup")
 
 
 class BaseTransaction(BaseModel):
@@ -561,7 +592,8 @@ class BaseTransaction(BaseModel):
     milyem: Any = ZERO
     has_fiyati: Any = ZERO
     iscilik: Any = ZERO
-    notlar: str = Field(default="", max_length=200)
+    notlar: str = Field(default="", max_length=500)
+    has_override: Any | None = None
     stoktan: bool = False
     odeme_tipi: str = "ODEME_YOK"
     odenen_has: Any = ZERO
@@ -582,6 +614,8 @@ class BaseTransaction(BaseModel):
         self.adet = ZERO if clean_text(self.adet) == "" else non_negative(self.adet, "adet")
         for field_name in ["gram", "milyem", "has_fiyati", "iscilik"]:
             setattr(self, field_name, non_negative(getattr(self, field_name), field_name))
+        if self.has_override is not None:
+            self.has_override = non_negative(self.has_override, "has_override")
         self.adet = ZERO
         self.cinsi = normalize_product(self.cinsi)
         self.ayar = clean_text(self.ayar)
@@ -656,7 +690,7 @@ class CariOdemeIn(BaseModel):
     adet: Any = ZERO
     gram: Any = ZERO
     milyem: Any = ZERO
-    notlar: str = Field(default="", max_length=200)
+    notlar: str = Field(default="", max_length=500)
 
 
 
@@ -768,6 +802,8 @@ class HurdaIn(BaseTransaction):
 
 def row_dict(row: sqlite3.Row, total_name: str | None = None, total: Decimal | None = None) -> dict[str, Any]:
     data = dict(row)
+    if all(key in data for key in ("has", "gram", "milyem")) and d(data["has"]) != calc_has(ZERO, data["gram"], data["milyem"]):
+        data["has_override"] = str(data["has"])
     if "notlar" in data:
         data["not"] = data.pop("notlar")
     if data.get("islem_turu") in {"ALIS", "SATIS"}:
@@ -1485,7 +1521,7 @@ def list_alis(_: None = Depends(require_auth)) -> dict[str, Any]:
 
 @app.post("/api/alis")
 def create_alis(payload: AlisIn, _: None = Depends(require_auth)) -> dict[str, Any]:
-    has = calc_has(payload.adet, payload.gram, payload.milyem)
+    has = payload.has_override if payload.has_override is not None else calc_has(payload.adet, payload.gram, payload.milyem)
     paid_has = calc_transaction_payment(payload.odeme_tipi, payload.odenen_has, payload.odenen_adet, payload.odenen_gram, payload.odenen_milyem, has)
     with db() as conn:
         cur = conn.execute(
@@ -1538,7 +1574,7 @@ def list_satis(_: None = Depends(require_auth)) -> dict[str, Any]:
 
 @app.post("/api/satis")
 def create_satis(payload: SatisIn, _: None = Depends(require_auth)) -> dict[str, Any]:
-    has = calc_has(payload.adet, payload.gram, payload.milyem)
+    has = payload.has_override if payload.has_override is not None else calc_has(payload.adet, payload.gram, payload.milyem)
     paid_has = calc_transaction_payment(payload.odeme_tipi, payload.odenen_has, payload.odenen_adet, payload.odenen_gram, payload.odenen_milyem, has)
     with db(write=True) as conn:
         plan = plan_stock_sale(conn, "normal", payload) if payload.stoktan else []
@@ -1607,7 +1643,7 @@ def list_hurda(_: None = Depends(require_auth)) -> dict[str, Any]:
 
 @app.post("/api/hurda")
 def create_hurda(payload: HurdaIn, _: None = Depends(require_auth)) -> dict[str, Any]:
-    has = calc_has(payload.adet, payload.gram, payload.milyem)
+    has = payload.has_override if payload.has_override is not None else calc_has(payload.adet, payload.gram, payload.milyem)
     paid_has = calc_transaction_payment(payload.odeme_tipi, payload.odenen_has, payload.odenen_adet, payload.odenen_gram, payload.odenen_milyem, has)
     total = q(has * payload.has_fiyati + payload.iscilik, MONEY_Q)
     with db(write=True) as conn:
@@ -1863,7 +1899,7 @@ class GiderIn(BaseModel):
     tarih: date = Field(default_factory=date.today)
     tutar: Decimal = Field(gt=0, max_digits=14, decimal_places=3, allow_inf_nan=False)
     kategori: str = Field(min_length=1, max_length=100)
-    notlar: str = Field(default="", max_length=1000)
+    notlar: str = Field(default="", max_length=500)
 
 
 @app.get("/api/giderler")
@@ -1929,6 +1965,36 @@ def settings(_: None = Depends(require_auth)) -> dict[str, Any]:
     return ok([{"baslik": "Giris", "deger": "Sifresiz otomatik acilis"}, {"baslik": "Stok", "deger": "Otomatik hesaplanir"}, {"baslik": "Hurda", "deger": "Normal stoktan ayridir"}])
 
 
+
+class UiSettingsIn(BaseModel):
+    backup_frequency: str
+
+    @field_validator("backup_frequency")
+    @classmethod
+    def valid_frequency(cls, value: str) -> str:
+        if value not in {"daily", "startup"}:
+            raise ValueError("Gecersiz yedekleme sikligi.")
+        return value
+
+
+@app.get("/api/uygulama-ayarlari")
+def get_ui_settings(_: None = Depends(require_auth)) -> dict[str, Any]:
+    return ok(settings_status())
+
+
+@app.put("/api/uygulama-ayarlari")
+def save_ui_settings(payload: UiSettingsIn, _: None = Depends(require_auth)) -> dict[str, Any]:
+    # Preferences live beside the DB; business tables and restore files are untouched.
+    target = DB_PATH.parent / "ui_settings.json"
+    with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=target.parent, prefix="ui-settings-", suffix=".tmp", delete=False) as handle:
+        temporary = Path(handle.name)
+        json.dump(payload.model_dump(), handle)
+    try:
+        os.replace(temporary, target)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return ok(settings_status())
+
 @app.post("/api/backup")
 def create_backup(_: None = Depends(require_auth)) -> dict[str, Any]:
     path = create_database_backup("manual")
@@ -1970,7 +2036,7 @@ def restore_latest_backup(_: None = Depends(require_auth)) -> dict[str, Any]:
 
 @app.put("/api/alis/{item_id}")
 def update_alis(item_id: int, payload: AlisIn, _: None = Depends(require_auth)) -> dict[str, Any]:
-    has = calc_has(payload.adet, payload.gram, payload.milyem)
+    has = payload.has_override if payload.has_override is not None else calc_has(payload.adet, payload.gram, payload.milyem)
     paid_has = calc_transaction_payment(payload.odeme_tipi, payload.odenen_has, payload.odenen_adet, payload.odenen_gram, payload.odenen_milyem, has)
     with db(write=True) as conn:
         existing = conn.execute("SELECT * FROM alis WHERE id = ?", (item_id,)).fetchone()
@@ -2010,7 +2076,7 @@ def update_alis(item_id: int, payload: AlisIn, _: None = Depends(require_auth)) 
 
 @app.put("/api/satis/{item_id}")
 def update_satis(item_id: int, payload: SatisIn, _: None = Depends(require_auth)) -> dict[str, Any]:
-    has = calc_has(payload.adet, payload.gram, payload.milyem)
+    has = payload.has_override if payload.has_override is not None else calc_has(payload.adet, payload.gram, payload.milyem)
     paid_has = calc_transaction_payment(payload.odeme_tipi, payload.odenen_has, payload.odenen_adet, payload.odenen_gram, payload.odenen_milyem, has)
     with db(write=True) as conn:
         existing = conn.execute("SELECT * FROM satis WHERE id = ?", (item_id,)).fetchone()
@@ -2049,7 +2115,7 @@ def update_satis(item_id: int, payload: SatisIn, _: None = Depends(require_auth)
         return ok(sale_out(conn, row), "Satis gncellendi.")
 @app.put("/api/hurda/{item_id}")
 def update_hurda(item_id: int, payload: HurdaIn, _: None = Depends(require_auth)) -> dict[str, Any]:
-    has = calc_has(payload.adet, payload.gram, payload.milyem)
+    has = payload.has_override if payload.has_override is not None else calc_has(payload.adet, payload.gram, payload.milyem)
     paid_has = calc_transaction_payment(payload.odeme_tipi, payload.odenen_has, payload.odenen_adet, payload.odenen_gram, payload.odenen_milyem, has)
     with db(write=True) as conn:
         existing = conn.execute("SELECT * FROM hurda WHERE id = ?", (item_id,)).fetchone()

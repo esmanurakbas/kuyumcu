@@ -25,6 +25,38 @@ def sale_path(kind):
 
 
 @pytest.mark.parametrize("kind", ["normal", "hurda"])
+@pytest.mark.parametrize("stock_mode", [False, True])
+def test_cari_decimal_difference_and_payments_independent_of_stock_mode(tmp_path, monkeypatch, kind, stock_mode):
+    client = make_client(tmp_path, monkeypatch)
+    login(client)
+    product = {"cinsi": "BILEZIK", "ayar": "22"}
+    purchase = {**product, "gram": "3000", "milyem": "922.059", "odeme_tipi": "YOK"}
+    purchase.update({"tedarikci": "ACCOUNT"} if kind == "normal" else {"kisi": "ACCOUNT", "islem_turu": "ALIS"})
+    bought = ok(client.post("/api/alis" if kind == "normal" else "/api/hurda", json=purchase))
+    sale = {**product, "gram": "2768.17", "stoktan": stock_mode, "odeme_tipi": "YOK"}
+    sale.update({"musteri": "ACCOUNT", "satis_milyem": "1000"} if kind == "normal" else {"kisi": "ACCOUNT", "islem_turu": "SATIS", "milyem": "1000"})
+    if not stock_mode:
+        sale["alis_id" if kind == "normal" else "hurda_alis_id"] = bought["id"]
+    ok(client.post(sale_path(kind), json=sale))
+
+    def account():
+        return next(row for row in ok(client.get("/api/cari"))["kisiler"] if row["isim"] == "ACCOUNT")
+
+    row = account()
+    assert row["toplam_alis_has"] == 2766.177
+    assert row["toplam_satis_has"] == 2768.17
+    assert row["net_bakiye_has"] == 1.993
+    stock = ok(client.get(f"/api/stok/{kind}"))
+    payment = ok(client.post("/api/cari/odeme", json={"isim": "ACCOUNT", "yon": "TAHSILAT", "odeme_tipi": "HAS", "odenen_has": "1"}))
+    assert account()["net_bakiye_has"] == 0.993
+    ok(client.put(f"/api/cari/odeme/{payment['id']}", json={"isim": "ACCOUNT", "yon": "ODEME", "odeme_tipi": "HAS", "odenen_has": "1"}))
+    assert account()["net_bakiye_has"] == 2.993
+    ok(client.delete(f"/api/cari/odeme/{payment['id']}"))
+    assert account()["net_bakiye_has"] == 1.993
+    assert ok(client.get(f"/api/stok/{kind}")) == stock
+
+
+@pytest.mark.parametrize("kind", ["normal", "hurda"])
 def test_pool_cross_supplier_exact_total_profit_and_delete(tmp_path, monkeypatch, kind):
     client = make_client(tmp_path, monkeypatch)
     login(client)
@@ -218,3 +250,41 @@ def test_scrap_receipt_cannot_be_converted_into_its_own_stock_sale(tmp_path, mon
     assert client.put(f"/api/hurda/{purchases[0]['id']}", json=sale).status_code == 400
     assert ok(client.get("/api/dashboard")) == before
 
+
+
+@pytest.mark.parametrize("kind", ["normal", "hurda"])
+def test_manual_has_preserves_gram_stock_and_purity_profit(tmp_path, monkeypatch, kind):
+    client = make_client(tmp_path, monkeypatch)
+    login(client)
+    _, sale = setup_pool(client, kind)
+    saved = ok(client.post(sale_path(kind), json={**sale, "has_override": "48.12345", "odeme_tipi": "TAM_KAPAT"}))
+    assert saved["has"] == 48.123
+    assert Decimal(saved["has_override"]) == Decimal("48.12345")
+    assert saved["odenen_has"] == 48.123
+    assert saved["milyem_kari"] == 1.9
+    stock = ok(client.get(f"/api/stok/{kind}"))
+    assert all(row["kalan_gram"] == 0 for row in stock)
+    assert client.post(sale_path(kind), json={**sale, "gram": 1, "has_override": 0}).status_code == 400
+    edited = ok(client.put(f"{sale_path(kind)}/{saved['id']}", json={**sale, "has_override": "48.12345", "notlar": "edited"}))
+    assert Decimal(edited["has_override"]) == Decimal("48.12345")
+    automatic = ok(client.put(f"{sale_path(kind)}/{saved['id']}", json=sale))
+    assert automatic["has"] == 47.5
+    assert client.put(f"{sale_path(kind)}/{saved['id']}", json={**sale, "has_override": -1}).status_code == 422
+
+
+@pytest.mark.parametrize("kind", ["normal", "hurda"])
+def test_purchase_manual_has_is_prorated_without_changing_grams(tmp_path, monkeypatch, kind):
+    client = make_client(tmp_path, monkeypatch)
+    login(client)
+    product = {"cinsi": "BILEZIK", "ayar": "22", "gram": 10, "milyem": 900}
+    path = "/api/alis" if kind == "normal" else "/api/hurda"
+    purchase = {**product, "has_override": "8.98765"}
+    purchase.update({"tedarikci": "S"} if kind == "normal" else {"kisi": "S", "islem_turu": "ALIS"})
+    saved = ok(client.post(path, json=purchase))
+    assert Decimal(saved["has_override"]) == Decimal("8.98765")
+    sale = {**product, "gram": 5, "stoktan": True}
+    sale.update({"musteri": "C", "satis_milyem": 950} if kind == "normal" else {"kisi": "C", "islem_turu": "SATIS", "milyem": 950})
+    ok(client.post(sale_path(kind), json=sale))
+    stock = ok(client.get(f"/api/stok/{kind}"))[0]
+    assert stock["kalan_gram"] == 5
+    assert stock["kalan_has"] == 4.494

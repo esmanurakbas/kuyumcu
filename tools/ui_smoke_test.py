@@ -158,6 +158,9 @@ def run(chrome: Path) -> None:
             cdp.evaluate("document.querySelector('[data-view=cari]').click()")
             cdp.wait_for("document.querySelector('[data-table-type=kisiCari] tbody') !== null")
             assert cdp.evaluate("document.querySelectorAll('#content>.table-section').length === 1")
+            assert cdp.evaluate("formatValue('net_bakiye_has', 2768.17-2766.177) === '+1,99' && formatValue('net_bakiye_has', 1993) === '+1.993' && formatValue('net_bakiye_has', -1.993) === '-1,99'")
+            assert cdp.evaluate("[...document.querySelectorAll('#content .cari-net-balance')].every(cell=>cell.textContent.endsWith(' has gr'))")
+            assert cdp.evaluate("(()=>{const table=document.querySelector('#content>.cari-table');return table.getBoundingClientRect().width >= document.querySelector('#content').clientWidth-2 && getComputedStyle(table.querySelector('.table-wrap')).maxHeight==='none';})()")
             assert cdp.evaluate("document.querySelectorAll('#content [role=tab]').length === 4")
             assert cdp.evaluate("document.querySelectorAll('#content .cari-net-balance.pos').length === 1")
             assert cdp.evaluate("document.querySelectorAll('#content .cari-net-balance.neg').length === 2")
@@ -166,6 +169,7 @@ def run(chrome: Path) -> None:
             assert cdp.evaluate("[...document.querySelectorAll('#content .cari-detail-btn')].every(button=>button.querySelector('svg') && button.getAttribute('aria-label') && !button.textContent.trim())")
             cdp.evaluate("document.querySelector('#content .cari-detail-btn').click()")
             cdp.wait_for("document.querySelector('[data-table-type=cariHistory] tbody') !== null")
+            assert cdp.evaluate("document.querySelectorAll('.cari-reconciliation p').length === 3 && document.querySelector('.cari-reconciliation').textContent.includes('has gram')")
             assert cdp.evaluate("document.querySelector('.cari-detail-close svg') !== null && document.querySelector('.cari-detail-close').getAttribute('aria-label') !== null")
             assert cdp.evaluate("getComputedStyle(document.querySelector('.cari-detail-close')).position === 'absolute'")
             assert cdp.evaluate("document.querySelector('.cari-detail-modal h2').textContent === 'ARANACAK TEDARIKCI'")
@@ -281,7 +285,7 @@ def run(chrome: Path) -> None:
                 assert "Parasal rapor" not in body, view
                 if view in {"alis", "satis", "hurda_alis", "hurda_satis"}:
                     assert cdp.evaluate("['has_fiyati','iscilik','ek_masraf','ek_ucret','indirim'].every(name=>!document.querySelector(`.entry-form [name=${name}]`))"), view
-                assert cdp.evaluate("[...document.querySelectorAll('#content textarea[name=notlar]')].every(input=>input.maxLength===(input.closest('.expense-form')?1000:200) && input.rows===(input.closest('.expense-form')?2:1) && getComputedStyle(input).resize==='vertical' && parseFloat(getComputedStyle(input).maxHeight)===(input.closest('.expense-form')?110:74) && input.getBoundingClientRect().height===(input.closest('.expense-form')?56:38))"), view
+                assert cdp.evaluate("[...document.querySelectorAll('#content textarea[name=notlar]')].every(input=>input.maxLength===500 && input.rows===(input.closest('.expense-form')?2:1) && getComputedStyle(input).resize==='vertical' && parseFloat(getComputedStyle(input).maxHeight)===(input.closest('.expense-form')?110:74) && input.getBoundingClientRect().height===(input.closest('.expense-form')?56:38))"), view
                 assert cdp.evaluate("document.documentElement.dataset.theme") == requested_theme
                 if requested_theme == "dark":
                     assert cdp.evaluate("[...document.querySelectorAll('#content *')].every(el=>{if(!el.getBoundingClientRect().height)return true;const c=getComputedStyle(el).backgroundColor.match(/[0-9.]+/g)?.map(Number);return !c || (c.length===4 && c[3]<.9) || (c[0]+c[1]+c[2])/3<195;})"), (view,"Bright surface leaked into dark theme")
@@ -304,13 +308,13 @@ def run(chrome: Path) -> None:
             assert cdp.evaluate("(()=>{const a=document.querySelector('.expenses-main').getBoundingClientRect();const b=document.querySelector('.expenses-layout>.expense-profit-summary').getBoundingClientRect();return b.left>=a.right;})()")
             assert cdp.evaluate("[...document.querySelectorAll('.expense-summary-card')].every(card=>card.querySelector('strong').getBoundingClientRect().top-card.querySelector('span').getBoundingClientRect().bottom<=6)"), "Summary label/value gap is too large"
             assert cdp.evaluate("document.querySelector('.expense-form-panel').getBoundingClientRect().height < 420"), "Expense form is unnecessarily tall"
-            assert cdp.evaluate("document.querySelector('#content').scrollHeight <= document.querySelector('#content').clientHeight+1"), "Expense page needs unnecessary scrolling"
+            assert cdp.evaluate("document.querySelector('#content').scrollHeight <= document.querySelector('#content').clientHeight+1"), str(cdp.evaluate("['content','.expenses-layout','.table-wrap'].map(s=>{const e=document.querySelector(s==='content'?'#content':s),r=e.getBoundingClientRect();return [s,r.top,r.bottom,e.clientHeight,e.scrollHeight,getComputedStyle(e).marginBottom,e.style.height];})"))
             assert cdp.evaluate("document.querySelector('.expenses-layout .table-wrap').scrollWidth <= document.querySelector('.expenses-layout .table-wrap').clientWidth+1"), "Expense table has horizontal scrolling"
             assert cdp.evaluate("document.querySelector('.expenses-layout>.expense-profit-summary').getBoundingClientRect().left-document.querySelector('.expenses-main').getBoundingClientRect().right<=14"), "Expense form/summary gap is too wide"
             assert cdp.evaluate("Math.abs(document.querySelector('.expenses-main').getBoundingClientRect().top-document.querySelector('.expenses-layout>.expense-profit-summary').getBoundingClientRect().top)<2")
             assert cdp.evaluate("Math.abs(document.querySelector('.expenses-layout').getBoundingClientRect().width-document.querySelector('#content').clientWidth)<10"), "Expense layout must fill available content width"
             cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1280, "height": 720, "deviceScaleFactor": 1, "mobile": False})
-            assert cdp.evaluate("document.querySelector('#content').scrollHeight <= document.querySelector('#content').clientHeight+1"), "Expense page needs scrolling at 1280x720"
+            cdp.wait_for("document.querySelector('#content').scrollHeight <= document.querySelector('#content').clientHeight+1")
             assert cdp.evaluate("document.querySelector('.expenses-layout .table-wrap').scrollWidth <= document.querySelector('.expenses-layout .table-wrap').clientWidth+1"), "Expense table needs horizontal scrolling at 1280x720"
             cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1024, "height": 900, "deviceScaleFactor": 1, "mobile": False})
             for form_view in ["alis", "satis", "giderler"]:
@@ -375,7 +379,7 @@ def run(chrome: Path) -> None:
                     assert cdp.evaluate("(()=>{const form=document.querySelector('.entry-form');const preview=document.querySelector('.sale-summary-row>.has-preview');const columns=getComputedStyle(form).gridTemplateColumns.split(' ').map(parseFloat);const gap=parseFloat(getComputedStyle(form).columnGap);const span=innerWidth<=680?columns.length:innerWidth<=1024?3:innerWidth<=1180?4:3;const expected=columns.slice(0,span).reduce((a,b)=>a+b,0)+gap*(span-1);return Math.abs(preview.getBoundingClientRect().width-expected)<2;})()"), (sale_view,width,'Calculated Has width changed')
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width":1280,"height":720,"deviceScaleFactor":1,"mobile":False})
             # Summary amounts follow visible rows and keep financial directions separate.
-            assert cdp.evaluate("(()=>{const old=state.search;try{state.search='';const cases=[['alis',[{gram:1,has:.9},{gram:2,has:1.8}],[],['3 gr','2,7 has']],['hurdaAlis',[{gram:1,has:.75},{gram:2,has:1.5}],[],['3 gr','2,25 has']],['satis',[{gram:1,milyem_kari:.1},{gram:2,milyem_kari:-.025}],[],['3 gr','0,075 has']],['hurdaSatis',[{gram:1,milyem_kari:.1},{gram:2,milyem_kari:-.025}],[],['3 gr','0,075 has']],...['kisiCari','musteriCari','tedarikciCari'].map(type=>[type,[{net_bakiye_has:2},{net_bakiye_has:-.5},{net_bakiye_has:1}],[],['3 has','0,5 has']]),['cariOdeme',[{yon:'TAHSILAT',odenen_has:.7},{yon:'ODEME',odenen_has:.5}],[],['0,7 has','0,5 has']]];return cases.every(([type,rows,unused,expected])=>{const panel=renderTable(type,rows,'Test');return JSON.stringify([...panel.querySelectorAll('[data-summary-metric]')].map(el=>el.textContent))===JSON.stringify(expected);});}finally{state.search=old;}})()"), "Table summaries mixed quantities, profit, or account/payment directions"
+            assert cdp.evaluate("(()=>{const old=state.search;try{state.search='';const cases=[['alis',[{gram:1,has:.9},{gram:2,has:1.8}],[],['3 gr','2,7 has']],['hurdaAlis',[{gram:1,has:.75},{gram:2,has:1.5}],[],['3 gr','2,25 has']],['satis',[{gram:1,milyem_kari:.1},{gram:2,milyem_kari:-.025}],[],['3 gr','0,07 has']],['hurdaSatis',[{gram:1,milyem_kari:.1},{gram:2,milyem_kari:-.025}],[],['3 gr','0,07 has']],...['kisiCari','musteriCari','tedarikciCari'].map(type=>[type,[{net_bakiye_has:2},{net_bakiye_has:-.5},{net_bakiye_has:1}],[],['3 has','0,5 has']]),['cariOdeme',[{yon:'TAHSILAT',odenen_has:.7},{yon:'ODEME',odenen_has:.5}],[],['0,7 has','0,5 has']]];return cases.every(([type,rows,unused,expected])=>{const panel=renderTable(type,rows,'Test');return JSON.stringify([...panel.querySelectorAll('[data-summary-metric]')].map(el=>el.textContent))===JSON.stringify(expected);});}finally{state.search=old;}})()"), "Table summaries mixed quantities, profit, or account/payment directions"
             assert cdp.evaluate("(()=>{const old=state.search;try{const rows=[{tedarikci:'MATCH',gram:1,has:.9},{tedarikci:'OTHER',gram:2,has:1.8}];state.search='MATCH';const filtered=renderTable('alis',rows,'Test');if(filtered.querySelector('[data-summary-metric=gram]').textContent!=='1 gr'||filtered.querySelector('[data-summary-metric=has]').textContent!=='0,9 has')return false;state.search='NO RESULTS';const empty=renderTable('alis',rows,'Test');return empty.querySelector('.empty')!==null && [...empty.querySelectorAll('[data-summary-metric]')].every(el=>el.textContent.startsWith('0 '));}finally{state.search=old;}})()"), "Summary does not follow search or empty results"
             for view in ['alis','satis','hurda_alis','hurda_satis','cari']:
                 cdp.evaluate(f"document.querySelector('[data-view={view}]').click()")
@@ -480,9 +484,124 @@ def run(chrome: Path) -> None:
                 if kind=='hurda': pool_rows = pool_rows['kayitlar']
                 pool_sale = next(row for row in pool_rows if row['cinsi']==product and row.get('stoktan'))
                 assert pool_sale['gram']==1 and pool_sale['milyem_kari']==.038 and len(pool_sale['stok_dagilimi'])==2
+                cdp.evaluate(f"[...document.querySelectorAll('#content tbody tr')].find(r=>r.textContent.includes({json.dumps(product)})).querySelector('.icon-edit').click()")
+                cdp.wait_for("document.querySelector('[name=gram]')?.value==='1'")
+                cdp.evaluate("(()=>{const i=document.querySelector('[name=has_override]');i.value='0.98';i.dispatchEvent(new Event('input'));})()")
+                assert cdp.evaluate("Number((document.querySelector('[name=satis_milyem]')||document.querySelector('[name=milyem]')).value)===980 && document.querySelector('[name=gram]').value==='1' && document.querySelector('[name=alis_milyem]').value==='912'")
+                cdp.evaluate("document.querySelector('.entry-form').requestSubmit()")
+                cdp.wait_for("document.querySelector('.confirm-ok')!==null")
+                cdp.evaluate("document.querySelector('.confirm-ok').click()")
+                cdp.wait_for("document.querySelector('[name=gram]')?.value===''")
+                result = cdp.evaluate(f"api({json.dumps(endpoint)})",await_promise=True)
+                edited = next(r for r in (result if kind=='normal' else result['kayitlar']) if r['id']==pool_sale['id'])
+                assert edited['gram']==1 and edited['has']==.98 and edited['milyem_kari']==.068 and edited['alis_milyem']==912 and edited['satis_milyem']==980
+                assert edited['stok_dagilimi']==pool_sale['stok_dagilimi']
+
+
+            # Shared UI changes use a disposable database, never customer records.
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width":1440,"height":1000,"deviceScaleFactor":1,"mobile":False})
+            cdp.evaluate("document.querySelector('[data-view=alis]').click()")
+            cdp.wait_for("document.querySelector('[name=tedarikci]')!==null")
+            assert cdp.evaluate("formatValue('has',1234.555)==='1.234,55' && formatValue('has',-1234.555)==='-1.234,55' && formatValue('has',0.009)==='0'")
+            cdp.evaluate("(()=>{const f=document.querySelector('.entry-form');f.elements.tedarikci.value='UI MANUAL HAS';f.elements.cinsi.value='UI MANUAL PRODUCT';f.elements.ayar.value='22';f.elements.gram.value='10';f.elements.milyem.value='900';f.elements.notlar.value='N'.repeat(500);f.elements.gram.dispatchEvent(new Event('input'));})()")
+            assert cdp.evaluate("document.querySelector('[data-has]').textContent==='9'")
+            cdp.evaluate("(()=>{const i=document.querySelector('[name=has_override]');i.value='8.12345';i.dispatchEvent(new Event('input'));})()")
+            assert cdp.evaluate("document.querySelector('[data-has]').textContent==='8,12' && Number(document.querySelector('[name=milyem]').value)===812.345 && document.querySelector('[name=gram]').value==='10'")
+            cdp.evaluate("document.querySelector('.has-auto').click()")
+            assert cdp.evaluate("document.querySelector('[name=has_override]').value==='' && document.querySelector('[data-has]').textContent==='9'")
+            cdp.evaluate("(()=>{const i=document.querySelector('[name=has_override]');i.value='8.12345';i.dispatchEvent(new Event('input'));document.querySelector('.entry-form').requestSubmit();})()")
+            cdp.wait_for("document.querySelector('.confirm-ok')!==null")
+            cdp.evaluate("document.querySelector('.confirm-ok').click()")
+            cdp.wait_for("document.querySelector('[name=tedarikci]')?.value===''")
+            record = cdp.evaluate("api('/api/alis').then(rows=>rows.find(r=>r.tedarikci==='UI MANUAL HAS'))",await_promise=True)
+            assert float(record['has_override'])==8.12345 and len(record['not'])==500 and record['milyem']==812.345 and record['gram']==10
+            cdp.evaluate("[...document.querySelectorAll('[data-table-type=alis] tbody tr')].find(r=>r.textContent.includes('UI MANUAL HAS')).querySelector('.note-preview').click()")
+            assert cdp.evaluate("document.querySelector('.note-full').textContent.length===500")
+            cdp.evaluate("document.querySelector('.note-dialog button').click()")
+            cdp.evaluate("[...document.querySelectorAll('[data-table-type=alis] tbody tr')].find(r=>r.textContent.includes('UI MANUAL HAS')).querySelector('.icon-edit').click()")
+            cdp.wait_for("document.querySelector('[name=has_override]')?.value==='8.12345'")
+            cdp.evaluate("document.querySelector('[name=gram]').value='999';document.querySelector('.entry-form .form-bottom-actions .secondary').click()")
+            cdp.wait_for("document.querySelector('[name=gram]')?.value===''")
+            assert cdp.evaluate(f"api('/api/alis').then(rows=>rows.find(r=>r.id==={record['id']}).gram)",await_promise=True)==10
+            # Overflow happens inside the table, while headers keep their position.
+            cdp.evaluate(f"(()=>{{const row={json.dumps(record)};document.querySelector('#content>.table-section').replaceWith(renderTable('alis',Array.from({{length:80}},()=>row),'Records'));fitPageTable();}})()")
+            assert cdp.evaluate("(()=>{const w=document.querySelector('[data-table-type=alis] .table-wrap'),h=w.querySelector('th');const y=h.getBoundingClientRect().top;w.scrollTop=500;return w.scrollHeight>w.clientHeight && Math.abs(h.getBoundingClientRect().top-y)<2 && document.querySelector('#content').scrollHeight<=document.querySelector('#content').clientHeight+1;})()")
+            # Cari history opens the original purchase, then cancel leaves it unchanged.
+            cdp.evaluate("document.querySelector('[data-view=cari]').click()")
+            cdp.wait_for("document.querySelector('[data-table-type=kisiCari]')!==null")
+            cdp.evaluate("openCariDetail('UI MANUAL HAS')")
+            cdp.wait_for("document.querySelector('[data-table-type=cariHistory] .actions-cell button')!==null")
+            cdp.evaluate("document.querySelector('[data-table-type=cariHistory] .actions-cell button').click()")
+            cdp.wait_for("document.querySelector('[name=tedarikci]')?.value==='UI MANUAL HAS'")
+            assert cdp.evaluate("state.view==='alis' && document.querySelector('.cari-detail-modal')===null")
+            cdp.evaluate("document.querySelector('.entry-form .form-bottom-actions .secondary').click()")
+
+            for person, source, expected_view in [("ARANACAK TEDARIKCI", "Cari", "payment"), ("ARANACAK TEDARIKCI", "Normal", "satis"), ("UI SCRAP CUSTOMER", "Hurda", "hurda_satis"), ("UI SCRAP SUPPLIER", "Hurda", "hurda_alis")]:
+                cdp.evaluate(f"openCariDetail({json.dumps(person)})")
+                cdp.wait_for("document.querySelector('[data-table-type=cariHistory] .actions-cell button')!==null")
+                if expected_view == "satis":
+                    selector = "[...document.querySelectorAll('[data-table-type=cariHistory] tbody tr')].find(r=>r.querySelector('[data-col=kaynak]').textContent==='Normal' && r.querySelector('[data-col=hareket]').textContent===String.fromCodePoint(83,97,116,305,351))"
+                else:
+                    selector = f"[...document.querySelectorAll('[data-table-type=cariHistory] tbody tr')].find(r=>r.querySelector('[data-col=kaynak]').textContent==={json.dumps(source)})"
+                cdp.evaluate(selector+".querySelector('.actions-cell button').click()")
+                if expected_view == "payment":
+                    cdp.wait_for("document.querySelector('.cari-payment-form')?.dataset.editPaymentId")
+                    cdp.evaluate("document.querySelector('.cari-dialog-close').click()")
+                else:
+                    cdp.wait_for(f"state.view==={json.dumps(expected_view)} && document.querySelector('.entry-form .form-bottom-actions .secondary')!==null")
+                    cdp.evaluate("document.querySelector('.entry-form .form-bottom-actions .secondary').click()")
+
+            # All four forms derive only transaction purity, never purchase purity or grams.
+            for view in ["alis", "satis", "hurda_alis", "hurda_satis"]:
+                cdp.evaluate(f"document.querySelector('[data-view={view}]').click()")
+                cdp.wait_for("document.querySelector('[name=has_override]')!==null")
+                cdp.evaluate("(()=>{const f=document.querySelector('.entry-form');const p=f.elements.satis_milyem||f.elements.milyem;f.elements.gram.value='10';p.value='900';if(f.elements.alis_milyem)f.elements.alis_milyem.value='850';f.elements.has_override.value='9.16';f.elements.has_override.dispatchEvent(new Event('input'));})()")
+                assert cdp.evaluate("(()=>{const f=document.querySelector('.entry-form');return f.elements.gram.value==='10' && Number((f.elements.satis_milyem||f.elements.milyem).value)===916 && (!f.elements.alis_milyem||f.elements.alis_milyem.value==='850');})()"),view
+                cdp.evaluate("(()=>{const f=document.querySelector('.entry-form');f.elements.gram.value='0';f.elements.gram.dispatchEvent(new Event('input'));})()")
+                assert cdp.evaluate("!document.querySelector('[name=has_override]').checkValidity()"),view
+                cdp.evaluate("document.querySelector('.has-auto').click()")
+                assert cdp.evaluate("document.querySelector('[name=has_override]').checkValidity() && (document.querySelector('[name=satis_milyem]')||document.querySelector('[name=milyem]')).value==='900'"),view
+            # Settings changes are explicit, persistent and independent of financial data.
+            before_settings = cdp.evaluate("api('/api/dashboard').then(JSON.stringify)",await_promise=True)
+            cdp.evaluate("document.querySelector('#dataMenu').open=true;document.querySelector('#settingsBtn').click()")
+            cdp.wait_for("document.querySelector('.settings-form button[type=submit]')?.disabled===false")
+            assert cdp.evaluate("!document.querySelector('#dataMenu').open && document.querySelector('.settings-about').textContent.length>10")
+            cdp.evaluate("document.querySelector('.settings-form [name=backup_frequency]').value='startup';document.querySelector('.settings-form .secondary').click()")
+            assert cdp.evaluate("api('/api/uygulama-ayarlari').then(r=>r.backup_frequency)",await_promise=True)=='daily'
+            cdp.evaluate("openSettings()")
+            cdp.wait_for("document.querySelector('.settings-form button[type=submit]')?.disabled===false")
+            cdp.evaluate("document.querySelector('.settings-form [name=backup_frequency]').value='startup';document.querySelector('.settings-form [name=theme]').value=document.documentElement.dataset.theme==='dark'?'light':'dark';document.querySelector('.settings-form').requestSubmit()")
+            cdp.wait_for("document.querySelector('.settings-modal')===null")
+            assert cdp.evaluate("api('/api/uygulama-ayarlari').then(r=>r.backup_frequency)",await_promise=True)=='startup'
+            assert cdp.evaluate("api('/api/dashboard').then(JSON.stringify)",await_promise=True)==before_settings
+            cdp.evaluate("openSettings()")
+            cdp.wait_for("document.querySelector('.settings-form button[type=submit]')?.disabled===false")
+            assert cdp.evaluate("document.querySelector('.settings-form [name=backup_frequency]').value==='startup' && document.querySelector('.settings-form [name=theme]').value===document.documentElement.dataset.theme")
+            cdp.evaluate("document.querySelector('.settings-form .secondary').click()")
+            cdp.evaluate("openSettings()")
+            cdp.wait_for("document.querySelector('.settings-form button[type=submit]')?.disabled===false")
+            for width,height in [(1280,820),(390,844)]:
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width":width,"height":height,"deviceScaleFactor":1,"mobile":False})
+                assert cdp.evaluate("(()=>{const r=document.querySelector('.settings-box').getBoundingClientRect();return r.left>=0 && r.right<=innerWidth && r.top>=0 && r.bottom<=innerHeight;})()"),"Settings dialog overflows viewport"
+                assert cdp.evaluate("(()=>{const box=document.querySelector('.settings-box');return [...box.querySelectorAll('select')].every(el=>el.getBoundingClientRect().width>box.clientWidth*.75) && box.scrollHeight<=box.clientHeight+1;})()"),"Settings fields must fill one column without unnecessary scrolling"
+                if os.getenv("UI_THEME_SCREENSHOT_DIR"):
+                    import base64
+                    target=Path(os.environ["UI_THEME_SCREENSHOT_DIR"])
+                    target.mkdir(exist_ok=True)
+                    (target/f"settings-{requested_theme}-{width}.png").write_bytes(base64.b64decode(cdp.call("Page.captureScreenshot", {"format":"png"})["data"]))
+            cdp.evaluate("document.querySelector('.settings-form .secondary').click()")
+            print("New UI checks passed: manual has persistence, automatic reset, 500-character notes, note popup, cancel, internal scroll, sticky header, history navigation")
             print("UI smoke test passed: passwordless entry, all pages, original forms and columns, no added currency labels, expense create/edit, dashboard totals")
         finally:
-            browser.terminate()
+            try:
+                cdp.call("Browser.close")
+            except Exception:
+                pass
+            try:
+                browser.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                browser.terminate()
+                browser.wait(timeout=5)
             server.should_exit = True
             thread.join(timeout=5)
 

@@ -189,8 +189,19 @@ The detail view reads existing APIs without recalculating or changing balances.
 Remaining inventory has is based on the unsold grams at the original purchase
 purity, independently of sale purity and profit. Fully sold quantities have zero
 remaining grams, has, and inventory value. Stock screens omit zero-gram entries
-without removing purchase/sale history. Notes are limited to 200 characters by
-the API and form controls, and displayed in fixed three-line input fields.
+without removing purchase/sale history. Notes accept up to 500 characters in the API and form controls. Existing longer
+notes remain stored and viewable. Table notes are truncated visually and open in
+a read-only dialog. Transaction note inputs start at one line and resize up to
+three; expense notes start at two and resize up to five.
+
+Transaction forms calculate has automatically unless `has_override` is provided.
+The override is stored in the existing has column without a schema migration;
+list responses include its full value for lossless editing. Clearing the override
+returns to automatic calculation. Gram-based stock checks and the existing
+milyem profit formula remain unchanged. The recorded has continues to drive the
+existing cari and transaction payment calculations. The UI truncates displayed
+numbers to at most two decimal places without changing stored values or input
+precision. Cari history actions open the underlying transaction or payment form.
 
 ## Mac teslim paketi
 
@@ -219,3 +230,22 @@ Schema 5, mevcut tablolara stoktan satis isareti ve ayri dagilim tablosu ekler.
 Schema 4 kayitlari yeniden yazilmaz veya otomatik olarak FIFO'ya cevrilmez.
 Guncelleme oncesi veritabani yedeklenir. Kurulum ve guvenli guncelleme icin
 GUNCELLEME.txt dosyasini izleyin; Application Support klasorunu silmeyin.
+
+
+## Minimal application preferences and manual has entry
+
+The three-dot menu opens Settings. Theme uses the existing local theme preference.
+Backup frequency is stored separately in `ui_settings.json` beside the database:
+`daily` preserves the existing first-launch-per-day backup; `startup` adds a
+verified backup at every startup. Neither option disables the existing daily
+backup or changes retention. Settings show the latest valid backup timestamp and
+build version when packaged. The frequency applies at the next application
+startup; this is not an unattended timer while the application is running.
+
+Typing manual has derives transaction purity as has / grams * 1000, leaving grams
+and source purchase purity unchanged. Zero grams blocks manual has submission.
+Editing transaction purity returns to automatic has calculation. The Automatic
+button restores the purity from before the current manual entry. Existing rows
+are not recalculated when opening or changing settings; old manual entries are
+only synchronized when the user changes the has or gram input. Profit continues
+to use the existing purity-difference formula, with the entered transaction purity.
