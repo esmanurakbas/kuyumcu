@@ -555,6 +555,8 @@ def run(chrome: Path) -> None:
             for view in ["alis", "satis", "hurda_alis", "hurda_satis"]:
                 cdp.evaluate(f"document.querySelector('[data-view={view}]').click()")
                 cdp.wait_for("document.querySelector('[name=has_override]')!==null")
+                assert cdp.evaluate("(()=>{const row=document.querySelector('.sale-summary-row');if(!row)return false;const h=row.querySelector('.has-preview').getBoundingClientRect(),p=row.querySelector('.payment-action-box').getBoundingClientRect();return Math.abs(h.top-p.top)<2 && p.left>h.left;})()"),view
+
                 cdp.evaluate("(()=>{const f=document.querySelector('.entry-form');const p=f.elements.satis_milyem||f.elements.milyem;f.elements.gram.value='10';p.value='900';if(f.elements.alis_milyem)f.elements.alis_milyem.value='850';f.elements.has_override.value='9.16';f.elements.has_override.dispatchEvent(new Event('input'));})()")
                 assert cdp.evaluate("(()=>{const f=document.querySelector('.entry-form');return f.elements.gram.value==='10' && Number((f.elements.satis_milyem||f.elements.milyem).value)===916 && (!f.elements.alis_milyem||f.elements.alis_milyem.value==='850');})()"),view
                 cdp.evaluate("(()=>{const f=document.querySelector('.entry-form');f.elements.gram.value='0';f.elements.gram.dispatchEvent(new Event('input'));})()")
@@ -590,6 +592,17 @@ def run(chrome: Path) -> None:
                     target.mkdir(exist_ok=True)
                     (target/f"settings-{requested_theme}-{width}.png").write_bytes(base64.b64decode(cdp.call("Page.captureScreenshot", {"format":"png"})["data"]))
             cdp.evaluate("document.querySelector('.settings-form .secondary').click()")
+
+            # An old backend must not block local appearance preferences.
+            original_theme = cdp.evaluate("document.documentElement.dataset.theme")
+            cdp.evaluate("window.__realApi=api;api=async function(path,options){if(path==='/api/uygulama-ayarlari')throw new Error('Sunucu endpointi bulunamadi.');return window.__realApi(path,options);};openSettings()")
+            cdp.wait_for("document.querySelector('.settings-form button[type=submit]')?.disabled===false")
+            assert cdp.evaluate("document.querySelector('.settings-form [name=backup_frequency]').disabled && !document.querySelector('.settings-modal').textContent.includes('endpoint')")
+            cdp.evaluate("document.querySelector('.settings-form [name=theme]').value=document.documentElement.dataset.theme==='dark'?'light':'dark';document.querySelector('.settings-form').requestSubmit()")
+            cdp.wait_for("document.querySelector('.settings-modal')===null")
+            assert cdp.evaluate("document.documentElement.dataset.theme")!=original_theme
+            assert cdp.evaluate("localStorage.getItem('akbas-theme')===document.documentElement.dataset.theme")
+            cdp.evaluate("api=window.__realApi;delete window.__realApi")
             print("New UI checks passed: manual has persistence, automatic reset, 500-character notes, note popup, cancel, internal scroll, sticky header, history navigation")
             print("UI smoke test passed: passwordless entry, all pages, original forms and columns, no added currency labels, expense create/edit, dashboard totals")
         finally:

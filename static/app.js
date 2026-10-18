@@ -212,7 +212,9 @@ async function openSettings() {
   const theme = document.createElement("select"); theme.name = "theme";
   [["light", "A\u00e7\u0131k"], ["dark", "Koyu"]].forEach(([value, text]) => theme.add(new Option(text, value)));
   theme.value = document.documentElement.dataset.theme;
-  const frequency = document.createElement("select"); frequency.name = "backup_frequency";
+  let backupAvailable = false;
+  let initialFrequency;
+  const frequency = document.createElement("select"); frequency.name = "backup_frequency"; frequency.disabled = true;
   [["daily", "G\u00fcnde bir (ilk a\u00e7\u0131l\u0131\u015fta)"], ["startup", "Her a\u00e7\u0131l\u0131\u015fta"]].forEach(([value, text]) => frequency.add(new Option(text, value)));
   function field(text, input) { const label = document.createElement("label"); label.className = "field"; label.append(text, input); return label; }
   const last = document.createElement("p"); last.className = "hint"; last.textContent = "Y\u00fckleniyor...";
@@ -237,18 +239,25 @@ async function openSettings() {
     const data = await api("/api/uygulama-ayarlari");
     if (!overlay.isConnected) return;
     frequency.value = data.backup_frequency;
+    initialFrequency = data.backup_frequency; backupAvailable = true; frequency.disabled = false;
     last.textContent = `Son ba\u015far\u0131l\u0131 yedek: ${data.last_backup ? new Date(data.last_backup).toLocaleString("tr-TR") : "Hen\u00fcz yok"}`;
     about.textContent = `S\u00fcr\u00fcm: ${data.version}\n${data.update_info}`;
     save.disabled = false;
-  } catch (error) { last.textContent = error.message; }
+  } catch {
+    last.textContent = "Yedekleme ayarlar\u0131na ula\u015f\u0131lamad\u0131. Uygulamay\u0131 tamamen kapat\u0131p yeniden a\u00e7\u0131n. Tema tercihinizi kaydedebilirsiniz.";
+    hint.textContent = "Yedekleme tercihi bu oturumda de\u011fi\u015ftirilemez. Mevcut yedekleriniz korunur.";
+    save.disabled = false;
+  }
   form.onsubmit = async event => {
     event.preventDefault(); if (save.disabled) return; save.disabled = true;
     try {
-      await api("/api/uygulama-ayarlari", {method:"PUT", body:JSON.stringify({backup_frequency:frequency.value})});
+      if (backupAvailable && frequency.value !== initialFrequency) {
+        await api("/api/uygulama-ayarlari", {method:"PUT", body:JSON.stringify({backup_frequency:frequency.value})});
+      }
       if (!overlay.isConnected) return;
       if (document.documentElement.dataset.theme !== theme.value) document.querySelector("#themeToggle").click();
-      dismiss(); showMessage("Ayarlar kaydedildi.");
-    } catch (error) { if (overlay.isConnected) { save.disabled = false; last.textContent = error.message; } }
+      dismiss(); showMessage(backupAvailable ? "Ayarlar kaydedildi." : "G\u00f6r\u00fcn\u00fcm kaydedildi. Yedekleme tercihi de\u011fi\u015ftirilmedi.");
+    } catch { if (overlay.isConnected) { save.disabled = false; last.textContent = "Yedekleme tercihi kaydedilemedi. Uygulamay\u0131 yeniden a\u00e7\u0131p tekrar deneyin."; } }
   };
 }
 
@@ -613,10 +622,10 @@ function openTransactionPaymentModal(form) {
   automatic.onclick = () => { manualHas.value = ""; restoreAutomaticPurity(); updatePreview(); syncTransactionPayment(form); };
   preview.append(manualLabel, automatic);
   const payment = attachPaymentButton(form);
-  if (type === "satis" || (type === "hurda" && hurdaMode === "SATIS")) {
+  {
     const summaryRow = document.createElement("div"); summaryRow.className = "sale-summary-row";
     summaryRow.append(preview, payment); form.appendChild(summaryRow);
-  } else form.append(preview, payment);
+  }
   const updatePreview = () => {
     updateStockMilyem(form);
     preview.querySelector("[data-has]").textContent = formatValue("has", calcHas(form));
